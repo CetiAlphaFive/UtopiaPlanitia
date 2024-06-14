@@ -7,6 +7,8 @@
 #' @param curve_fitter Logical indicating whether to include a curve fitter. Default is TRUE.
 #' @param method The smoothing method to be used by \code{geom_smooth} if \code{curve_fitter} is TRUE. Default is "loess".
 #' @param show_ate_region Logical indicating whether to show the ATE region (confidence interval). Default is TRUE.
+#' @param x.limits x axis limits specified as c() vector. Defaults to range of X.
+#' @param y.limits y axis limits specified as c() vector. Defaults to range of Y.
 #' @return A ggplot2 object with the partial dependence plot.
 #' @export
 #' @examples
@@ -14,7 +16,7 @@
 #' cf_model <- causal_forest(X, Y, W)
 #' pdp_plot(cf_model, x_var = "X1")
 #' }
-plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", show_ate_region = TRUE) {
+plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", show_ate_region = TRUE,x.limits = NULL,y.limits = NULL) {
   # Check if ggplot2 and ggExtra are installed
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed. Please install it to use this function.")
@@ -46,7 +48,9 @@ plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", sho
       legend.key = ggplot2::element_blank(),
       complete = TRUE
     ) +
-    ggplot2::scale_x_continuous(expand = c(0, 0))
+    ggplot2::scale_x_continuous(expand = c(0, 0),limits = x.limits) +
+    ggplot2::scale_y_continuous(limits = y.limits)
+
 
   if (show_ate_region) {
     p <- p +

@@ -9,7 +9,9 @@ plot_pdp(
   x_var,
   curve_fitter = TRUE,
   method = "loess",
-  show_ate_region = TRUE
+  show_ate_region = TRUE,
+  x.limits = NULL,
+  y.limits = NULL
 )
 }
 \arguments{
@@ -22,6 +24,10 @@ plot_pdp(
 \item{method}{The smoothing method to be used by \code{geom_smooth} if \code{curve_fitter} is TRUE. Default is "loess".}
 
 \item{show_ate_region}{Logical indicating whether to show the ATE region (confidence interval). Default is TRUE.}
+
+\item{x.limits}{x axis limits specified as c() vector. Defaults to range of X.}
+
+\item{y.limits}{y axis limits specified as c() vector. Defaults to range of Y.}
 }
 \value{
 A ggplot2 object with the partial dependence plot.
