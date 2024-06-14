@@ -56,7 +56,7 @@ plot_diag <- function(c.forest) {
     ggplot2::geom_density(alpha = 0.5) +
     ggplot2::labs(title = "Outcome Check: Y vs. Y_hat",y = "Density",x = "Y") +
     g_theme() +
-    scale_fill_manual(values = c("dodgerblue1","darkorange1"))
+    ggplot2::scale_fill_manual(values = c("dodgerblue1","darkorange1"))
 
   # Calculate RMSE
   rmse <- function(y, y_hat) sqrt(mean((y - y_hat)^2))
@@ -70,7 +70,7 @@ plot_diag <- function(c.forest) {
   p2 <- plot.df2 |>
     ggplot2::ggplot(ggplot2::aes(x = cates, fill = Type)) +
     ggplot2::geom_density(alpha = 0.5,color = "darkorange1") +
-    ggplot2::labs(title = "CATE Distribution",y = "Density",x = "CATE Estimates") + g_theme
+    ggplot2::labs(title = "CATE Distribution",y = "Density",x = "CATE Estimates") + g_theme()
 
   # Treatment propensity check using MLbalance
   p3 <- MLbalance::random_check(W_real = c.forest$W.orig, X = c.forest$X.orig)$plot
