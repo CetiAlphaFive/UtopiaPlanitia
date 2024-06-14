@@ -30,22 +30,22 @@ plot_inter <- function(c.forest, x_var, y_var, bin_count = 50, limits = c(min(c.
   plot.df <- data.frame(cates = c.forest$predictions, c.forest$X.orig)
 
   p <- plot.df |>
-    ggplot2::ggplot(aes_string(x = x_var, y = y_var, z = "cates")) +
-    stat_summary_hex(bins = bin_count) +
-    geom_point(alpha = 0) +
-    scale_fill_gradient2(low = "#fd647c", mid = "#e6e6e6", high = "#3d900e", limits = limits) +
-    labs(fill = "CATE") +
-    theme(
-      text = element_text(size = 12, family = "serif"),
-      panel.background = element_rect(fill = '#e6e6e6'),
-      plot.title = element_text(hjust = 0.5),
+    ggplot2::ggplot(ggplot2::aes_string(x = x_var, y = y_var, z = "cates")) +
+    ggplot2::stat_summary_hex(bins = bin_count) +
+    ggplot2::geom_point(alpha = 0) +
+    ggplot2::scale_fill_gradient2(low = "#fd647c", mid = "#e6e6e6", high = "#3d900e", limits = limits) +
+    ggplot2::labs(fill = "CATE") +
+    ggplot2::theme(
+      text = ggplot2::element_text(size = 12, family = "serif"),
+      panel.background = ggplot2::element_rect(fill = '#e6e6e6'),
+      plot.title = ggplot2::element_text(hjust = 0.5),
       legend.position = "bottom",
-      panel.border = element_blank(),
-      axis.text = element_text(),
-      axis.title = element_text(size = rel(1.2)),
-      strip.text = element_text(hjust = 0),
-      strip.background = element_rect(fill = NA, color = NA),
-      legend.key = element_blank(),
+      panel.border = ggplot2::element_blank(),
+      axis.text = ggplot2::element_text(),
+      axis.title = ggplot2::element_text(size = ggplot2::rel(1.2)),
+      strip.text = ggplot2::element_text(hjust = 0),
+      strip.background = ggplot2::element_rect(fill = NA, color = NA),
+      legend.key = ggplot2::element_blank(),
       complete = TRUE
     )
 

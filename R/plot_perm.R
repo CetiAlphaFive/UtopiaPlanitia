@@ -15,6 +15,9 @@ plot_perm <- function(perm_results) {
     stop("Package 'ggridges' is required but not installed. Please install it to use this function.")
   }
 
+  requireNamespace("ggplot2")
+  requireNamespace("ggExtra")
+
   # Extract plot_df from perm_results
   plot_df <- perm_results$plot_df
 

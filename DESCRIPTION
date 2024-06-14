@@ -5,7 +5,7 @@ Authors@R: person("Jack T.", "Rametta", , "jtrametta@ucdavis.edu", role = c("aut
            comment = c(ORCID = "0000-0002-9841-146X"))
 Maintainer: Jack T. Rametta <jtrametta@ucdavis.edu>
 Description: This package is a collection of miscellaneous functions under construction. Use at your own risk! 
-License: MIT 
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 3.5.0)
