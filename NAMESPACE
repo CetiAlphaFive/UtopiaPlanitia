@@ -1,2 +1,2 @@
-export(vimp_causal_forests)
+export(cf_loco)
 import(grf)

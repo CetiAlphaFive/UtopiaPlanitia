@@ -1,11 +1,16 @@
 Package: UtopiaPlanitia
-Type: Package
-Title: Miscellaneous functions under construction
+Title: Miscellaneous Functions Under Construction
 Version: 0.1.0
-Author: Jack T. Rametta
+Authors@R: person("Jack T.", "Rametta", , "jtrametta@ucdavis.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-9841-146X"))
 Maintainer: Jack T. Rametta <jtrametta@ucdavis.edu>
 Description: This package is a collection of miscellaenous functions under construction. Use at your own risk! 
-License: MIT 
+License: use_mit_license() 
 Encoding: UTF-8
 LazyData: true
-Depends: R (>= 3.5.0), grf
+Depends: R (>= 3.5.0)
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.1
+URL: https://github.com/CetiAlphaFive/UtopiaPlanitia
+Imports: 
+  grf (>= 2.3.2)
