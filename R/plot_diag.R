@@ -27,8 +27,6 @@ plot_diag <- function(c.forest) {
     stop("Package 'MLbalance' is required but not installed. Please install it to use this function.")
   }
 
-  requireNamespace(gridExtra)
-
   # Outcome check: compare real Y and Y.hat
   plot.df1 <- data.frame(Y = c(c.forest$Y.orig, c.forest$Y.hat),
                          Type = c(rep("Y", length(c.forest$Y.orig)),
