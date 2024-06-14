@@ -4,10 +4,12 @@
 #'
 #' @param c.forest A fitted causal forest object from the grf package.
 #' @param variable.groups A list of variable groups. Each element of the list should contain the variable names of a group.
+#' @param group.by.corr A logical indicating whether to group variables by correlation. Default is FALSE.
+#' @param corr.threshold A numeric value between 0 and 1 indicating the correlation threshold for grouping variables. Default is 0.5.
 #' @param seed An integer seed for reproducibility.
 #' @return A numeric vector of variable importance scores normalized to sum to 1.
 #' @export
-cf_loco <- function(c.forest, variable.groups = NULL, seed = 1234){
+cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, seed = 1234){
   set.seed(seed) # Set seed for reproducibility
 
   # check input c.forest is a grf causal forest
@@ -30,6 +32,20 @@ cf_loco <- function(c.forest, variable.groups = NULL, seed = 1234){
   # get oob predictions
   tau.hat <- c.forest$predictions
 
+  # group variables by correlation if requested
+  if (group.by.corr) {
+    corr_matrix <- cor(X)
+    variable.groups <- list()
+    grouped <- rep(FALSE, p)
+    for (i in 1:p) {
+      if (!grouped[i]) {
+        group <- which(abs(corr_matrix[i, ]) > corr.threshold)
+        variable.groups[[length(variable.groups) + 1]] <- colnames(X)[group]
+        grouped[group] <- TRUE
+      }
+    }
+  }
+
   # set variable groups
   if (is.null(variable.groups)){
     # when variable.groups is NULL, each input variable defines a group
@@ -38,7 +54,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, seed = 1234){
     # check provided variable groups are valid (non empty list, all variable names are contained in the data, and not all variables in one group)
     non.empty.list <- is.list(variable.groups) & length(variable.groups) > 0
     if (!non.empty.list){
-      stop('variable.groups must be an non-empty list.')
+      stop('variable.groups must be a non-empty list.')
     }
     names.valid <- all(unlist(variable.groups) %in% colnames(X))
     if (!names.valid){
