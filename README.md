@@ -1,9 +1,10 @@
 # UtopiaPlanitia
 
-[![Build Status](https://travis-ci.org/CetiAlphaFive/UtopiaPlanitia.svg?branch=main)](https://travis-ci.org/CetiAlphaFive/UtopiaPlanitia)
+[![R-CMD-check](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/R-CMD-check.yaml)
 
-UtopiaPlanitia is an R package that provides miscellaneous functions, including a modified Leave-One-Covariate-Out (LOCO) variable importance function for causal forests. 
-This package is currently under construction and should be used at your own risk.
+UtopiaPlanitia is an R package to store miscellaneous functions under construction, including a few variable importance functions for causal machine learning applications. 
+
+This package is currently under construction and should be used at your own risk! 
 
 ## Installation
 
