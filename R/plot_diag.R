@@ -39,7 +39,7 @@ plot_diag <- function(c.forest) {
           panel.grid.major.x = element_line(colour = "grey80"),
           plot.caption = element_text(hjust = 0),
           text=element_text(size=12,  family="serif"),
-          legend.position = c(.1,.75),
+          legend.position.inside = c(.1,.75),
           axis.ticks = element_blank(),
           legend.background=element_blank(),
           panel.spacing = unit(2, "lines"))
@@ -49,12 +49,12 @@ plot_diag <- function(c.forest) {
   # Outcome check: compare real Y and Y.hat
   plot.df1 <- data.frame(Y = c(c.forest$Y.orig, c.forest$Y.hat),
                          Type = c(rep("Y", length(c.forest$Y.orig)),
-                                  rep("Y_hat(rf)", length(c.forest$Y.hat))))
+                                  rep("Y_hat", length(c.forest$Y.hat))))
 
   p1 <- plot.df1 |>
     ggplot2::ggplot(ggplot2::aes(x = Y, fill = Type)) +
     ggplot2::geom_density(alpha = 0.5) +
-    ggplot2::labs(title = "Outcome Check: Y vs. Y_hat",y = "Density",x = "Y") +
+    ggplot2::labs(title = expression("Outcome Check: Y vs." ~ hat(Y)),y = "Density",x = "Y") +
     g_theme() +
     ggplot2::scale_fill_manual(values = c("dodgerblue1","darkorange1"))
 
@@ -69,14 +69,15 @@ plot_diag <- function(c.forest) {
 
   p2 <- plot.df2 |>
     ggplot2::ggplot(ggplot2::aes(x = cates, fill = Type)) +
-    ggplot2::geom_density(alpha = 0.5,color = "darkorange1") +
-    ggplot2::labs(title = "CATE Distribution",y = "Density",x = "CATE Estimates") + g_theme()
+    ggdist::stat_histinterval(alpha = 0.9,fill = "darkorange1",outline_bars = T,slab_color = "black") +
+    ggplot2::labs(title = expression(hat(CATE) ~ "Distribution"),y = "Density",x = expression(hat(CATE) ~ "Estimates")) +
+    g_theme()
 
   # Treatment propensity check using MLbalance
-  p3 <- MLbalance::random_check(W_real = c.forest$W.orig, X = c.forest$X.orig)$plot
+  p3 <- MLbalance::random_check(W_real = c.forest$W.orig, X = c.forest$X.orig)$plot + ggtitle("Balance Permutation Test")
 
   # Arrange plots in a multi-panel figure
-  gridExtra::grid.arrange(p1, p3, p2, ncol = 1)
+  gridExtra::grid.arrange(p1, p3, p2, ncol = 2)
 
   list(
     outcome_check_plot = p1,
