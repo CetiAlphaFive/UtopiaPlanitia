@@ -14,7 +14,7 @@
 #' cf_model <- causal_forest(X, Y, W)
 #' pdp_plot(cf_model, x_var = "X1")
 #' }
-pdp_plot <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", show_ate_region = TRUE) {
+plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", show_ate_region = TRUE) {
   # Check if ggplot2 and ggExtra are installed
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed. Please install it to use this function.")
