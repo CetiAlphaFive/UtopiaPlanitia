@@ -3,3 +3,4 @@
 export(cf_loco)
 export(compute_vimp)
 export(left_perm)
+export(plot_perm)

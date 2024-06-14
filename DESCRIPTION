@@ -16,5 +16,7 @@ Imports:
   grf (>= 2.3.2)
 Suggests: 
   testthat (>= 3.0.0),
-  roxygen2 (>= 7.1.1)
+  roxygen2 (>= 7.1.1),
+  ggplot2  (>= 3.5.1),
+  ggridges (>= 0.5.5)
 Config/testthat/edition: 3
