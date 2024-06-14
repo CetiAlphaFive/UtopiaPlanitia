@@ -14,7 +14,7 @@
 #' cf_model <- causal_forest(X, Y, W)
 #' inter_plot(cf_model, x_var = "X1", y_var = "X2")
 #' }
-inter_plot <- function(c.forest, x_var, y_var, bin_count = 50, limits = c(min(c.forest$predictions), max(c.forest$predictions))) {
+plot_inter <- function(c.forest, x_var, y_var, bin_count = 50, limits = c(min(c.forest$predictions), max(c.forest$predictions))) {
 
   # Check if ggplot2 and ggridges are installed
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
