@@ -1,6 +1,6 @@
 # UtopiaPlanitia
 
-UtopiaPlanitia is an R package to store miscellaneous functions under construction, including a few variable importance functions for causal machine learning applications, tests for treatment effect heterogeneity, and other applications. 
+UtopiaPlanitia is an R package to store miscellaneous functions I'm in the process of constructing and validating. Currently this includes a few variable importance functions for causal machine learning applications, tests for treatment effect heterogeneity, and associated visualizations. 
 
 ## Installation
 
