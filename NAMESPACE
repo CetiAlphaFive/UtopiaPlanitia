@@ -2,8 +2,9 @@
 
 export(cf_loco)
 export(compute_vimp)
-export(inter_plot)
 export(left_perm)
 export(omni_hetero)
+export(plot_inter)
+export(plot_pdp)
 export(plot_perm)
 import(grf)
