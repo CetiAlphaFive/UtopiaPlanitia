@@ -27,6 +27,25 @@ plot_diag <- function(c.forest) {
     stop("Package 'MLbalance' is required but not installed. Please install it to use this function.")
   }
 
+  #mlbalance theme to match
+  g_theme <- function(){
+    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+          panel.background = element_rect(fill = "white", colour = "white", linewidth = 0.5, linetype = "solid"),
+          axis.line = element_line(linewidth = .5, color = "black"),
+          axis.title.x = element_text(size=12, face="bold"),
+          axis.title.y = element_text(size=12, face="bold"),
+          axis.text.x = element_text(color = "grey30", size=10),
+          axis.text.y = element_text(color = "grey30", size=10),
+          panel.grid.major.x = element_line(colour = "grey80"),
+          plot.caption = element_text(hjust = 0),
+          text=element_text(size=12,  family="serif"),
+          legend.position = c(.1,.75),
+          axis.ticks = element_blank(),
+          legend.background=element_blank(),
+          panel.spacing = unit(2, "lines"))
+  }
+
+
   # Outcome check: compare real Y and Y.hat
   plot.df1 <- data.frame(Y = c(c.forest$Y.orig, c.forest$Y.hat),
                          Type = c(rep("Y", length(c.forest$Y.orig)),
@@ -35,7 +54,9 @@ plot_diag <- function(c.forest) {
   p1 <- plot.df1 |>
     ggplot2::ggplot(ggplot2::aes(x = Y, fill = Type)) +
     ggplot2::geom_density(alpha = 0.5) +
-    ggplot2::labs(title = "Outcome Check: Real Y vs Predicted Y")
+    ggplot2::labs(title = "Outcome Check: Y vs. Y_hat",y = "Density",x = "Y") +
+    g_theme() +
+    scale_fill_manual(values = c("dodgerblue1","darkorange1"))
 
   # Calculate RMSE
   rmse <- function(y, y_hat) sqrt(mean((y - y_hat)^2))
@@ -48,8 +69,8 @@ plot_diag <- function(c.forest) {
 
   p2 <- plot.df2 |>
     ggplot2::ggplot(ggplot2::aes(x = cates, fill = Type)) +
-    ggplot2::geom_density(alpha = 0.5) +
-    ggplot2::labs(title = "Distribution of CATEs")
+    ggplot2::geom_density(alpha = 0.5,color = "darkorange1") +
+    ggplot2::labs(title = "CATE Distribution",y = "Density",x = "CATE Estimates") + g_theme
 
   # Treatment propensity check using MLbalance
   p3 <- MLbalance::random_check(W_real = c.forest$W.orig, X = c.forest$X.orig)$plot
@@ -61,6 +82,6 @@ plot_diag <- function(c.forest) {
     outcome_check_plot = p1,
     treatment_propensity_plot = p3,
     cates_distribution_plot = p2,
-    rmse_rf = rmse_rf
+    rmse_out = rmse_out
   )
 }
