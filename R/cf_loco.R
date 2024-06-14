@@ -13,7 +13,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
 
   set.seed(seed) # Set seed for reproducibility
 
-  # check input c.forest is a grf causal forest
+  # check input c.forest is a grf causal forests
   is.causal.forest <- all(class(c.forest) == c('causal_forest', 'grf'))
   if (!is.causal.forest){
     stop('c.forest must be a grf causal forest.')
