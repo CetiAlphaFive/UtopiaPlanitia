@@ -10,6 +10,7 @@
 #' @return A numeric vector of variable importance scores normalized to sum to 1.
 #' @export
 cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, seed = 1234){
+
   set.seed(seed) # Set seed for reproducibility
 
   # check input c.forest is a grf causal forest
@@ -34,7 +35,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
 
   # group variables by correlation if requested
   if (group.by.corr) {
-    corr_matrix <- cor(X)
+    corr_matrix <- stats::cor(X)
     variable.groups <- list()
     grouped <- rep(FALSE, p)
     for (i in 1:p) {
@@ -73,7 +74,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
   # compute vimp for all input variables using the settings of the initial causal forest
   In <- sapply(index.groups, function(index){
     set.seed(seed) # Set seed for reproducibility within the loop
-    c.forest.drop.Xj <- causal_forest(X[, -index, drop=F], Y, W, Y.hat = c.forest$Y.hat, W.hat = c.forest$W.hat,
+    c.forest.drop.Xj <- grf::causal_forest(X[, -index, drop=F], Y, W, Y.hat = c.forest$Y.hat, W.hat = c.forest$W.hat,
                                       num.trees = c.forest$`_num_trees`,
                                       sample.weights = c.forest$sample.weights,
                                       clusters = c.forest$clusters,
@@ -86,14 +87,14 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
                                       alpha = c.forest$tunable.params$alpha,
                                       imbalance.penalty = c.forest$tunable.params$imbalance.penalty,
                                       ci.group.size = c.forest$ci.group.size)
-    alpha <- get_forest_weights(c.forest.drop.Xj)
+    alpha <- grf::get_forest_weights(c.forest.drop.Xj)
     vimp.Xj <- compute_vimp(alpha, Y.centered, W.centered, tau.hat)
     return(vimp.Xj)
   })
 
   # compute retrain bias
   set.seed(seed) # Set seed for reproducibility
-  c.forest0 <- causal_forest(X, Y, W, Y.hat = c.forest$Y.hat, W.hat = c.forest$W.hat,
+  c.forest0 <- grf::causal_forest(X, Y, W, Y.hat = c.forest$Y.hat, W.hat = c.forest$W.hat,
                              num.trees = c.forest$`_num_trees`,
                              sample.weights = c.forest$sample.weights,
                              clusters = c.forest$clusters,
@@ -106,7 +107,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
                              alpha = c.forest$tunable.params$alpha,
                              imbalance.penalty = c.forest$tunable.params$imbalance.penalty,
                              ci.group.size = c.forest$ci.group.size)
-  alpha <- get_forest_weights(c.forest0)
+  alpha <- grf::get_forest_weights(c.forest0)
   In0 <- compute_vimp(alpha, Y.centered, W.centered, tau.hat)
 
   # compute debiased importance

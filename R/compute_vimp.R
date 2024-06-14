@@ -14,6 +14,6 @@ compute_vimp <- function(alpha, Y.centered, W.centered, tau.hat){
   Y.bar <- alpha %*% Y.centered
   tau.bar <- alpha %*% tau.hat
   tau.hat.new <- (alpha %*% (W.centered * Y.centered - tau.hat * (W.centered^2)) - (W.bar * Y.bar - tau.bar * W2.bar)) / (W2.bar - W.bar^2)
-  vimp <- as.numeric(sum((tau.hat - tau.hat.new)^2) / (length(Y.centered) * var(tau.hat)))
+  vimp <- as.numeric(sum((tau.hat - tau.hat.new)^2) / (length(Y.centered) * stats::var(tau.hat)))
   return(vimp)
 }
