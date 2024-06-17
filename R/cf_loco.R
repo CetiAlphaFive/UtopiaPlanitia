@@ -1,6 +1,6 @@
 #' Modified LOCO Variable Importance for Causal Forests
 #'
-#' Computes variable importance for causal forests using the method here: https://arxiv.org/abs/2006.16763
+#' Computes variable importance for causal forests using the method here: https://arxiv.org/abs/2308.03369
 #'
 #' @param c.forest A fitted causal forest object from the grf package.
 #' @param variable.groups A list of variable groups. Each element of the list should contain the variable names of a group.
