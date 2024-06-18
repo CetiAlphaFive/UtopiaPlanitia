@@ -27,6 +27,10 @@ plot_diag <- function(c.forest) {
     stop("Package 'MLbalance' is required but not installed. Please install it to use this function.")
   }
 
+  requireNamespace(ggplot2)
+  requireNamespace(gridExtra)
+  requireNamespace(MLbalance)
+
   #mlbalance theme to match
   g_theme <- function(){
     theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
