@@ -24,8 +24,8 @@ cf_loco(
 \item{seed}{An integer seed for reproducibility.}
 }
 \value{
-A numeric vector of variable importance scores normalized to sum to 1.
+A data frame with the original variable names and their normalized variable importance scores.
 }
 \description{
-Computes variable importance for causal forests using the method here: https://arxiv.org/abs/2006.16763
+Computes variable importance for causal forests using the method here: https://arxiv.org/abs/2308.03369
 }
