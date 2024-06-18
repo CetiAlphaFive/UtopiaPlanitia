@@ -6,10 +6,11 @@
 #' @param variable.groups A list of variable groups. Each element of the list should contain the variable names of a group.
 #' @param group.by.corr A logical indicating whether to group variables by correlation. Default is FALSE.
 #' @param corr.threshold A numeric value between 0 and 1 indicating the correlation threshold for grouping variables. Default is 0.5.
+#' @param noramlize Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is TRUE.
 #' @param seed An integer seed for reproducibility.
-#' @return A data frame with the original variable names and their normalized variable importance scores.
+#' @return A data frame with the original variable names and their variable importance scores.
 #' @export
-cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, seed = 1234) {
+cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = T,seed = 1234) {
 
   set.seed(seed) # Set seed for reproducibility
 
@@ -115,10 +116,14 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
   # compute debiased importance
   In <- In - In0
 
-  # normalize importance values to sum to 1, using absolute values
-  In <- abs(In)
-  In_normalized <- In / sum(In)
+  if(normalize){
+    # normalize importance values to sum to 1, using absolute values
+    In <- ifelse(In >= 0, abs(In), 0)
+    In_out <- In / sum(In)
+  } else {
+    In_out <- In
+  }
 
-  result <- data.frame(Variable = variable.names, Importance = In_normalized)
+  result <- data.frame(Variable = variable.names, Importance = In_out)
   return(result)
 }

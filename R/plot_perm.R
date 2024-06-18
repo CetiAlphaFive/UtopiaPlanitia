@@ -1,4 +1,4 @@
-#' Plot Variable Importance Scores from Permutation Analysis
+#' Plot Variable Importance Scores from Left-Hand Permutation Test
 #'
 #' Plots the distribution of variable importance scores from the `left_perm` function.
 #'

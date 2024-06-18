@@ -1,6 +1,6 @@
-#' Partial Dependence Plot for Causal Forest
+#' Partial Dependence Plots for Causal Forest
 #'
-#' Generates a partial dependence plot for a causal forest model.
+#' Generates a partial dependence plot for a fitted causal forest model.
 #'
 #' @param c.forest A fitted causal forest model object from the \code{grf} package.
 #' @param x_var The name of the variable to be plotted on the x-axis.
