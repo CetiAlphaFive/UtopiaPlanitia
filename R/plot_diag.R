@@ -27,9 +27,9 @@ plot_diag <- function(c.forest) {
     stop("Package 'MLbalance' is required but not installed. Please install it to use this function.")
   }
 
-  requireNamespace(ggplot2)
-  requireNamespace(gridExtra)
-  requireNamespace(MLbalance)
+  requireNamespace("ggplot2")
+  requireNamespace("gridExtra")
+  requireNamespace("MLbalance")
 
   #mlbalance theme to match
   g_theme <- function(){
