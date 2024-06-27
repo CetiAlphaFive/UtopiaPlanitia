@@ -25,8 +25,8 @@ plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", sho
     stop("Package 'ggExtra' is required but not installed. Please install it to use this function.")
   }
 
-  requireNamespace(ggplot2)
-  requireNamespace(ggExtra)
+  requireNamespace("ggplot2")
+  requireNamespace("ggExtra")
 
   plot.df <- data.frame(cates = c.forest$predictions, c.forest$X.orig)
 
