@@ -30,12 +30,12 @@ plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", sho
 
   plot.df <- data.frame(cates = c.forest$predictions, c.forest$X.orig)
 
-  ate <- grf::average_treatment_effect(c.forest)[["estimate"]]
+  ate   <- grf::average_treatment_effect(c.forest)[["estimate"]]
   upper <- grf::average_treatment_effect(c.forest)[["estimate"]] + 1.96 * grf::average_treatment_effect(c.forest)[["std.err"]]
   lower <- grf::average_treatment_effect(c.forest)[["estimate"]] - 1.96 * grf::average_treatment_effect(c.forest)[["std.err"]]
 
   p <- plot.df |>
-    ggplot2::ggplot(ggplot2::aes_string(x = x_var, y = "cates")) +
+    ggplot2::ggplot(aes_string(x = x_var, y = "cates")) +
     ggplot2::geom_point(shape = 1, color = "#ea794e") +
     ggplot2::labs(y = "CATE") +
     ggplot2::theme(
@@ -57,10 +57,10 @@ plot_pdp <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess", sho
 
   if (show_ate_region) {
     p <- p +
-      ggplot2::geom_hline(ggplot2::aes(yintercept = ate), color = "black", linewidth = .5) +
-      ggplot2::geom_hline(ggplot2::aes(yintercept = upper), linetype = "dotted") +
-      ggplot2::geom_hline(ggplot2::aes(yintercept = lower), linetype = "dotted") +
-      ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), fill = "#5ab0c0", alpha = 0.2)
+      ggplot2::geom_hline(aes(yintercept = ate), color = "black", linewidth = .5) +
+      ggplot2::geom_hline(aes(yintercept = upper), linetype = "dotted") +
+      ggplot2::geom_hline(aes(yintercept = lower), linetype = "dotted") +
+      ggplot2::geom_ribbon(aes(ymin = lower, ymax = upper), fill = "#5ab0c0", alpha = 0.2)
   }
 
   if (curve_fitter) {
