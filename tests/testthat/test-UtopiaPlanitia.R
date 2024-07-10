@@ -6,7 +6,7 @@ test_that("vis generated", {
   set.seed(1995) # Ensure reproducibility in tests
 
   # Generate synthetic data
-  X <- as.matrix(rnorm(100, 0, 1))
+  X <- matrix(rnorm(100*2,0,1),100,2)
   Y <- rnorm(100, 0, 1)
   W <- rbinom(100, 1, .5)
 
@@ -17,7 +17,7 @@ test_that("vis generated", {
   vimp_scores <- cf_loco(cf,normalize = T)
 
   # Check that the sum of variable importance scores is 1
-  expect_equal(sum(vimp_scores), 1, tolerance = 1e-8)
+  expect_equal(sum(vimp_scores$Importance), 1, tolerance = 1e-8)
 })
 
 
