@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_perm.R
 \name{plot_perm}
 \alias{plot_perm}
-\title{Plot Variable Importance Scores from Permutation Analysis}
+\title{Plot Variable Importance Scores from Left-Hand Permutation Test}
 \usage{
 plot_perm(perm_results)
 }

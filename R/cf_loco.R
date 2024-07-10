@@ -52,7 +52,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
   if (is.null(variable.groups)) {
     # when variable.groups is NULL, each input variable defines a group
     index.groups <- as.list(1:p)
-    variable.names <- colnames(X)
+    variable.names <- colnames(as.data.frame(X))
   } else {
     # check provided variable groups are valid (non empty list, all variable names are contained in the data, and not all variables in one group)
     non.empty.list <- is.list(variable.groups) & length(variable.groups) > 0
