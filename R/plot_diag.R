@@ -33,7 +33,7 @@ plot_diag <- function(c.forest) {
 
   #mlbalance theme to match
   g_theme <- function(){
-    theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
+    ggplot2::theme(plot.title = element_text(size=14, face="bold", hjust = 0.5),
           panel.background = element_rect(fill = "white", colour = "white", linewidth = 0.5, linetype = "solid"),
           axis.line = element_line(linewidth = .5, color = "black"),
           axis.title.x = element_text(size=12, face="bold"),

@@ -17,6 +17,10 @@ left_perm <- function(forest, var_select = colnames(as.data.frame(forest$X.orig)
   cv_vi_scores <- matrix(NA, n_cv, length(var_select))
   colnames(cv_vi_scores) <- var_select
 
+  # initialize progress bar for cross-validation
+  cat("Cross-validation runs progress:\n")
+  pb_cv <- txtProgressBar(min = 0, max = n_cv, style = 3)
+
   # loop for cross-validation
   for (i in 1:n_cv) {
     # set a new seed for each run
@@ -38,7 +42,13 @@ left_perm <- function(forest, var_select = colnames(as.data.frame(forest$X.orig)
 
     # extract VI scores
     cv_vi_scores[i, ] <- grf::variable_importance(forest_cv)
+
+    # update progress bar
+    setTxtProgressBar(pb_cv, i)
   }
+
+  # close the progress bar for cross-validation
+  close(pb_cv)
 
   # average the VI scores over cross-validation runs
   original_vi_scores <- colMeans(cv_vi_scores)
@@ -46,6 +56,10 @@ left_perm <- function(forest, var_select = colnames(as.data.frame(forest$X.orig)
   # initialize matrix to store null VI scores
   null_vi_scores <- matrix(NA, n_perm, length(var_select))
   colnames(null_vi_scores) <- var_select
+
+  # initialize progress bar for permutations
+  cat("Permutation runs progress:\n")
+  pb_perm <- txtProgressBar(min = 0, max = n_perm, style = 3)
 
   # loop for permutations
   for (i in 1:n_perm) {
@@ -66,7 +80,13 @@ left_perm <- function(forest, var_select = colnames(as.data.frame(forest$X.orig)
                                           imbalance.penalty = params$imbalance.penalty,
                                           seed = i + 1995 + n_cv)
     null_vi_scores[i, ] <- grf::variable_importance(permuted_forest)
+
+    # update progress bar
+    setTxtProgressBar(pb_perm, i)
   }
+
+  # close the progress bar for permutations
+  close(pb_perm)
 
   # compute means and standard deviations of null VI scores
   null_means <- colMeans(null_vi_scores)
