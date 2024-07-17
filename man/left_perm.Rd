@@ -6,7 +6,7 @@
 \usage{
 left_perm(
   forest,
-  var_select = colnames(forest$X.orig),
+  var_select = colnames(as.data.frame(forest$X.orig)),
   n_perm = 100,
   n_cv = 100
 )

@@ -21,6 +21,9 @@ rank_plot <- function(c.forest, show_ate_region = TRUE) {
     stop("Package 'ggdist' is required but not installed. Please install it to use this function.")
   }
 
+  requireNamespace("ggplot2")
+  requireNamespace("ggdist")
+
   # Calculate ATE and intervals
   ate <- grf::average_treatment_effect(c.forest)[["estimate"]]
   a.upper <- ate + 1.96 * grf::average_treatment_effect(c.forest)[["std.err"]]

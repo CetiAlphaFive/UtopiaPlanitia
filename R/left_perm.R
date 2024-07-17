@@ -8,7 +8,7 @@
 #' @param n_cv An integer specifying the number of cross-validation runs. Default is 100.
 #' @return A list containing a summary data frame of results and a data frame for plotting.
 #' @export
-left_perm <- function(forest, var_select = colnames(forest$X.orig), n_perm = 100, n_cv = 100) {
+left_perm <- function(forest, var_select = colnames(as.data.frame(forest$X.orig)), n_perm = 100, n_cv = 100) {
 
   # extract parameters from the original forest model
   params <- forest$tunable.params
