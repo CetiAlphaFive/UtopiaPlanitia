@@ -13,6 +13,10 @@
 #' print(summary_results)
 #' }
 omni_hetero <- function(c.forest) {
+
+  # pull out clusters
+  cls <- if(length(cf$clusters) == 0){NULL} else {c.forest$clusters}
+
   # Chernozhukov's omnibus test
   calibration_test <- test_calibration(c.forest)
 
@@ -28,20 +32,21 @@ omni_hetero <- function(c.forest) {
 
   # Wager's sequential RATE test
   rate_sequential <- function(X, Y, W, num.folds = 5) {
+
     fold.id <- sample(rep(1:num.folds, length = nrow(X)))
     samples.by.fold <- split(seq_along(fold.id), fold.id)
 
     t.statistics <- c()
 
     # Form AIPW scores for estimating RATE
-    nuisance.forest <- causal_forest(X, Y, W)
+    nuisance.forest <- causal_forest(X, Y, W,cluster = cls)
     DR.scores <- get_scores(nuisance.forest)
 
     for (k in 2:num.folds) {
       train <- unlist(samples.by.fold[1:(k - 1)])
       test <- samples.by.fold[[k]]
 
-      cate.forest <- causal_forest(X[train, ], Y[train], W[train])
+      cate.forest <- causal_forest(X[train, ], Y[train], W[train], clusters = cls[train])
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
 
