@@ -15,7 +15,7 @@
 omni_hetero <- function(c.forest) {
 
   # pull out clusters
-  cls <- if(length(cf$clusters) == 0){NULL} else {c.forest$clusters}
+  cls <- if(length(c.forest$clusters) == 0){NULL} else {c.forest$clusters}
 
   # Chernozhukov's omnibus test
   calibration_test <- test_calibration(c.forest)
