@@ -49,7 +49,7 @@ rank_plot <- function(c.forest, show_ate_region = TRUE) {
     ggplot2::labs(color = "CATE") +
     ggplot2::xlab("") +
     ggplot2::ylab("Individual CATE Estimate (95% Confidence Intervals)") +
-    ggplot2::scale_color_gradient2(low = "#fd647c", mid = "#5ab0c0", high = "#3d900e", midpoint = 0, limits = limits) +
+    ggplot2::scale_color_gradient2(low = "#fd647c", mid = "#e6e6e6", high = "#3d900e", midpoint = 0, limits = limits) +
     ggplot2::theme(
       text = ggplot2::element_text(size = 12, family = "serif"),
       panel.background = ggplot2::element_rect(fill = '#e6e6e6'),
