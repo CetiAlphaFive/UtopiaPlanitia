@@ -39,14 +39,14 @@ omni_hetero <- function(c.forest) {
     t.statistics <- c()
 
     # Form AIPW scores for estimating RATE
-    nuisance.forest <- causal_forest(X, Y, W,cluster = cls)
+    nuisance.forest <- causal_forest(X, Y, W,cluster = cls,seed = 1995)
     DR.scores <- get_scores(nuisance.forest)
 
     for (k in 2:num.folds) {
       train <- unlist(samples.by.fold[1:(k - 1)])
       test <- samples.by.fold[[k]]
 
-      cate.forest <- causal_forest(X[train, ], Y[train], W[train], clusters = cls[train])
+      cate.forest <- causal_forest(X[train, ], Y[train], W[train], clusters = cls[train],seed = 1995)
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
 
