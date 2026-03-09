@@ -5,3 +5,7 @@
 ^docs$
 ^pkgdown$
 ^\.github$
+^\.claude$
+^\.Rhistory$
+^CLAUDE\.md$
+^README\.Rmd$

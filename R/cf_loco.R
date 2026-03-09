@@ -124,5 +124,15 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
   }
 
   result <- data.frame(Variable = variable.names, Importance = In_out)
-  return(result)
+
+  out <- structure(
+    list(
+      vimp = result,
+      normalized = normalize,
+      n = n,
+      p = p
+    ),
+    class = "cf_loco"
+  )
+  out
 }

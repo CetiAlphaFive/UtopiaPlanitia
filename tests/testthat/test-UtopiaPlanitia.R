@@ -11,10 +11,33 @@ make_cf <- function(n = 200, p = 5, num.trees = 100) {
   grf::causal_forest(X, Y, W, num.trees = num.trees)
 }
 
-test_that("cf_loco returns normalized importance summing to 1", {
+test_that("cf_loco returns cf_loco class with correct structure", {
   cf <- make_cf()
-  vimp_scores <- cf_loco(cf, normalize = TRUE)
-  expect_equal(sum(vimp_scores$Importance), 1, tolerance = 1e-8)
+  result <- cf_loco(cf, normalize = TRUE)
+  expect_s3_class(result, "cf_loco")
+  expect_named(result, c("vimp", "normalized", "n", "p"))
+  expect_true(result$normalized)
+  expect_equal(sum(result$vimp$Importance), 1, tolerance = 1e-8)
+})
+
+test_that("print.cf_loco runs without error", {
+  cf <- make_cf()
+  result <- cf_loco(cf)
+  expect_output(print(result), "LOCO Variable Importance")
+})
+
+test_that("summary.cf_loco runs without error", {
+  cf <- make_cf()
+  result <- cf_loco(cf)
+  expect_output(summary(result), "LOCO Variable Importance")
+})
+
+test_that("plot.cf_loco returns a ggplot", {
+  skip_if_not_installed("ggplot2")
+  cf <- make_cf()
+  result <- cf_loco(cf)
+  p <- plot(result)
+  expect_s3_class(p, "gg")
 })
 
 test_that("summary.causal_forest returns correct class and structure", {

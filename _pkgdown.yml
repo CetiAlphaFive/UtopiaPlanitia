@@ -7,6 +7,9 @@ reference:
     contents:
       - summary.causal_forest
       - plot.causal_forest
+      - summary.cf_loco
+      - print.cf_loco
+      - plot.cf_loco
 
   - title: Variable Importance
     contents:
