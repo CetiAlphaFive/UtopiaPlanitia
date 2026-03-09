@@ -7,7 +7,7 @@ Maintainer: Jack T. Rametta <jtrametta@gmail.com>
 Description: Tools for diagnosing and visualizing causal forests fitted with
     the 'grf' package, including LOCO variable importance, omnibus
     heterogeneity tests, partial dependence plots, and S3 summary/plot methods.
-License: MIT + file LICENSE
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 3.5.0)
