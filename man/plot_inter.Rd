@@ -32,6 +32,6 @@ Generates an interaction plot for a causal forest model.
 \examples{
 \dontrun{
 cf_model <- causal_forest(X, Y, W)
-inter_plot(cf_model, x_var = "X1", y_var = "X2")
+plot_inter(cf_model, x_var = "X1", y_var = "X2")
 }
 }

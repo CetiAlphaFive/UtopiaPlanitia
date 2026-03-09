@@ -2,3 +2,25 @@ url: https://cetialphafive.github.io/UtopiaPlanitia/
 template:
   bootstrap: 5
 
+reference:
+  - title: S3 Methods
+    contents:
+      - summary.causal_forest
+      - plot.causal_forest
+
+  - title: Variable Importance
+    contents:
+      - cf_loco
+      - compute_vimp
+      - loco
+
+  - title: Heterogeneity Tests
+    contents:
+      - omni_hetero
+
+  - title: Plot Functions
+    contents:
+      - plot_diag
+      - plot_pdp
+      - plot_inter
+      - rank_plot

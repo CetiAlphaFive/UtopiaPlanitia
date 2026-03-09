@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_pdp.R
 \name{plot_pdp}
 \alias{plot_pdp}
-\title{Partial Dependence Plots for Causal Forest}
+\title{Partial Dependence Plot for Causal Forest}
 \usage{
 plot_pdp(
   c.forest,
@@ -38,6 +38,6 @@ Generates a partial dependence plot for a fitted causal forest model.
 \examples{
 \dontrun{
 cf_model <- causal_forest(X, Y, W)
-pdp_plot(cf_model, x_var = "X1")
+plot_pdp(cf_model, x_var = "X1")
 }
 }

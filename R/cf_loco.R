@@ -6,17 +6,16 @@
 #' @param variable.groups A list of variable groups. Each element of the list should contain the variable names of a group.
 #' @param group.by.corr A logical indicating whether to group variables by correlation. Default is FALSE.
 #' @param corr.threshold A numeric value between 0 and 1 indicating the correlation threshold for grouping variables. Default is 0.5.
-#' @param noramlize Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is TRUE.
+#' @param normalize Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is FALSE.
 #' @param seed An integer seed for reproducibility.
 #' @return A data frame with the original variable names and their variable importance scores.
 #' @export
-cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = T,seed = 1234) {
+cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, seed = 1995) {
 
   set.seed(seed) # Set seed for reproducibility
 
   # check input c.forest is a grf causal forest
-  is.causal.forest <- all(class(c.forest) == c('causal_forest', 'grf'))
-  if (!is.causal.forest) {
+  if (!inherits(c.forest, "causal_forest")) {
     stop('c.forest must be a grf causal forest.')
   }
 
@@ -77,7 +76,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
   # compute vimp for all input variables using the settings of the initial causal forest
   In <- sapply(index.groups, function(index) {
     set.seed(seed) # Set seed for reproducibility within the loop
-    c.forest.drop.Xj <- grf::causal_forest(X[, -index, drop = F], Y, W, Y.hat = c.forest$Y.hat, W.hat = c.forest$W.hat,
+    c.forest.drop.Xj <- grf::causal_forest(X[, -index, drop = FALSE], Y, W, Y.hat = c.forest$Y.hat, W.hat = c.forest$W.hat,
                                            num.trees = c.forest$`_num_trees`,
                                            sample.weights = c.forest$sample.weights,
                                            clusters = c.forest$clusters,

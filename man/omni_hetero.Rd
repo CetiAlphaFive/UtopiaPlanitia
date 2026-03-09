@@ -4,21 +4,44 @@
 \alias{omni_hetero}
 \title{Omnibus Tests of Heterogeneity}
 \usage{
-omni_hetero(c.forest)
+omni_hetero(c.forest, seed = 1995)
 }
 \arguments{
 \item{c.forest}{A fitted causal forest object from the \code{grf} package.}
+
+\item{seed}{An integer seed for reproducibility. Default is \code{1995}.}
 }
 \value{
-A data frame summarizing the results of the heterogeneity tests, including the test names, estimates, p-values, and whether heterogeneity is detected.
+A data frame summarizing the results of the heterogeneity tests,
+including the test names, estimates, p-values, and whether heterogeneity
+is detected at the 0.05 level.
 }
 \description{
 Performs various heterogeneity tests on a fitted causal forest model.
+Combines the calibration test of Chernozhukov et al. (2018), a naive
+high/low CATE split (Athey and Wager, 2019), the sequential RATE test
+(Wager, 2024), and OOB RATE heuristics into a single summary table.
+}
+\details{
+The \strong{OOB RATE two-sided test} is known to be anti-conservative (roughly
+30\\% rejection rate under the null at nominal 5\\%; see the grf RATE
+vignette). The one-sided version is approximately valid when the direction
+is pre-specified. The sequential RATE test has correct size.
 }
 \examples{
 \dontrun{
 cf_model <- causal_forest(X, Y, W)
-summary_results <- omni_hetero(cf_model)
-print(summary_results)
+omni_hetero(cf_model)
 }
+}
+\references{
+Chernozhukov, V., Demirer, M., Duflo, E., and Fernandez-Val, I. (2018).
+Generic Machine Learning Inference on Heterogeneous Treatment Effects in
+Randomized Experiments. NBER Working Paper 24678.
+
+Athey, S. and Wager, S. (2019). Estimating Treatment Effects with Causal
+Forests: An Application. \emph{Observational Studies}, 5, 37--51.
+
+Wager, S. (2024). Sequential Validation of Treatment Heterogeneity.
+arXiv:2405.05534.
 }

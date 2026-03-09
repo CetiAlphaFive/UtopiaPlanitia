@@ -22,6 +22,6 @@ Generates a multi-panel diagnostics figure for a causal forest model.
 \examples{
 \dontrun{
 cf_model <- causal_forest(X, Y, W)
-diagnostics <- cf_model_diagnostics(cf_model)
+diagnostics <- plot_diag(cf_model)
 }
 }

@@ -1,26 +1,31 @@
 Package: UtopiaPlanitia
-Title: Miscellaneous Functions Under Construction
-Version: 0.1.0
-Authors@R: person("Jack T.", "Rametta", , "jtrametta@ucdavis.edu", role = c("aut", "cre"),
+Title: Variable Importance, Heterogeneity Tests, and Visualization for Causal Forests
+Version: 0.2.0
+Authors@R: person("Jack T.", "Rametta", , "jtrametta@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-9841-146X"))
-Maintainer: Jack T. Rametta <jtrametta@ucdavis.edu>
-Description: This package is a collection of miscellaneous functions under construction. Use at your own risk! 
+Maintainer: Jack T. Rametta <jtrametta@gmail.com>
+Description: Tools for diagnosing and visualizing causal forests fitted with
+    the 'grf' package, including LOCO variable importance, omnibus
+    heterogeneity tests, partial dependence plots, and S3 summary/plot methods.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 URL: https://github.com/CetiAlphaFive/UtopiaPlanitia, https://cetialphafive.github.io/UtopiaPlanitia/
-Imports: 
-  grf (>= 2.3.2)
-Suggests: 
+Imports:
+  grf (>= 2.3.2),
+  rlang
+Suggests:
   testthat (>= 3.0.0),
   roxygen2 (>= 7.1.1),
   ggplot2  (>= 3.5.1),
   ggdist   (>= 3.3.1),
-  ggridges (>= 0.5.5),
   ggExtra  (>= 0.10.1),
   gridExtra (>= 2.3),
-  MLbalance (>= 0.1.0)
+  hexbin,
+  MLbalance (>= 0.1.0),
+  ranger,
+  conformalInference
 Config/testthat/edition: 3

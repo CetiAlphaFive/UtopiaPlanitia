@@ -1,12 +1,15 @@
 #' Compute Variable Importance
 #'
-#' Computes variable importance from coefficients alpha of the retrained forest, centered outcome and treatment assignment, and original oob predictions.
+#' Computes variable importance from coefficients alpha of the retrained forest,
+#' centered outcome and treatment assignment, and original OOB predictions.
+#' This is an internal helper used by [cf_loco()].
 #'
 #' @param alpha Coefficients alpha of the retrained forest.
 #' @param Y.centered Centered outcome.
 #' @param W.centered Centered treatment assignment.
 #' @param tau.hat Original out-of-bag predictions.
 #' @return A numeric value representing variable importance.
+#' @keywords internal
 #' @export
 compute_vimp <- function(alpha, Y.centered, W.centered, tau.hat){
   W.bar <- alpha %*% W.centered

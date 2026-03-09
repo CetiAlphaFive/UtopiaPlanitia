@@ -1,33 +1,59 @@
 #' Omnibus Tests of Heterogeneity
 #'
 #' Performs various heterogeneity tests on a fitted causal forest model.
+#' Combines the calibration test of Chernozhukov et al. (2018), a naive
+#' high/low CATE split (Athey and Wager, 2019), the sequential RATE test
+#' (Wager, 2024), and OOB RATE heuristics into a single summary table.
 #'
 #' @param c.forest A fitted causal forest object from the \code{grf} package.
-#' @return A data frame summarizing the results of the heterogeneity tests, including the test names, estimates, p-values, and whether heterogeneity is detected.
+#' @param seed An integer seed for reproducibility. Default is `1995`.
+#' @return A data frame summarizing the results of the heterogeneity tests,
+#'   including the test names, estimates, p-values, and whether heterogeneity
+#'   is detected at the 0.05 level.
+#'
+#' @details
+#' The **OOB RATE two-sided test** is known to be anti-conservative (roughly
+#' 30\% rejection rate under the null at nominal 5\%; see the grf RATE
+#' vignette). The one-sided version is approximately valid when the direction
+#' is pre-specified. The sequential RATE test has correct size.
+#'
+#' @references
+#' Chernozhukov, V., Demirer, M., Duflo, E., and Fernandez-Val, I. (2018).
+#' Generic Machine Learning Inference on Heterogeneous Treatment Effects in
+#' Randomized Experiments. NBER Working Paper 24678.
+#'
+#' Athey, S. and Wager, S. (2019). Estimating Treatment Effects with Causal
+#' Forests: An Application. *Observational Studies*, 5, 37--51.
+#'
+#' Wager, S. (2024). Sequential Validation of Treatment Heterogeneity.
+#' arXiv:2405.05534.
+#'
 #' @import grf
 #' @export
 #' @examples
 #' \dontrun{
 #' cf_model <- causal_forest(X, Y, W)
-#' summary_results <- omni_hetero(cf_model)
-#' print(summary_results)
+#' omni_hetero(cf_model)
 #' }
-omni_hetero <- function(c.forest) {
+omni_hetero <- function(c.forest, seed = 1995) {
+
+  set.seed(seed)
 
   # pull out clusters
-  cls <- if(length(c.forest$clusters) == 0){NULL} else {c.forest$clusters}
+  cls <- if (length(c.forest$clusters) == 0) NULL else c.forest$clusters
 
-  # Chernozhukov's omnibus test
+  # Chernozhukov's calibration test
   calibration_test <- test_calibration(c.forest)
+  cal.est  <- calibration_test["differential.forest.prediction", "Estimate"]
+  cal.pval <- calibration_test["differential.forest.prediction", "Pr(>t)"]
 
-  # Naive high/low test
+  # Naive high/low test (Athey and Wager, 2019)
   tau.hat <- c.forest$predictions
   high.effect <- tau.hat > stats::median(tau.hat)
   ate.high <- average_treatment_effect(c.forest, subset = high.effect)
-  ate.low <- average_treatment_effect(c.forest, subset = !high.effect)
+  ate.low  <- average_treatment_effect(c.forest, subset = !high.effect)
   naive_high_low_diff <- ate.high[["estimate"]] - ate.low[["estimate"]]
-  naive_high_low_se <- sqrt(ate.high[["std.err"]]^2 + ate.low[["std.err"]]^2)
-  naive_high_low_ci <- naive_high_low_diff + c(-1, 1) * stats::qnorm(0.975) * naive_high_low_se
+  naive_high_low_se   <- sqrt(ate.high[["std.err"]]^2 + ate.low[["std.err"]]^2)
   naive_high_low_p_value <- 2 * stats::pnorm(-abs(naive_high_low_diff / naive_high_low_se))
 
   # Wager's sequential RATE test
@@ -38,15 +64,16 @@ omni_hetero <- function(c.forest) {
 
     t.statistics <- c()
 
-    # Form AIPW scores for estimating RATE
-    nuisance.forest <- causal_forest(X, Y, W,cluster = cls,seed = 1995)
+    # Form AIPW scores for estimating RATE (full-sample, per Wager 2024)
+    nuisance.forest <- causal_forest(X, Y, W, clusters = cls, seed = seed)
     DR.scores <- get_scores(nuisance.forest)
 
     for (k in 2:num.folds) {
       train <- unlist(samples.by.fold[1:(k - 1)])
-      test <- samples.by.fold[[k]]
+      test  <- samples.by.fold[[k]]
 
-      cate.forest <- causal_forest(X[train, ], Y[train], W[train], clusters = cls[train],seed = 1995)
+      cate.forest <- causal_forest(X[train, ], Y[train], W[train],
+                                   clusters = cls[train], seed = seed)
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
 
@@ -54,9 +81,7 @@ omni_hetero <- function(c.forest) {
       t.statistics <- c(t.statistics, rate.fold$estimate / rate.fold$std.err)
     }
 
-    p.value <- 2 * stats::pnorm(-abs(sum(t.statistics) / sqrt(num.folds - 1)))
-
-    p.value
+    2 * stats::pnorm(-abs(sum(t.statistics) / sqrt(num.folds - 1)))
   }
 
   X <- c.forest$X.orig
@@ -65,50 +90,43 @@ omni_hetero <- function(c.forest) {
 
   sequential_rate_test_pvalue <- rate_sequential(X, Y, W)
 
-  # Wager's heuristic test
+  # Wager's heuristic OOB RATE test
   tau.hat.oob <- c.forest$predictions
   rate.oob <- rank_average_treatment_effect(c.forest, tau.hat.oob)
 
   t.stat.oob <- rate.oob$estimate / rate.oob$std.err
-  # Compute a two-sided p-value Pr(>|t|)
-  p.val <- 2 * stats::pnorm(-abs(t.stat.oob))
-  # Compute a one-sided p-value Pr(>t)
+  p.val          <- 2 * stats::pnorm(-abs(t.stat.oob))
   p.val.onesided <- stats::pnorm(t.stat.oob, lower.tail = FALSE)
 
-  heuristic_test <- list(
-    reject_two_sided = p.val <= 0.05,
-    reject_one_sided = p.val.onesided <= 0.05
-  )
-
-  # Combine results into a summary table
+  # Combine results
   summary_table <- data.frame(
     heterogeneity_test = c(
-      "Best Linear Fit Test (Chernozhukov et. al, 2024)",
-      "High vs. Low Test (Athey et. al, 2017)",
-      "Sequential RATE Test (Wager, 2024)",
-      "RATE OOB Test (Two-Sided, Wager, 2024)",
-      "RATE OOB Test (One-Sided, Wager, 2024)"
+      "Calibration Test (Chernozhukov et al., 2018)",
+      "High vs. Low CATE (Athey and Wager, 2019)",
+      "Sequential RATE (Wager, 2024)",
+      "OOB RATE, two-sided (heuristic, anti-conservative)",
+      "OOB RATE, one-sided (heuristic)"
     ),
     estimate = c(
-      calibration_test[2],
+      cal.est,
       naive_high_low_diff,
-      "Not Applicable",
+      NA_real_,
       rate.oob$estimate,
       rate.oob$estimate
     ),
     p.val = c(
-      calibration_test[8],
+      cal.pval,
       naive_high_low_p_value,
       sequential_rate_test_pvalue,
       p.val,
       p.val.onesided
     ),
     hetero_detect = c(
-      calibration_test[8] <= 0.05,
-      naive_high_low_p_value <= .05,
+      cal.pval <= 0.05,
+      naive_high_low_p_value <= 0.05,
       sequential_rate_test_pvalue <= 0.05,
-      heuristic_test$reject_two_sided,
-      heuristic_test$reject_one_sided
+      p.val <= 0.05,
+      p.val.onesided <= 0.05
     )
   )
 

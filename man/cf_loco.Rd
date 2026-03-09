@@ -9,8 +9,8 @@ cf_loco(
   variable.groups = NULL,
   group.by.corr = FALSE,
   corr.threshold = 0.5,
-  normalize = T,
-  seed = 1234
+  normalize = FALSE,
+  seed = 1995
 )
 }
 \arguments{
@@ -22,9 +22,9 @@ cf_loco(
 
 \item{corr.threshold}{A numeric value between 0 and 1 indicating the correlation threshold for grouping variables. Default is 0.5.}
 
-\item{seed}{An integer seed for reproducibility.}
+\item{normalize}{Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is FALSE.}
 
-\item{noramlize}{Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is TRUE.}
+\item{seed}{An integer seed for reproducibility.}
 }
 \value{
 A data frame with the original variable names and their variable importance scores.

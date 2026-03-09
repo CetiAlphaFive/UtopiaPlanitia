@@ -19,5 +19,8 @@ compute_vimp(alpha, Y.centered, W.centered, tau.hat)
 A numeric value representing variable importance.
 }
 \description{
-Computes variable importance from coefficients alpha of the retrained forest, centered outcome and treatment assignment, and original oob predictions.
+Computes variable importance from coefficients alpha of the retrained forest,
+centered outcome and treatment assignment, and original OOB predictions.
+This is an internal helper used by \code{\link[=cf_loco]{cf_loco()}}.
 }
+\keyword{internal}
