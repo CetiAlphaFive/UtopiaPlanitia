@@ -24,10 +24,11 @@
 #' }
 plot.causal_forest <- function(x, type = c("diag", "pdp", "rank", "inter"), ...) {
   type <- match.arg(type)
-  switch(type,
+  out <- switch(type,
     diag  = plot_diag(x, ...),
     pdp   = plot_pdp(x, ...),
     rank  = rank_plot(x, ...),
     inter = plot_inter(x, ...)
   )
+  invisible(out)
 }

@@ -46,7 +46,7 @@ summary.causal_forest <- function(object, seed = 1995, ...) {
     heterogeneity = hetero
   )
   class(out) <- "summary.causal_forest"
-  invisible(out)
+  out
 }
 
 #' Print Summary of a Causal Forest
