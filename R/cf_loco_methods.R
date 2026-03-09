@@ -18,7 +18,7 @@ summary.cf_loco <- function(object, ...) {
 #' @export
 print.cf_loco <- function(x, ...) {
 
-  cat("LOCO Variable Importance (Bodory et al., 2023)\n")
+  cat("LOCO Variable Importance (Benard and Josse, 2023)\n")
   cat("  n =", x$n, " p =", x$p, "\n")
   cat("  Normalized:", x$normalized, "\n\n")
 

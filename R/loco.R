@@ -43,6 +43,15 @@
 #' *Journal of the American Statistical Association*, 113(523), 1094--1111.
 #'
 #' @export
+#' @examples
+#' \donttest{
+#' if (requireNamespace("ranger", quietly = TRUE)) {
+#'   set.seed(1995)
+#'   dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100))
+#'   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
+#'   loco(mod, split = FALSE)
+#' }
+#' }
 loco <- function(model, alpha = 0.1, split = TRUE, seed = 1995,
                  verbose = FALSE) {
   stopifnot(inherits(model, "ranger"))

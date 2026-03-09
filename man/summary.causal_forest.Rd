@@ -26,3 +26,16 @@ with components:
 Produces a summary of heterogeneity tests, variable importance scores,
 and the average treatment effect for a fitted causal forest.
 }
+\examples{
+\donttest{
+library(grf)
+set.seed(1995)
+n <- 200; p <- 5
+X <- matrix(rnorm(n * p), n, p)
+colnames(X) <- paste0("X", seq_len(p))
+W <- rbinom(n, 1, 0.5)
+Y <- X[, 1] * W + rnorm(n)
+cf <- causal_forest(X, Y, W, num.trees = 100)
+summary(cf)
+}
+}

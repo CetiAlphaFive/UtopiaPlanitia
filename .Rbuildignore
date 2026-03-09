@@ -9,3 +9,4 @@
 ^\.Rhistory$
 ^CLAUDE\.md$
 ^README\.Rmd$
+^cran-comments\.md$

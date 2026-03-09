@@ -29,9 +29,15 @@ vignette). The one-sided version is approximately valid when the direction
 is pre-specified. The sequential RATE test has correct size.
 }
 \examples{
-\dontrun{
-cf_model <- causal_forest(X, Y, W)
-omni_hetero(cf_model)
+\donttest{
+library(grf)
+set.seed(1995)
+n <- 200; p <- 5
+X <- matrix(rnorm(n * p), n, p)
+W <- rbinom(n, 1, 0.5)
+Y <- X[, 1] * W + rnorm(n)
+cf <- causal_forest(X, Y, W, num.trees = 100)
+omni_hetero(cf)
 }
 }
 \references{

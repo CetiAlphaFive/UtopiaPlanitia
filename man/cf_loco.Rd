@@ -14,21 +14,51 @@ cf_loco(
 )
 }
 \arguments{
-\item{c.forest}{A fitted causal forest object from the grf package.}
+\item{c.forest}{A fitted causal forest object from the \code{grf} package.}
 
-\item{variable.groups}{A list of variable groups. Each element of the list should contain the variable names of a group.}
+\item{variable.groups}{A list of variable groups. Each element of the list
+should contain the variable names of a group.}
 
-\item{group.by.corr}{A logical indicating whether to group variables by correlation. Default is FALSE.}
+\item{group.by.corr}{Logical indicating whether to group variables by
+correlation. Default is \code{FALSE}.}
 
-\item{corr.threshold}{A numeric value between 0 and 1 indicating the correlation threshold for grouping variables. Default is 0.5.}
+\item{corr.threshold}{A numeric value between 0 and 1 indicating the
+correlation threshold for grouping variables. Default is \code{0.5}.}
 
-\item{normalize}{Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is FALSE.}
+\item{normalize}{Logical. If \code{TRUE}, return VI scores normalized to sum to 1.
+Default is \code{FALSE}.}
 
-\item{seed}{An integer seed for reproducibility.}
+\item{seed}{An integer seed for reproducibility. Default is \code{1995}.}
 }
 \value{
-A data frame with the original variable names and their variable importance scores.
+An object of class \code{"cf_loco"} with components:
+\describe{
+\item{vimp}{Data frame with columns \code{Variable} and \code{Importance}.}
+\item{normalized}{Logical indicating whether scores are normalized.}
+\item{n}{Number of observations.}
+\item{p}{Number of covariates.}
+}
 }
 \description{
-Computes variable importance for causal forests using the method here: https://arxiv.org/abs/2308.03369
+Computes leave-one-covariate-out (LOCO) variable importance for causal
+forests using the debiased method of Benard and Josse (2023).
+}
+\examples{
+\donttest{
+library(grf)
+set.seed(1995)
+n <- 200; p <- 5
+X <- matrix(rnorm(n * p), n, p)
+colnames(X) <- paste0("X", seq_len(p))
+W <- rbinom(n, 1, 0.5)
+Y <- X[, 1] * W + rnorm(n)
+cf <- causal_forest(X, Y, W, num.trees = 100)
+vi <- cf_loco(cf)
+summary(vi)
+}
+}
+\references{
+Benard, C. and Josse, J. (2023). Variable Importance for Causal Forests:
+Breaking Down the Heterogeneity of Treatment Effects.
+\doi{10.48550/arXiv.2308.03369}
 }

@@ -10,9 +10,15 @@
 #' @importFrom stats predict
 #' @export
 #' @examples
-#' \dontrun{
-#' cf_model <- causal_forest(X, Y, W)
-#' rank_plot(cf_model, show_ate_region = TRUE)
+#' \donttest{
+#' library(grf)
+#' set.seed(1995)
+#' n <- 200; p <- 5
+#' X <- matrix(rnorm(n * p), n, p)
+#' W <- rbinom(n, 1, 0.5)
+#' Y <- X[, 1] * W + rnorm(n)
+#' cf <- causal_forest(X, Y, W, num.trees = 100)
+#' rank_plot(cf)
 #' }
 rank_plot <- function(c.forest, show_ate_region = TRUE) {
 

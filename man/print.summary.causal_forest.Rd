@@ -11,6 +11,9 @@
 
 \item{...}{Additional arguments (currently unused).}
 }
+\value{
+The input object \code{x} (invisibly).
+}
 \description{
 Print Summary of a Causal Forest
 }

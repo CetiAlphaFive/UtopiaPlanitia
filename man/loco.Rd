@@ -50,6 +50,16 @@ The OOB method refits the original ranger model once per covariate, each time
 dropping one predictor, and compares OOB prediction error to the full-model
 baseline.
 }
+\examples{
+\donttest{
+if (requireNamespace("ranger", quietly = TRUE)) {
+  set.seed(1995)
+  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100))
+  mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
+  loco(mod, split = FALSE)
+}
+}
+}
 \references{
 Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., & Wasserman, L. (2018).
 Distribution-Free Predictive Inference for Regression.

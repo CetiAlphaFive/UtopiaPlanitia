@@ -1,15 +1,45 @@
 #' Modified LOCO Variable Importance for Causal Forests
 #'
-#' Computes variable importance for causal forests using the method here: https://arxiv.org/abs/2308.03369
+#' Computes leave-one-covariate-out (LOCO) variable importance for causal
+#' forests using the debiased method of Benard and Josse (2023).
 #'
-#' @param c.forest A fitted causal forest object from the grf package.
-#' @param variable.groups A list of variable groups. Each element of the list should contain the variable names of a group.
-#' @param group.by.corr A logical indicating whether to group variables by correlation. Default is FALSE.
-#' @param corr.threshold A numeric value between 0 and 1 indicating the correlation threshold for grouping variables. Default is 0.5.
-#' @param normalize Return the VI scores on the same scale as grf's native scores, on the range from 0 to 1 and summing to 1. Default is FALSE.
-#' @param seed An integer seed for reproducibility.
-#' @return A data frame with the original variable names and their variable importance scores.
+#' @param c.forest A fitted causal forest object from the \code{grf} package.
+#' @param variable.groups A list of variable groups. Each element of the list
+#'   should contain the variable names of a group.
+#' @param group.by.corr Logical indicating whether to group variables by
+#'   correlation. Default is `FALSE`.
+#' @param corr.threshold A numeric value between 0 and 1 indicating the
+#'   correlation threshold for grouping variables. Default is `0.5`.
+#' @param normalize Logical. If `TRUE`, return VI scores normalized to sum to 1.
+#'   Default is `FALSE`.
+#' @param seed An integer seed for reproducibility. Default is `1995`.
+#' @return An object of class `"cf_loco"` with components:
+#'   \describe{
+#'     \item{vimp}{Data frame with columns `Variable` and `Importance`.}
+#'     \item{normalized}{Logical indicating whether scores are normalized.}
+#'     \item{n}{Number of observations.}
+#'     \item{p}{Number of covariates.}
+#'   }
+#'
+#' @references
+#' Benard, C. and Josse, J. (2023). Variable Importance for Causal Forests:
+#' Breaking Down the Heterogeneity of Treatment Effects.
+#' \doi{10.48550/arXiv.2308.03369}
+#'
 #' @export
+#' @examples
+#' \donttest{
+#' library(grf)
+#' set.seed(1995)
+#' n <- 200; p <- 5
+#' X <- matrix(rnorm(n * p), n, p)
+#' colnames(X) <- paste0("X", seq_len(p))
+#' W <- rbinom(n, 1, 0.5)
+#' Y <- X[, 1] * W + rnorm(n)
+#' cf <- causal_forest(X, Y, W, num.trees = 100)
+#' vi <- cf_loco(cf)
+#' summary(vi)
+#' }
 cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, seed = 1995) {
 
   set.seed(seed) # Set seed for reproducibility

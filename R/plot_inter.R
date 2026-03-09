@@ -11,9 +11,16 @@
 #' @importFrom rlang .data
 #' @export
 #' @examples
-#' \dontrun{
-#' cf_model <- causal_forest(X, Y, W)
-#' plot_inter(cf_model, x_var = "X1", y_var = "X2")
+#' \donttest{
+#' library(grf)
+#' set.seed(1995)
+#' n <- 200; p <- 5
+#' X <- matrix(rnorm(n * p), n, p)
+#' colnames(X) <- paste0("X", seq_len(p))
+#' W <- rbinom(n, 1, 0.5)
+#' Y <- X[, 1] * W + rnorm(n)
+#' cf <- causal_forest(X, Y, W, num.trees = 100)
+#' plot_inter(cf, x_var = "X1", y_var = "X2")
 #' }
 plot_inter <- function(c.forest, x_var, y_var, bin_count = 50,
                        limits = c(min(c.forest$predictions),

@@ -15,6 +15,18 @@
 #'   }
 #' @method summary causal_forest
 #' @export
+#' @examples
+#' \donttest{
+#' library(grf)
+#' set.seed(1995)
+#' n <- 200; p <- 5
+#' X <- matrix(rnorm(n * p), n, p)
+#' colnames(X) <- paste0("X", seq_len(p))
+#' W <- rbinom(n, 1, 0.5)
+#' Y <- X[, 1] * W + rnorm(n)
+#' cf <- causal_forest(X, Y, W, num.trees = 100)
+#' summary(cf)
+#' }
 summary.causal_forest <- function(object, seed = 1995, ...) {
 
   ate.result <- grf::average_treatment_effect(object)
@@ -41,6 +53,7 @@ summary.causal_forest <- function(object, seed = 1995, ...) {
 #'
 #' @param x An object of class `"summary.causal_forest"`.
 #' @param ... Additional arguments (currently unused).
+#' @return The input object `x` (invisibly).
 #' @method print summary.causal_forest
 #' @export
 print.summary.causal_forest <- function(x, ...) {
