@@ -20,7 +20,7 @@ A list containing the following elements:
 Generates a multi-panel diagnostics figure for a causal forest model.
 }
 \examples{
-\donttest{
+\dontshow{if (rlang::is_installed(c("ggplot2", "ggdist", "gridExtra", "MLbalance"))) withAutoprint(\{ # examplesIf}
 library(grf)
 set.seed(1995)
 n <- 200; p <- 5
@@ -29,5 +29,5 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_diag(cf)
-}
+\dontshow{\}) # examplesIf}
 }

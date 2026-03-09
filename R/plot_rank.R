@@ -9,8 +9,7 @@
 #' @importFrom rlang .data
 #' @importFrom stats predict
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf rlang::is_installed(c("ggplot2", "ggdist"))
 #' library(grf)
 #' set.seed(1995)
 #' n <- 200; p <- 5
@@ -19,7 +18,6 @@
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' rank_plot(cf)
-#' }
 rank_plot <- function(c.forest, show_ate_region = TRUE) {
 
   if (!inherits(c.forest, "causal_forest")) {

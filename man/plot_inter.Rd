@@ -30,7 +30,7 @@ A ggplot2 object with the interaction plot.
 Generates an interaction plot for a causal forest model.
 }
 \examples{
-\donttest{
+\dontshow{if (rlang::is_installed(c("ggplot2", "ggExtra", "hexbin"))) withAutoprint(\{ # examplesIf}
 library(grf)
 set.seed(1995)
 n <- 200; p <- 5
@@ -40,5 +40,5 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_inter(cf, x_var = "X1", y_var = "X2")
-}
+\dontshow{\}) # examplesIf}
 }

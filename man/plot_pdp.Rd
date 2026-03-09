@@ -36,7 +36,7 @@ A ggplot2 object with the partial dependence plot.
 Generates a partial dependence plot for a fitted causal forest model.
 }
 \examples{
-\donttest{
+\dontshow{if (rlang::is_installed(c("ggplot2", "ggExtra"))) withAutoprint(\{ # examplesIf}
 library(grf)
 set.seed(1995)
 n <- 200; p <- 5
@@ -46,5 +46,5 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_pdp(cf, x_var = "X1")
-}
+\dontshow{\}) # examplesIf}
 }

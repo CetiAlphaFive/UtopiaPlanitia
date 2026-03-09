@@ -19,7 +19,7 @@ Generates a rank plot of individual CATE (Conditional Average Treatment Effect)
 estimates from a fitted causal forest model.
 }
 \examples{
-\donttest{
+\dontshow{if (rlang::is_installed(c("ggplot2", "ggdist"))) withAutoprint(\{ # examplesIf}
 library(grf)
 set.seed(1995)
 n <- 200; p <- 5
@@ -28,5 +28,5 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 rank_plot(cf)
-}
+\dontshow{\}) # examplesIf}
 }

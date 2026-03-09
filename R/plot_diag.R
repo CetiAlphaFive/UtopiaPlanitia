@@ -10,8 +10,7 @@
 #' \item{rmse_out}{The Root Mean Squared Error (RMSE) for the random forest model predictions.}
 #' @importFrom rlang .data
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf rlang::is_installed(c("ggplot2", "ggdist", "gridExtra", "MLbalance"))
 #' library(grf)
 #' set.seed(1995)
 #' n <- 200; p <- 5
@@ -20,7 +19,6 @@
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' plot_diag(cf)
-#' }
 plot_diag <- function(c.forest) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {

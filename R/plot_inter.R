@@ -10,8 +10,7 @@
 #' @return A ggplot2 object with the interaction plot.
 #' @importFrom rlang .data
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf rlang::is_installed(c("ggplot2", "ggExtra", "hexbin"))
 #' library(grf)
 #' set.seed(1995)
 #' n <- 200; p <- 5
@@ -21,7 +20,6 @@
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' plot_inter(cf, x_var = "X1", y_var = "X2")
-#' }
 plot_inter <- function(c.forest, x_var, y_var, bin_count = 50,
                        limits = c(min(c.forest$predictions),
                                   max(c.forest$predictions))) {

@@ -10,8 +10,7 @@
 #' @return A plot object (the return value of the dispatched function).
 #' @method plot causal_forest
 #' @export
-#' @examples
-#' \donttest{
+#' @examplesIf rlang::is_installed(c("ggplot2", "ggdist"))
 #' library(grf)
 #' set.seed(1995)
 #' n <- 200; p <- 5
@@ -21,7 +20,6 @@
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' plot(cf, type = "rank")
-#' }
 plot.causal_forest <- function(x, type = c("diag", "pdp", "rank", "inter"), ...) {
   type <- match.arg(type)
   out <- switch(type,
