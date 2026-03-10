@@ -48,6 +48,14 @@ omni_hetero <- function(c.forest, seed = 1995) {
   # pull out clusters
   cls <- if (length(c.forest$clusters) == 0) NULL else c.forest$clusters
 
+  # extract nuisance plug-ins from original forest
+  Y.hat <- c.forest$Y.hat
+  W.hat <- c.forest$W.hat
+
+  # extract tuning parameters to match original forest specification
+  tp <- c.forest$tunable.params
+  n.trees <- c.forest[["_num_trees"]]
+
   # Chernozhukov's calibration test
   calibration_test <- test_calibration(c.forest)
   cal.est  <- calibration_test["differential.forest.prediction", "Estimate"]
@@ -65,13 +73,25 @@ omni_hetero <- function(c.forest, seed = 1995) {
   # Wager's sequential RATE test
   rate_sequential <- function(X, Y, W, num.folds = 5) {
 
+    set.seed(seed)
     fold.id <- sample(rep(1:num.folds, length = nrow(X)))
     samples.by.fold <- split(seq_along(fold.id), fold.id)
 
     t.statistics <- c()
 
     # Form AIPW scores for estimating RATE (full-sample, per Wager 2024)
-    nuisance.forest <- causal_forest(X, Y, W, clusters = cls, seed = seed)
+    nuisance.forest <- causal_forest(X, Y, W,
+                                     Y.hat = Y.hat, W.hat = W.hat,
+                                     num.trees = n.trees,
+                                     clusters = cls,
+                                     sample.fraction = tp$sample.fraction,
+                                     mtry = tp$mtry,
+                                     min.node.size = tp$min.node.size,
+                                     honesty.fraction = tp$honesty.fraction,
+                                     honesty.prune.leaves = tp$honesty.prune.leaves,
+                                     alpha = tp$alpha,
+                                     imbalance.penalty = tp$imbalance.penalty,
+                                     seed = seed)
     DR.scores <- get_scores(nuisance.forest)
 
     for (k in 2:num.folds) {
@@ -79,7 +99,17 @@ omni_hetero <- function(c.forest, seed = 1995) {
       test  <- samples.by.fold[[k]]
 
       cate.forest <- causal_forest(X[train, ], Y[train], W[train],
-                                   clusters = cls[train], seed = seed)
+                                   Y.hat = Y.hat[train], W.hat = W.hat[train],
+                                   num.trees = n.trees,
+                                   clusters = cls[train],
+                                   sample.fraction = tp$sample.fraction,
+                                   mtry = tp$mtry,
+                                   min.node.size = tp$min.node.size,
+                                   honesty.fraction = tp$honesty.fraction,
+                                   honesty.prune.leaves = tp$honesty.prune.leaves,
+                                   alpha = tp$alpha,
+                                   imbalance.penalty = tp$imbalance.penalty,
+                                   seed = seed)
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
 
