@@ -43,6 +43,10 @@
 #' }
 omni_hetero <- function(c.forest, seed = 1995) {
 
+  if (!inherits(c.forest, "causal_forest")) {
+    stop("c.forest must be a grf causal forest.")
+  }
+
   set.seed(seed)
 
   # pull out clusters
@@ -55,6 +59,9 @@ omni_hetero <- function(c.forest, seed = 1995) {
   # extract tuning parameters to match original forest specification
   tp <- c.forest$tunable.params
   n.trees <- c.forest[["_num_trees"]]
+  sw <- c.forest$sample.weights
+  ecw <- c.forest$equalize.cluster.weights
+  cigs <- c.forest$ci.group.size
 
   # Chernozhukov's calibration test
   calibration_test <- test_calibration(c.forest)
@@ -83,7 +90,9 @@ omni_hetero <- function(c.forest, seed = 1995) {
     nuisance.forest <- causal_forest(X, Y, W,
                                      Y.hat = Y.hat, W.hat = W.hat,
                                      num.trees = n.trees,
+                                     sample.weights = sw,
                                      clusters = cls,
+                                     equalize.cluster.weights = ecw,
                                      sample.fraction = tp$sample.fraction,
                                      mtry = tp$mtry,
                                      min.node.size = tp$min.node.size,
@@ -91,6 +100,7 @@ omni_hetero <- function(c.forest, seed = 1995) {
                                      honesty.prune.leaves = tp$honesty.prune.leaves,
                                      alpha = tp$alpha,
                                      imbalance.penalty = tp$imbalance.penalty,
+                                     ci.group.size = cigs,
                                      seed = seed)
     DR.scores <- get_scores(nuisance.forest)
 
@@ -101,7 +111,9 @@ omni_hetero <- function(c.forest, seed = 1995) {
       cate.forest <- causal_forest(X[train, ], Y[train], W[train],
                                    Y.hat = Y.hat[train], W.hat = W.hat[train],
                                    num.trees = n.trees,
+                                   sample.weights = sw[train],
                                    clusters = cls[train],
+                                   equalize.cluster.weights = ecw,
                                    sample.fraction = tp$sample.fraction,
                                    mtry = tp$mtry,
                                    min.node.size = tp$min.node.size,
@@ -109,6 +121,7 @@ omni_hetero <- function(c.forest, seed = 1995) {
                                    honesty.prune.leaves = tp$honesty.prune.leaves,
                                    alpha = tp$alpha,
                                    imbalance.penalty = tp$imbalance.penalty,
+                                   ci.group.size = cigs,
                                    seed = seed)
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
@@ -150,14 +163,14 @@ omni_hetero <- function(c.forest, seed = 1995) {
       rate.oob$estimate,
       rate.oob$estimate
     ),
-    p.val = c(
+    p_value = c(
       cal.pval,
       naive_high_low_p_value,
       sequential_rate_test_pvalue,
       p.val,
       p.val.onesided
     ),
-    hetero_detect = c(
+    hetero_detected = c(
       cal.pval <= 0.05,
       naive_high_low_p_value <= 0.05,
       sequential_rate_test_pvalue <= 0.05,
