@@ -4,16 +4,22 @@
 \alias{plot.causal_forest}
 \title{Plot a Causal Forest}
 \usage{
-\method{plot}{causal_forest}(x, type = c("diag", "pdp", "rank", "inter"), ...)
+\method{plot}{causal_forest}(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...)
 }
 \arguments{
 \item{x}{A fitted causal forest object from the \code{grf} package.}
 
-\item{type}{Character string specifying the plot type. One of
-\code{"diag"}, \code{"pdp"}, \code{"rank"}, or \code{"inter"}.}
+\item{type}{Character string specifying the plot type. One of:
+\itemize{
+\item \code{"diag"}: multi-panel diagnostics (\code{\link[=plot_diag]{plot_diag()}})
+\item \code{"pdp"}: partial dependence plot (\code{\link[=plot_pdp]{plot_pdp()}})
+\item \code{"scatter"}: individual CATE scatter (\code{\link[=plot_scatter]{plot_scatter()}})
+\item \code{"rank"}: ranked CATEs with CIs (\code{\link[=rank_plot]{rank_plot()}})
+\item \code{"inter"}: (deprecated) hex interaction plot (\code{\link[=plot_inter]{plot_inter()}})
+}}
 
 \item{...}{Additional arguments passed to the underlying plot function
-(e.g., \code{x_var} for \code{"pdp"} and \code{"inter"}, \code{y_var} for \code{"inter"}).}
+(e.g., \code{x_var} for \code{"pdp"}, \code{"scatter"}, and \code{"inter"}).}
 }
 \value{
 A plot object (the return value of the dispatched function).

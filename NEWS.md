@@ -1,3 +1,10 @@
+# UtopiaPlanitia 0.3.0
+
+* New `plot_pdp()`: real Friedman (2001) partial dependence plots for 1-way and 2-way CATE surfaces.
+* New `plot_scatter()`: renamed from the old `plot_pdp()`, which plotted individual OOB CATEs vs. a covariate.
+* `plot_inter()` is deprecated in favor of `plot_pdp(c.forest, x_var, y_var)`.
+* `plot.causal_forest()` gains `type = "scatter"` for the new `plot_scatter()`.
+
 # UtopiaPlanitia 0.2.0
 
 * Added S3 `summary()` and `plot()` methods for `causal_forest` objects.

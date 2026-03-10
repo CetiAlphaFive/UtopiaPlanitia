@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_inter.R
 \name{plot_inter}
 \alias{plot_inter}
-\title{Interaction Plot for Causal Forest}
+\title{Interaction Plot for Causal Forest (Deprecated)}
 \usage{
 plot_inter(
   c.forest,
@@ -27,7 +27,12 @@ plot_inter(
 A ggplot2 object with the interaction plot.
 }
 \description{
-Generates an interaction plot for a causal forest model.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
+}
+\details{
+\code{plot_inter()} plots raw OOB CATEs as hex-binned means. For a proper
+two-way partial dependence plot, use \code{\link[=plot_pdp]{plot_pdp()}} with both \code{x_var} and
+\code{y_var}.
 }
 \examples{
 \dontshow{if (rlang::is_installed(c("ggplot2", "ggExtra", "hexbin"))) withAutoprint(\{ # examplesIf}

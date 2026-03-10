@@ -1,6 +1,10 @@
-#' Interaction Plot for Causal Forest
+#' Interaction Plot for Causal Forest (Deprecated)
 #'
-#' Generates an interaction plot for a causal forest model.
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `plot_inter()` plots raw OOB CATEs as hex-binned means. For a proper
+#' two-way partial dependence plot, use [plot_pdp()] with both `x_var` and
+#' `y_var`.
 #'
 #' @param c.forest A fitted causal forest model object from the \code{grf} package.
 #' @param x_var The name of the variable to be plotted on the x-axis.
@@ -23,6 +27,9 @@
 plot_inter <- function(c.forest, x_var, y_var, bin_count = 50,
                        limits = c(min(c.forest$predictions),
                                   max(c.forest$predictions))) {
+
+  .Deprecated("plot_pdp", package = "UtopiaPlanitia",
+              msg = "plot_inter() is deprecated. Use plot_pdp(c.forest, x_var, y_var) for a 2-way partial dependence plot.")
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a causal_forest object from the grf package.")

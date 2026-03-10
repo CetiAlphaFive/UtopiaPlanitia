@@ -7,9 +7,12 @@
 plot_pdp(
   c.forest,
   x_var,
-  curve_fitter = TRUE,
-  method = "loess",
+  y_var = NULL,
+  grid_size = 50,
+  n_max = 2000,
   show_ate_region = TRUE,
+  show_scatter = TRUE,
+  trim = TRUE,
   x.limits = NULL,
   y.limits = NULL
 )
@@ -17,23 +20,49 @@ plot_pdp(
 \arguments{
 \item{c.forest}{A fitted causal forest model object from the \code{grf} package.}
 
-\item{x_var}{The name of the variable to be plotted on the x-axis.}
+\item{x_var}{Character. Name of the primary covariate.}
 
-\item{curve_fitter}{Logical indicating whether to include a curve fitter. Default is TRUE.}
+\item{y_var}{Character or \code{NULL}. If supplied, a 2-way PDP (tile plot) is
+produced; otherwise a 1-way PDP (line plot).}
 
-\item{method}{The smoothing method to be used by \code{geom_smooth} if \code{curve_fitter} is TRUE. Default is "loess".}
+\item{grid_size}{Integer. Number of grid points per variable (default 50).
+For 2-way PDP the grid has \code{grid_size^2} points, so moderate values are
+recommended.}
 
-\item{show_ate_region}{Logical indicating whether to show the ATE region (confidence interval). Default is TRUE.}
+\item{n_max}{Integer. Maximum rows of the covariate matrix used for
+averaging. If \code{nrow(X.orig) > n_max}, a random subsample is drawn
+(default 2000).}
 
-\item{x.limits}{x axis limits specified as c() vector. Defaults to range of X.}
+\item{show_ate_region}{Logical. Draw ATE +/- 1.96 SE band? Only used for
+1-way PDP (default \code{TRUE}).}
 
-\item{y.limits}{y axis limits specified as c() vector. Defaults to range of Y.}
+\item{show_scatter}{Logical. Overlay individual OOB CATEs on the 1-way
+PDP? (default \code{TRUE}).}
+
+\item{trim}{Logical. For 2-way PDP only: mask grid points outside the
+convex hull of the training data to avoid extrapolation into unsupported
+regions (default \code{TRUE}). Uses \code{\link[grDevices:chull]{grDevices::chull()}}. Ignored for 1-way
+PDP.}
+
+\item{x.limits}{x axis limits specified as c() vector. Defaults to range of the grid.}
+
+\item{y.limits}{y axis limits specified as c() vector. Defaults to range of the grid.}
 }
 \value{
-A ggplot2 object with the partial dependence plot.
+A \code{ggExtra::ggMarginal} plot object (class \code{"ggExtraPlot"}).
 }
 \description{
-Generates a partial dependence plot for a fitted causal forest model.
+Computes and plots the partial dependence of the CATE on one or two
+covariates from a fitted causal forest. Unlike \code{\link[=plot_scatter]{plot_scatter()}}, which shows
+individual OOB CATEs, this marginalizes over the remaining covariates by
+averaging predictions across a held-out sample at each grid point
+(Friedman, 2001).
+}
+\details{
+\strong{Computational cost.} Each grid point requires a full \code{predict()} call on
+the (possibly subsampled) covariate matrix. A 2-way PDP evaluates
+\code{grid_size^2} such calls, so keep \code{grid_size} and \code{n_max} moderate for
+large forests.
 }
 \examples{
 \dontshow{if (rlang::is_installed(c("ggplot2", "ggExtra"))) withAutoprint(\{ # examplesIf}
@@ -46,5 +75,10 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_pdp(cf, x_var = "X1")
+plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 20)
 \dontshow{\}) # examplesIf}
+}
+\references{
+Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting
+Machine. \emph{Annals of Statistics}, 29(5), 1189--1232.
 }

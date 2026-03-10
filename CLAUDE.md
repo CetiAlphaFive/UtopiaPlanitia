@@ -18,8 +18,9 @@ UtopiaPlanitia is an R package providing variable importance, heterogeneity test
 | `loco.R` | LOCO variable importance for ranger models |
 | `omni_hetero.R` | Omnibus heterogeneity test battery |
 | `plot_diag.R` | Multi-panel diagnostic plots |
-| `plot_pdp.R` | Partial dependence plots |
-| `plot_inter.R` | Hex interaction plots |
+| `plot_pdp.R` | Real partial dependence plots (1-way and 2-way) |
+| `plot_scatter.R` | CATE scatter plots (individual OOB CATEs vs. covariate) |
+| `plot_inter.R` | Hex interaction plots (deprecated) |
 | `plot_rank.R` | Ranked CATEs with confidence intervals |
 
 ## Dev Conventions
@@ -36,7 +37,7 @@ UtopiaPlanitia is an R package providing variable importance, heterogeneity test
 
 ## Current State
 
-- v0.2.0
+- v0.3.0
 - S3 `summary()` and `plot()` methods for causal forests
 - Core LOCO importance and omnibus heterogeneity test are functional
 - Pruned from 13 to 8 exported functions; archived extras in `R/old/`

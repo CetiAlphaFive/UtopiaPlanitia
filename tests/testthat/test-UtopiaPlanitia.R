@@ -69,3 +69,65 @@ test_that("rank_plot returns a ggplot", {
   p <- rank_plot(cf)
   expect_s3_class(p, "gg")
 })
+
+test_that("plot_scatter returns a ggExtraPlot", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  p <- plot_scatter(cf, x_var = "X1")
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot_pdp 1-way returns a ggExtraPlot", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  p <- plot_pdp(cf, x_var = "X1", grid_size = 3)
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot_pdp 2-way returns a ggExtraPlot", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  p <- plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 3)
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot_pdp 2-way trim = FALSE skips convex hull masking", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  p <- plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 3, trim = FALSE)
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot_pdp rejects bad variable names", {
+  cf <- make_cf()
+  expect_error(plot_pdp(cf, x_var = "not_a_var"), "not in the covariate matrix")
+  expect_error(plot_pdp(cf, x_var = "X1", y_var = "not_a_var"), "not in the covariate matrix")
+})
+
+test_that("plot_inter emits deprecation warning", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  skip_if_not_installed("hexbin")
+  cf <- make_cf()
+  expect_warning(plot_inter(cf, x_var = "X1", y_var = "X2"), "deprecated")
+})
+
+test_that("plot.causal_forest dispatches scatter type", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  p <- plot(cf, type = "scatter", x_var = "X1")
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot.causal_forest inter type emits deprecation warning", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  skip_if_not_installed("hexbin")
+  cf <- make_cf()
+  expect_warning(plot(cf, type = "inter", x_var = "X1", y_var = "X2"), "deprecated")
+})

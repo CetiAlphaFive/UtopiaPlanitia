@@ -25,5 +25,6 @@ reference:
     contents:
       - plot_diag
       - plot_pdp
+      - plot_scatter
       - plot_inter
       - rank_plot
