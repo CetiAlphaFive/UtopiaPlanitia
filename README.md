@@ -2,12 +2,12 @@
 
 # UtopiaPlanitia
 
-Variable importance, heterogeneity tests, and visualization tools for causal forests built on the [grf](https://grf-labs.github.io/grf/) package.
+This package contains various functions that are under construction. *Use at your own risk* These include a variety of tests and statistics for heterogeneous treatment effects such as variable importance, heterogeneity tests, and visualization tools for causal forests built on the [grf](https://grf-labs.github.io/grf/) package. 
 
-## Features
+## Functions 
 
 - **LOCO variable importance** for causal forests (`cf_loco()`) and ranger models (`loco()`)
-- **Omnibus heterogeneity testing** combining calibration, high/low CATE, and RATE tests (`omni_hetero()`)
+- **Omnibus heterogeneity (HTE) testing** combining calibration, high/low CATE, and RATE tests (`omni_hetero()`)
 - **Diagnostic, PDP, rank, and interaction plots** for causal forests
 - **S3 methods**: `summary()` and `plot()` for `causal_forest` and `cf_loco` objects
 
