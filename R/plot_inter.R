@@ -74,5 +74,5 @@ plot_inter <- function(c.forest, x_var, y_var, bin_count = 50,
       complete = TRUE
     )
 
-  ggExtra::ggMarginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
+  .wrap_marginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
 }

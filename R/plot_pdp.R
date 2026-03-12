@@ -35,7 +35,7 @@
 #'   Defaults to `color.var`.
 #' @param xlab Character or `NULL`. Custom x-axis label. Defaults to `x_var`.
 #'
-#' @return A `ggExtra::ggMarginal` plot object (class `"ggExtraPlot"`).
+#' @return A `utopia_plot` object (a `ggExtraPlot` with marginal histograms).
 #'
 #' @details
 #' **Computational cost.** Each grid point requires a full `predict()` call on
@@ -213,8 +213,8 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
         complete = TRUE
       )
 
-    return(ggExtra::ggMarginal(p, type = "histogram",
-                               fill = "#e6e6e6", color = "white"))
+    return(.wrap_marginal(p, type = "histogram",
+                          fill = "#e6e6e6", color = "white"))
   }
 
   # -- standard 1-way PDP -----------------------------------------------------
@@ -269,7 +269,7 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
       complete = TRUE
     )
 
-  ggExtra::ggMarginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
+  .wrap_marginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
 }
 
 #' @keywords internal
@@ -331,5 +331,5 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
       complete = TRUE
     )
 
-  ggExtra::ggMarginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
+  .wrap_marginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
 }

@@ -80,5 +80,5 @@ plot_scatter <- function(c.forest, x_var, curve_fitter = TRUE, method = "loess",
     p <- p + ggplot2::geom_smooth(method = method, color = "#5ab0c0", span = .75, linewidth = 1.5)
   }
 
-  ggExtra::ggMarginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
+  .wrap_marginal(p, type = "histogram", fill = "#e6e6e6", color = "white")
 }

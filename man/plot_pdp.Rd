@@ -14,7 +14,11 @@ plot_pdp(
   show_scatter = TRUE,
   trim = TRUE,
   x.limits = NULL,
-  y.limits = NULL
+  y.limits = NULL,
+  color.var = NULL,
+  color.cat = NULL,
+  color.lab = NULL,
+  xlab = NULL
 )
 }
 \arguments{
@@ -47,9 +51,21 @@ PDP.}
 \item{x.limits}{x axis limits specified as c() vector. Defaults to range of the grid.}
 
 \item{y.limits}{y axis limits specified as c() vector. Defaults to range of the grid.}
+
+\item{color.var}{Character or \code{NULL}. Name of a covariate to split the 1-way
+PDP by. A separate PD curve is drawn for each level. Only for 1-way PDP.}
+
+\item{color.cat}{Character vector or \code{NULL}. Labels for the levels of
+\code{color.var}, in order of sorted unique values. If \code{NULL}, the raw values
+are used as labels.}
+
+\item{color.lab}{Character or \code{NULL}. Legend title for the grouping variable.
+Defaults to \code{color.var}.}
+
+\item{xlab}{Character or \code{NULL}. Custom x-axis label. Defaults to \code{x_var}.}
 }
 \value{
-A \code{ggExtra::ggMarginal} plot object (class \code{"ggExtraPlot"}).
+A \code{utopia_plot} object (a \code{ggExtraPlot} with marginal histograms).
 }
 \description{
 Computes and plots the partial dependence of the CATE on one or two
