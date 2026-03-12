@@ -2,7 +2,9 @@
 
 # UtopiaPlanitia
 
-This package contains various functions that are under construction. *Use at your own risk* These include a variety of tests and statistics for heterogeneous treatment effects such as variable importance, heterogeneity tests, and visualization tools for causal forests built on the [grf](https://grf-labs.github.io/grf/) package. 
+This package contains various functions that are under construction. *Use at your own risk.* 
+
+These include a variety of tests and statistics for heterogeneous treatment effects such as variable importance, heterogeneity tests, and visualization tools for causal forests built on the [grf](https://grf-labs.github.io/grf/) package. 
 
 ## Functions 
 
