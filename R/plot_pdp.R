@@ -26,6 +26,14 @@
 #'   PDP.
 #' @param x.limits x axis limits specified as c() vector. Defaults to range of the grid.
 #' @param y.limits y axis limits specified as c() vector. Defaults to range of the grid.
+#' @param color.var Character or `NULL`. Name of a covariate to split the 1-way
+#'   PDP by. A separate PD curve is drawn for each level. Only for 1-way PDP.
+#' @param color.cat Character vector or `NULL`. Labels for the levels of
+#'   `color.var`, in order of sorted unique values. If `NULL`, the raw values
+#'   are used as labels.
+#' @param color.lab Character or `NULL`. Legend title for the grouping variable.
+#'   Defaults to `color.var`.
+#' @param xlab Character or `NULL`. Custom x-axis label. Defaults to `x_var`.
 #'
 #' @return A `ggExtra::ggMarginal` plot object (class `"ggExtraPlot"`).
 #'
@@ -56,7 +64,9 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
                      grid_size = 50, n_max = 2000,
                      show_ate_region = TRUE, show_scatter = TRUE,
                      trim = TRUE,
-                     x.limits = NULL, y.limits = NULL) {
+                     x.limits = NULL, y.limits = NULL,
+                     color.var = NULL, color.cat = NULL,
+                     color.lab = NULL, xlab = NULL) {
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a causal_forest object from the grf package.")
@@ -69,12 +79,15 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
   }
 
   X.orig <- c.forest$X.orig
-  all.vars <- c(x_var, y_var)
+  all.vars <- c(x_var, y_var, color.var)
   for (v in all.vars) {
     if (!(v %in% colnames(X.orig))) {
       stop(v, " is not in the covariate matrix. ",
            "See colnames(c.forest$X.orig) for available variables.")
     }
+  }
+  if (!is.null(color.var) && !is.null(y_var)) {
+    stop("color.var grouping is only supported for 1-way PDP.")
   }
 
   # Subsample for speed
@@ -85,7 +98,8 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 
   if (is.null(y_var)) {
     .plot_pdp_1way(c.forest, x_var, X.sub, grid_size,
-                   show_ate_region, show_scatter, x.limits, y.limits)
+                   show_ate_region, show_scatter, x.limits, y.limits,
+                   color.var, color.cat, color.lab, xlab)
   } else {
     .plot_pdp_2way(c.forest, x_var, y_var, X.sub, grid_size,
                    trim, x.limits, y.limits)
@@ -135,12 +149,75 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 #' @noRd
 .plot_pdp_1way <- function(c.forest, x_var, X.sub, grid_size,
                            show_ate_region, show_scatter,
-                           x.limits, y.limits) {
+                           x.limits, y.limits,
+                           color.var = NULL, color.cat = NULL,
+                           color.lab = NULL, xlab = NULL) {
   x.vals <- seq(min(X.sub[, x_var]), max(X.sub[, x_var]),
                 length.out = grid_size)
   grid <- data.frame(x.vals)
   names(grid) <- x_var
 
+  x.label <- if (!is.null(xlab)) xlab else x_var
+
+  # -- grouped PDP (early return) ---------------------------------------------
+  if (!is.null(color.var)) {
+    group.vals <- sort(unique(X.sub[, color.var]))
+    if (is.null(color.cat)) color.cat <- as.character(group.vals)
+
+    pd.list <- lapply(seq_along(group.vals), function(i) {
+      X.g <- X.sub[X.sub[, color.var] == group.vals[i], , drop = FALSE]
+      data.frame(x = x.vals,
+                 y = .compute_pd(c.forest, x_var, grid, X.g),
+                 group = color.cat[i])
+    })
+    pd.df <- do.call(rbind, pd.list)
+    pd.df$group <- factor(pd.df$group, levels = color.cat)
+
+    # Scatter data with group labels
+    orig.groups <- c.forest$X.orig[, color.var]
+    raw.df <- data.frame(
+      x = c.forest$X.orig[, x_var],
+      y = as.numeric(c.forest$predictions),
+      group = factor(color.cat[match(orig.groups, group.vals)],
+                     levels = color.cat)
+    )
+
+    legend.label <- if (!is.null(color.lab)) color.lab else color.var
+
+    p <- ggplot2::ggplot(raw.df,
+           ggplot2::aes(x = .data[["x"]], y = .data[["y"]],
+                        color = .data[["group"]]))
+
+    if (show_scatter) {
+      p <- p + ggplot2::geom_point(shape = 1, alpha = 0.4)
+    } else {
+      p <- p + ggplot2::geom_point(alpha = 0)
+    }
+
+    p <- p +
+      ggplot2::geom_line(data = pd.df, linewidth = 1.5) +
+      ggplot2::labs(x = x.label, y = "CATE", color = legend.label) +
+      ggplot2::scale_x_continuous(expand = c(0, 0), limits = x.limits) +
+      ggplot2::scale_y_continuous(limits = y.limits) +
+      ggplot2::theme(
+        text = ggplot2::element_text(size = 12, family = "serif"),
+        panel.background = ggplot2::element_rect(fill = "#e6e6e6"),
+        plot.title = ggplot2::element_text(hjust = 0.5),
+        legend.position = "bottom",
+        panel.border = ggplot2::element_blank(),
+        axis.text = ggplot2::element_text(),
+        axis.title = ggplot2::element_text(size = ggplot2::rel(1.2)),
+        strip.text = ggplot2::element_text(hjust = 0),
+        strip.background = ggplot2::element_rect(fill = NA, color = NA),
+        legend.key = ggplot2::element_blank(),
+        complete = TRUE
+      )
+
+    return(ggExtra::ggMarginal(p, type = "histogram",
+                               fill = "#e6e6e6", color = "white"))
+  }
+
+  # -- standard 1-way PDP -----------------------------------------------------
   pd.vals <- .compute_pd(c.forest, x_var, grid, X.sub)
   pd.df <- data.frame(x = x.vals, y = pd.vals)
 
@@ -175,7 +252,7 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
   # PD line on top
   p <- p +
     ggplot2::geom_line(data = pd.df, color = "#5ab0c0", linewidth = 1.5) +
-    ggplot2::labs(x = x_var, y = "CATE") +
+    ggplot2::labs(x = x.label, y = "CATE") +
     ggplot2::scale_x_continuous(expand = c(0, 0), limits = x.limits) +
     ggplot2::scale_y_continuous(limits = y.limits) +
     ggplot2::theme(
