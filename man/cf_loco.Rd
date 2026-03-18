@@ -10,6 +10,7 @@ cf_loco(
   group.by.corr = FALSE,
   corr.threshold = 0.5,
   normalize = FALSE,
+  screen = FALSE,
   stabilize = 1e-06,
   seed = 1995
 )
@@ -28,6 +29,19 @@ correlation threshold for grouping variables. Default is \code{0.5}.}
 
 \item{normalize}{Logical. If \code{TRUE}, return VI scores normalized to sum to 1.
 Default is \code{FALSE}.}
+
+\item{screen}{Controls optional pre-screening of variables via split-frequency
+importance (\code{grf::variable_importance()}), which is essentially free to
+compute. Screening reduces the number of expensive LOCO refits.
+\describe{
+\item{\code{FALSE} (default)}{No screening. If estimated runtime is high and
+the session is interactive, the user is prompted to screen.}
+\item{\code{TRUE}}{Auto-screen. Keep variables with split-frequency importance
+above the mean.}
+\item{Integer \code{k}}{Keep the top-k variables by split-frequency
+importance.}
+}
+Screened-out variables receive importance = 0 in the output.}
 
 \item{stabilize}{Numeric. Floor for the per-observation denominator
 \code{Var_alpha(W.centered)} in the CATE re-estimation step. Prevents

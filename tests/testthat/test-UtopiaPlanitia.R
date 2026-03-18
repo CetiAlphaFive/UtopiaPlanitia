@@ -173,3 +173,27 @@ test_that("plot_pdp 2-way hull trim emits message", {
     "trimmed"
   )
 })
+
+test_that("cf_loco screen = TRUE returns correct structure and messages", {
+  cf <- make_cf()
+  expect_message(result <- cf_loco(cf, screen = TRUE), "Screening")
+  expect_s3_class(result, "cf_loco")
+  expect_equal(nrow(result$vimp), 5)
+  # screened-out variables should have importance = 0
+  expect_true(any(result$vimp$Importance == 0))
+})
+
+test_that("cf_loco screen = integer keeps exactly k nonzero", {
+  cf <- make_cf()
+  expect_message(result <- cf_loco(cf, screen = 3), "top 3 of 5")
+  nonzero <- sum(result$vimp$Importance != 0)
+  expect_equal(nonzero, 3)
+})
+
+test_that("cf_loco screen = FALSE with small p does not prompt", {
+  cf <- make_cf()
+  # small p, low cost — should run without prompting or screening
+  result <- cf_loco(cf, screen = FALSE)
+  expect_s3_class(result, "cf_loco")
+  expect_equal(nrow(result$vimp), 5)
+})
