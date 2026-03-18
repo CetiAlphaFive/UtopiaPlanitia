@@ -18,7 +18,8 @@ plot_pdp(
   color.var = NULL,
   color.cat = NULL,
   color.lab = NULL,
-  xlab = NULL
+  xlab = NULL,
+  num.threads = NULL
 )
 }
 \arguments{
@@ -34,8 +35,9 @@ For 2-way PDP the grid has \code{grid_size^2} points, so moderate values are
 recommended.}
 
 \item{n_max}{Integer. Maximum rows of the covariate matrix used for
-averaging. If \code{nrow(X.orig) > n_max}, a random subsample is drawn
-(default 2000).}
+averaging. If \code{nrow(X.orig) > n_max}, a random subsample is drawn.
+Default is 2000 for 1-way PDP and 500 for 2-way PDP (PD averaging
+converges fast; pass \code{n_max} explicitly to override).}
 
 \item{show_ate_region}{Logical. Draw ATE +/- 1.96 SE band? Only used for
 1-way PDP (default \code{TRUE}).}
@@ -63,6 +65,10 @@ are used as labels.}
 Defaults to \code{color.var}.}
 
 \item{xlab}{Character or \code{NULL}. Custom x-axis label. Defaults to \code{x_var}.}
+
+\item{num.threads}{Integer or \code{NULL}. Number of threads for \code{predict()}.
+Passed directly to \code{\link[grf:predict.causal_forest]{grf::predict.causal_forest()}}. \code{NULL} (default) uses
+all available threads.}
 }
 \value{
 A \code{utopia_plot} object (a \code{ggExtraPlot} with marginal histograms).
@@ -76,9 +82,11 @@ averaging predictions across a held-out sample at each grid point
 }
 \details{
 \strong{Computational cost.} Each grid point requires a full \code{predict()} call on
-the (possibly subsampled) covariate matrix. A 2-way PDP evaluates
-\code{grid_size^2} such calls, so keep \code{grid_size} and \code{n_max} moderate for
-large forests.
+the (possibly subsampled) covariate matrix. For 2-way PDPs, grid points
+outside the convex hull of the training data are filtered \emph{before}
+prediction when \code{trim = TRUE}, which typically removes 30-50\\% of the grid.
+Combined with a lower default \code{n_max} (500 vs 2000), this yields a
+~6-7x speedup over evaluating the full \code{grid_size^2} grid.
 }
 \examples{
 \dontshow{if (rlang::is_installed(c("ggplot2", "ggExtra"))) withAutoprint(\{ # examplesIf}

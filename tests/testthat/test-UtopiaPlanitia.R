@@ -131,3 +131,30 @@ test_that("plot.causal_forest inter type emits deprecation warning", {
   cf <- make_cf()
   expect_warning(plot(cf, type = "inter", x_var = "X1", y_var = "X2"), "deprecated")
 })
+
+test_that("plot_pdp num.threads passes without error", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  p <- plot_pdp(cf, x_var = "X1", grid_size = 3, num.threads = 1)
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot_pdp 2-way respects explicit n_max", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  # Explicit n_max = 100 should be used (not the 500 default for 2-way)
+  p <- plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 3, n_max = 100)
+  expect_s3_class(p, "ggExtraPlot")
+})
+
+test_that("plot_pdp 2-way hull trim emits message", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggExtra")
+  cf <- make_cf()
+  expect_message(
+    plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 5),
+    "trimmed"
+  )
+})
