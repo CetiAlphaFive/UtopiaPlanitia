@@ -10,6 +10,7 @@ cf_loco(
   group.by.corr = FALSE,
   corr.threshold = 0.5,
   normalize = FALSE,
+  stabilize = 1e-06,
   seed = 1995
 )
 }
@@ -27,6 +28,11 @@ correlation threshold for grouping variables. Default is \code{0.5}.}
 
 \item{normalize}{Logical. If \code{TRUE}, return VI scores normalized to sum to 1.
 Default is \code{FALSE}.}
+
+\item{stabilize}{Numeric. Floor for the per-observation denominator
+\code{Var_alpha(W.centered)} in the CATE re-estimation step. Prevents
+division-by-zero when forest weights concentrate on units with
+near-identical propensity scores. Default \code{1e-6}. Set to \code{0} to disable.}
 
 \item{seed}{An integer seed for reproducibility. Default is \code{1995}.}
 }

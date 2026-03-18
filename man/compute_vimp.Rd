@@ -4,7 +4,7 @@
 \alias{compute_vimp}
 \title{Compute Variable Importance}
 \usage{
-compute_vimp(alpha, Y.centered, W.centered, tau.hat)
+compute_vimp(alpha, Y.centered, W.centered, tau.hat, stabilize = 1e-06)
 }
 \arguments{
 \item{alpha}{Coefficients alpha of the retrained forest.}
@@ -14,6 +14,11 @@ compute_vimp(alpha, Y.centered, W.centered, tau.hat)
 \item{W.centered}{Centered treatment assignment.}
 
 \item{tau.hat}{Original out-of-bag predictions.}
+
+\item{stabilize}{Numeric floor for the per-observation denominator
+\code{Var_alpha(W.centered)}. Prevents division-by-zero when forest weights
+concentrate on units with near-identical propensity scores.
+Default \code{1e-6}.}
 }
 \value{
 A numeric value representing variable importance.

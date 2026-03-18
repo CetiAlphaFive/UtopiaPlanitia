@@ -132,6 +132,21 @@ test_that("plot.causal_forest inter type emits deprecation warning", {
   expect_warning(plot(cf, type = "inter", x_var = "X1", y_var = "X2"), "deprecated")
 })
 
+test_that("cf_loco stabilize warns on near-zero denominator", {
+  cf <- make_cf()
+  # Set an absurdly high threshold so every observation triggers the warning.
+  # Multiple warnings fire (one per compute_vimp call); suppress extras.
+  suppressWarnings(
+    expect_warning(cf_loco(cf, stabilize = 1e6), "near-zero local treatment variation")
+  )
+})
+
+test_that("cf_loco stabilize = 0 disables clamping", {
+  cf <- make_cf()
+  # stabilize = 0 should not warn (threshold is zero, nothing clamped)
+  expect_no_warning(cf_loco(cf, stabilize = 0))
+})
+
 test_that("plot_pdp num.threads passes without error", {
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("ggExtra")

@@ -8,15 +8,34 @@
 #' @param Y.centered Centered outcome.
 #' @param W.centered Centered treatment assignment.
 #' @param tau.hat Original out-of-bag predictions.
+#' @param stabilize Numeric floor for the per-observation denominator
+#'   `Var_alpha(W.centered)`. Prevents division-by-zero when forest weights
+#'   concentrate on units with near-identical propensity scores.
+#'   Default `1e-6`.
 #' @return A numeric value representing variable importance.
 #' @keywords internal
 #' @export
-compute_vimp <- function(alpha, Y.centered, W.centered, tau.hat){
+compute_vimp <- function(alpha, Y.centered, W.centered, tau.hat,
+                         stabilize = 1e-6) {
   W.bar <- alpha %*% W.centered
   W2.bar <- alpha %*% (W.centered^2)
   Y.bar <- alpha %*% Y.centered
   tau.bar <- alpha %*% tau.hat
-  tau.hat.new <- (alpha %*% (W.centered * Y.centered - tau.hat * (W.centered^2)) - (W.bar * Y.bar - tau.bar * W2.bar)) / (W2.bar - W.bar^2)
-  vimp <- as.numeric(sum((tau.hat - tau.hat.new)^2) / (length(Y.centered) * stats::var(tau.hat)))
+  denom <- as.numeric(W2.bar - W.bar^2)
+  n.clamped <- sum(abs(denom) < stabilize)
+  if (n.clamped > 0L) {
+    warning(n.clamped, " of ", length(denom),
+            " observations had near-zero local treatment variation ",
+            "(Var_alpha(W.c) < ", stabilize, ") and were stabilized.",
+            call. = FALSE)
+  }
+  denom <- ifelse(abs(denom) < stabilize, sign(denom) * stabilize, denom)
+  numer <- as.numeric(
+    alpha %*% (W.centered * Y.centered - tau.hat * (W.centered^2)) -
+      (W.bar * Y.bar - tau.bar * W2.bar)
+  )
+  tau.hat.new <- numer / denom
+  vimp <- as.numeric(sum((tau.hat - tau.hat.new)^2) /
+                       (length(Y.centered) * stats::var(tau.hat)))
   return(vimp)
 }

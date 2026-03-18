@@ -12,6 +12,10 @@
 #'   correlation threshold for grouping variables. Default is `0.5`.
 #' @param normalize Logical. If `TRUE`, return VI scores normalized to sum to 1.
 #'   Default is `FALSE`.
+#' @param stabilize Numeric. Floor for the per-observation denominator
+#'   `Var_alpha(W.centered)` in the CATE re-estimation step. Prevents
+#'   division-by-zero when forest weights concentrate on units with
+#'   near-identical propensity scores. Default `1e-6`. Set to `0` to disable.
 #' @param seed An integer seed for reproducibility. Default is `1995`.
 #' @return An object of class `"cf_loco"` with components:
 #'   \describe{
@@ -40,7 +44,7 @@
 #' vi <- cf_loco(cf)
 #' summary(vi)
 #' }
-cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, seed = 1995) {
+cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, stabilize = 1e-6, seed = 1995) {
 
   set.seed(seed) # Set seed for reproducibility
 
@@ -120,7 +124,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
                                            imbalance.penalty = c.forest$tunable.params$imbalance.penalty,
                                            ci.group.size = c.forest$ci.group.size)
     alpha <- grf::get_forest_weights(c.forest.drop.Xj)
-    vimp.Xj <- compute_vimp(alpha, Y.centered, W.centered, tau.hat)
+    vimp.Xj <- compute_vimp(alpha, Y.centered, W.centered, tau.hat, stabilize)
     return(vimp.Xj)
   })
 
@@ -140,7 +144,7 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
                                   imbalance.penalty = c.forest$tunable.params$imbalance.penalty,
                                   ci.group.size = c.forest$ci.group.size)
   alpha <- grf::get_forest_weights(c.forest0)
-  In0 <- compute_vimp(alpha, Y.centered, W.centered, tau.hat)
+  In0 <- compute_vimp(alpha, Y.centered, W.centered, tau.hat, stabilize)
 
   # compute debiased importance
   In <- In - In0
