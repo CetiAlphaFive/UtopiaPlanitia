@@ -1,0 +1,58 @@
+# Plot a Causal Forest
+
+Dispatches to one of the package's plot functions based on `type`.
+
+## Usage
+
+``` r
+# S3 method for class 'causal_forest'
+plot(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...)
+```
+
+## Arguments
+
+- x:
+
+  A fitted causal forest object from the `grf` package.
+
+- type:
+
+  Character string specifying the plot type. One of:
+
+  - `"diag"`: multi-panel diagnostics
+    ([`plot_diag()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.md))
+
+  - `"pdp"`: partial dependence plot
+    ([`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md))
+
+  - `"scatter"`: individual CATE scatter
+    ([`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md))
+
+  - `"rank"`: ranked CATEs with CIs
+    ([`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md))
+
+  - `"inter"`: (deprecated) hex interaction plot
+    ([`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md))
+
+- ...:
+
+  Additional arguments passed to the underlying plot function (e.g.,
+  `x_var` for `"pdp"`, `"scatter"`, and `"inter"`).
+
+## Value
+
+A plot object (the return value of the dispatched function).
+
+## Examples
+
+``` r
+library(grf)
+set.seed(1995)
+n <- 200; p <- 5
+X <- matrix(rnorm(n * p), n, p)
+colnames(X) <- paste0("X", seq_len(p))
+W <- rbinom(n, 1, 0.5)
+Y <- X[, 1] * W + rnorm(n)
+cf <- causal_forest(X, Y, W, num.trees = 100)
+plot(cf, type = "rank")
+```

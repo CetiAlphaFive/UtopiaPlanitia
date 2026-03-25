@@ -1,0 +1,111 @@
+# UtopiaPlanitia
+
+![UtopiaPlanitia](https://github.com/CetiAlphaFive/UtopiaPlanitia/blob/main/Utopia_Planitia_on_Mars_pillars.jpg)
+
+UtopiaPlanitia
+
+This package contains various functions that are under construction.
+*Use at your own risk.*
+
+These include a variety of tests and statistics for heterogeneous
+treatment effects such as variable importance, heterogeneity tests, and
+visualization tools for causal forests built on the
+[grf](https://grf-labs.github.io/grf/) package.
+
+## Functions
+
+- **LOCO variable importance** for causal forests
+  ([`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md))
+  and ranger models
+  ([`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md))
+- **Omnibus heterogeneity (HTE) testing** combining calibration,
+  high/low CATE, and RATE tests
+  ([`omni_hetero()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/omni_hetero.md))
+- **Diagnostic, PDP, rank, and interaction plots** for causal forests
+- **S3 methods**: [`summary()`](https://rdrr.io/r/base/summary.html) and
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) for
+  `causal_forest` and `cf_loco` objects
+
+## Installation
+
+You can install UtopiaPlanitia from GitHub with:
+
+``` r
+# install.packages("pak")
+pak::pak("CetiAlphaFive/UtopiaPlanitia")
+```
+
+## Quick start
+
+``` r
+library(grf)
+library(UtopiaPlanitia)
+
+set.seed(1995)
+n <- 500; p <- 5
+X <- matrix(rnorm(n * p), n, p)
+colnames(X) <- paste0("X", 1:p)
+W <- rbinom(n, 1, 0.5)
+Y <- X[, 1] * W + rnorm(n)
+
+cf <- causal_forest(X, Y, W)
+
+# S3 summary: ATE, variable importance, heterogeneity tests
+summary(cf)
+
+# S3 plot: diagnostics (default), or type = "rank", "pdp", "inter"
+plot(cf, type = "rank")
+
+# LOCO variable importance
+vi <- cf_loco(cf)
+summary(vi)
+plot(vi)
+```
+
+# Package index
+
+## S3 Methods
+
+- [`summary(`*`<causal_forest>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.causal_forest.md)
+  : Summarize a Causal Forest
+- [`print(`*`<summary.causal_forest>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.summary.causal_forest.md)
+  : Print Summary of a Causal Forest
+- [`plot(`*`<causal_forest>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.causal_forest.md)
+  : Plot a Causal Forest
+- [`summary(`*`<cf_loco>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.cf_loco.md)
+  : Summarize LOCO Variable Importance
+- [`print(`*`<cf_loco>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.cf_loco.md)
+  : Print LOCO Variable Importance
+- [`plot(`*`<cf_loco>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_loco.md)
+  : Plot LOCO Variable Importance
+- [`print(`*`<utopia_plot>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.utopia_plot.md)
+  : Print a UtopiaPlanitia plot
+
+## Variable Importance
+
+- [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
+  : Modified LOCO Variable Importance for Causal Forests
+- [`compute_vimp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/compute_vimp.md)
+  : Compute Variable Importance
+- [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  : LOCO Variable Importance for Outcome Models
+
+## Heterogeneity Tests
+
+- [`omni_hetero()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/omni_hetero.md)
+  : Omnibus Tests of Heterogeneity
+
+## Plot Functions
+
+- [`plot_diag()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.md)
+  : Model Diagnostics for Causal Forest
+- [`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md)
+  : Partial Dependence Plot for Causal Forest
+- [`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md)
+  : CATE Scatter Plot for Causal Forest
+- [`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md)
+  **\[deprecated\]** : Interaction Plot for Causal Forest (Deprecated)
+- [`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md)
+  [`rank_plot()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md)
+  : Rank Plot of Individual CATE Estimates
+

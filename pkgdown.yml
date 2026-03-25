@@ -1,0 +1,8 @@
+pandoc: 3.1.11
+pkgdown: 2.2.0
+pkgdown_sha: ~
+articles: {}
+last_built: 2026-03-25T15:34Z
+urls:
+  reference: https://cetialphafive.github.io/UtopiaPlanitia/reference
+  article: https://cetialphafive.github.io/UtopiaPlanitia/articles
