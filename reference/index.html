@@ -19,7 +19,7 @@
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
-<li class="nav-item"><a class="external-link nav-link" href="https://github.com/CetiAlphaFive/UtopiaPlanitia/" aria-label="GitHub"><span class="fa fab fa-github fa-lg"></span></a></li>
+<li class="nav-item"><a class="external-link nav-link" href="https://github.com/CetiAlphaFive/UtopiaPlanitia"><span class="fa fa-github"></span></a></li>
       </ul></div>
 
 
@@ -32,9 +32,9 @@
     </div>
 
     <div class="section level2">
-      <h2 id="s-methods">S3 Methods<a class="anchor" aria-label="anchor" href="#s-methods"></a></h2>
+      <h2 id="causal-forest-summary">Causal Forest Summary<a class="anchor" aria-label="anchor" href="#causal-forest-summary"></a></h2>
 
-
+      <div class="section-desc"><p>S3 methods for summarizing and plotting causal forests.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -61,38 +61,10 @@
 
         </dt>
         <dd>Plot a Causal Forest</dd>
-
-        <dt>
-
-          <code><a href="summary.cf_loco.html">summary(<i>&lt;cf_loco&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Summarize LOCO Variable Importance</dd>
-
-        <dt>
-
-          <code><a href="print.cf_loco.html">print(<i>&lt;cf_loco&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print LOCO Variable Importance</dd>
-
-        <dt>
-
-          <code><a href="plot.cf_loco.html">plot(<i>&lt;cf_loco&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Plot LOCO Variable Importance</dd>
-
-        <dt>
-
-          <code><a href="print.utopia_plot.html">print(<i>&lt;utopia_plot&gt;</i>)</a></code>
-
-        </dt>
-        <dd>Print a UtopiaPlanitia plot</dd>
       </dl></div><div class="section level2">
       <h2 id="variable-importance">Variable Importance<a class="anchor" aria-label="anchor" href="#variable-importance"></a></h2>
 
-
+      <div class="section-desc"><p>Leave-one-covariate-out (LOCO) importance for causal forests and ranger models.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -122,7 +94,7 @@
       </dl></div><div class="section level2">
       <h2 id="heterogeneity-tests">Heterogeneity Tests<a class="anchor" aria-label="anchor" href="#heterogeneity-tests"></a></h2>
 
-
+      <div class="section-desc"><p>Omnibus battery of treatment effect heterogeneity tests.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -136,9 +108,9 @@
         </dt>
         <dd>Omnibus Tests of Heterogeneity</dd>
       </dl></div><div class="section level2">
-      <h2 id="plot-functions">Plot Functions<a class="anchor" aria-label="anchor" href="#plot-functions"></a></h2>
+      <h2 id="visualization">Visualization<a class="anchor" aria-label="anchor" href="#visualization"></a></h2>
 
-
+      <div class="section-desc"><p>Diagnostic, partial dependence, scatter, and ranked CATE plots.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -168,17 +140,63 @@
 
         <dt>
 
-          <code><a href="plot_inter.html">plot_inter()</a></code>
-          <span class="badge lifecycle lifecycle-deprecated">deprecated</span>
-        </dt>
-        <dd>Interaction Plot for Causal Forest (Deprecated)</dd>
-
-        <dt>
-
           <code><a href="plot_rank.html">plot_rank()</a></code> <code><a href="plot_rank.html">rank_plot()</a></code>
 
         </dt>
         <dd>Rank Plot of Individual CATE Estimates</dd>
+
+        <dt>
+
+          <code><a href="plot_inter.html">plot_inter()</a></code>
+          <span class="badge lifecycle lifecycle-deprecated">deprecated</span>
+        </dt>
+        <dd>Interaction Plot for Causal Forest (Deprecated)</dd>
+      </dl></div><div class="section level2">
+      <h2 id="s-methods-for-cf-loco">S3 Methods for cf_loco<a class="anchor" aria-label="anchor" href="#s-methods-for-cf-loco"></a></h2>
+
+      <div class="section-desc"><p>Print, summary, and plot methods for LOCO results.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="summary.cf_loco.html">summary(<i>&lt;cf_loco&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Summarize LOCO Variable Importance</dd>
+
+        <dt>
+
+          <code><a href="print.cf_loco.html">print(<i>&lt;cf_loco&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print LOCO Variable Importance</dd>
+
+        <dt>
+
+          <code><a href="plot.cf_loco.html">plot(<i>&lt;cf_loco&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Plot LOCO Variable Importance</dd>
+      </dl></div><div class="section level2">
+      <h2 id="utilities">Utilities<a class="anchor" aria-label="anchor" href="#utilities"></a></h2>
+
+
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="print.utopia_plot.html">print(<i>&lt;utopia_plot&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Print a UtopiaPlanitia plot</dd>
       </dl></div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
