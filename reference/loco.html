@@ -102,18 +102,33 @@ increase in OOB error when <code>split = FALSE</code>).</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The split-sample method requires the <code>conformalInference</code> package, which is
+    <p><strong>Choosing a mode.</strong> The split-sample method (<code>split = TRUE</code>) provides
+valid confidence intervals and p-values via conformal inference, but is
+slower because it splits the data internally. The OOB method
+(<code>split = FALSE</code>) is faster and suitable for screening or exploratory
+analysis, but provides only point estimates with no formal inference.</p>
+<p><strong>Split-sample mode</strong> requires the <code>conformalInference</code> package, which is
 available only from GitHub:</p>
 <p></p><div class="sourceCode"><pre><code><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"ryantibs/conformal"</span>, <span class="at">subdir =</span> <span class="st">"conformalInference"</span>)</span></code></pre><p></p></div>
-<p>The OOB method refits the original ranger model once per covariate, each time
-dropping one predictor, and compares OOB prediction error to the full-model
-baseline.</p>
+<p><strong>OOB mode</strong> refits the original ranger model once per covariate, each
+time dropping one predictor, and compares OOB prediction error to the
+full-model baseline. The importance score is the increase in OOB error
+when the variable is removed; larger values indicate more important
+variables.</p>
     </div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., &amp; Wasserman, L. (2018).
 Distribution-Free Predictive Inference for Regression.
 <em>Journal of the American Statistical Association</em>, 113(523), 1094–1111.</p>
+<p>Rinaldo, A., Wasserman, L., &amp; G'Sell, M. (2019). Bootstrapping and
+Sample Splitting for High-Dimensional, Assumption-Lean Inference.
+<em>Annals of Statistics</em>, 47(6), 3438–3469.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="cf_loco.html">cf_loco()</a></code> for LOCO importance tailored to causal forests
+(treatment effect heterogeneity rather than prediction accuracy).</p></div>
     </div>
 
     <div class="section level2">

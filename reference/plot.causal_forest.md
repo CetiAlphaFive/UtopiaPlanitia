@@ -43,6 +43,44 @@ plot(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...)
 
 A plot object (the return value of the dispatched function).
 
+## Details
+
+This is a convenience dispatcher. Each type targets a different
+diagnostic question:
+
+- `"diag"`:
+
+  Are the nuisance models (outcome, propensity) well calibrated? Is
+  there treatment effect heterogeneity?
+
+- `"pdp"`:
+
+  How does the CATE change as a function of one or two covariates,
+  marginalizing over the rest?
+
+- `"scatter"`:
+
+  What do the individual OOB CATE predictions look like against a single
+  covariate?
+
+- `"rank"`:
+
+  What is the distribution of individual CATEs, sorted by magnitude,
+  with confidence intervals?
+
+- `"inter"`:
+
+  (Deprecated) Hex-binned interaction plot; use `"pdp"` with a `y_var`
+  argument instead.
+
+## See also
+
+[`plot_diag()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.md),
+[`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md),
+[`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md),
+[`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md),
+[`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md)
+
 ## Examples
 
 ``` r

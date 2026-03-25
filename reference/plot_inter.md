@@ -48,6 +48,11 @@ two-way partial dependence plot, use
 [`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md)
 with both `x_var` and `y_var`.
 
+## See also
+
+[`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md)
+for the recommended replacement.
+
 ## Examples
 
 ``` r

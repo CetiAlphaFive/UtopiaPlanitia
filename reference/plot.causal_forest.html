@@ -69,6 +69,36 @@
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>A plot object (the return value of the dispatched function).</p>
     </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>This is a convenience dispatcher. Each type targets a different diagnostic
+question:</p><dl><dt><code>"diag"</code></dt>
+<dd><p>Are the nuisance models (outcome, propensity) well
+calibrated? Is there treatment effect heterogeneity?</p></dd>
+
+<dt><code>"pdp"</code></dt>
+<dd><p>How does the CATE change as a function of one or two
+covariates, marginalizing over the rest?</p></dd>
+
+<dt><code>"scatter"</code></dt>
+<dd><p>What do the individual OOB CATE predictions look
+like against a single covariate?</p></dd>
+
+<dt><code>"rank"</code></dt>
+<dd><p>What is the distribution of individual CATEs, sorted
+by magnitude, with confidence intervals?</p></dd>
+
+<dt><code>"inter"</code></dt>
+<dd><p>(Deprecated) Hex-binned interaction plot; use
+<code>"pdp"</code> with a <code>y_var</code> argument instead.</p></dd>
+
+
+</dl></div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="plot_diag.html">plot_diag()</a></code>, <code><a href="plot_pdp.html">plot_pdp()</a></code>, <code><a href="plot_scatter.html">plot_scatter()</a></code>, <code><a href="plot_rank.html">plot_rank()</a></code>,
+<code><a href="plot_inter.html">plot_inter()</a></code></p></div>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>

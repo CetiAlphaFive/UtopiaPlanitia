@@ -22,7 +22,7 @@
 - [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
   : Modified LOCO Variable Importance for Causal Forests
 - [`compute_vimp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/compute_vimp.md)
-  : Compute Variable Importance
+  : Compute Variable Importance (Internal)
 - [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
   : LOCO Variable Importance for Outcome Models
 

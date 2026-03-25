@@ -90,7 +90,30 @@ Friedman (2001) partial dependence plot — see <code><a href="plot_pdp.html">pl
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A ggplot2 object with the scatter plot.</p>
+    <p>A <code>utopia_plot</code> object (a <code>ggExtraPlot</code> with marginal histograms).</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Each point is one unit's out-of-bag CATE prediction plotted against its
+observed covariate value. Unlike <code><a href="plot_pdp.html">plot_pdp()</a></code>, which marginalizes over
+the remaining covariates by averaging predictions at each grid point,
+this plot shows raw individual predictions — making it faster but more
+sensitive to confounding between covariates.</p>
+<p>The optional LOESS smoother (or other method via <code>method</code>) helps reveal
+the conditional relationship between the covariate and the treatment
+effect. When the smoother deviates from the ATE band, this suggests the
+covariate modifies the treatment effect.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
+    <p>Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting
+Machine. <em>Annals of Statistics</em>, 29(5), 1189–1232.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="plot_pdp.html">plot_pdp()</a></code> for the marginalized partial dependence version,
+<code><a href="plot_rank.html">plot_rank()</a></code> for ranked CATEs with CIs, <code><a href="plot.causal_forest.html">plot.causal_forest()</a></code> to
+call this via <code>plot(cf, type = "scatter", x_var = ...)</code>.</p></div>
     </div>
 
     <div class="section level2">

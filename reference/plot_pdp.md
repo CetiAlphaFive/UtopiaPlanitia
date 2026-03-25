@@ -130,6 +130,13 @@ over evaluating the full `grid_size^2` grid.
 Friedman, J. H. (2001). Greedy Function Approximation: A Gradient
 Boosting Machine. *Annals of Statistics*, 29(5), 1189–1232.
 
+## See also
+
+[`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md)
+for individual OOB CATEs (not marginalized),
+[`plot.causal_forest()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.causal_forest.md)
+to call this via `plot(cf, type = "pdp")`.
+
 ## Examples
 
 ``` r

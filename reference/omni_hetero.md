@@ -19,20 +19,56 @@ omni_hetero(c.forest, seed = 1995)
 
 - seed:
 
-  An integer seed for reproducibility. Default is `1995`.
+  An integer seed for reproducibility. Default is `1995`. Controls the
+  fold assignment in the sequential RATE test.
 
 ## Value
 
-A data frame summarizing the results of the heterogeneity tests,
-including the test names, estimates, p-values, and whether heterogeneity
-is detected at the 0.05 level.
+A data frame with one row per test and the following columns:
+
+- heterogeneity_test:
+
+  Character. Name and citation of the test.
+
+- estimate:
+
+  Numeric. The test statistic or effect estimate. `NA` for the
+  sequential RATE test (which only produces a p-value).
+
+- p_value:
+
+  Numeric. Two-sided p-value (or one-sided for the final row). Small
+  values indicate evidence of treatment effect heterogeneity.
+
+- hetero_detected:
+
+  Logical. `TRUE` if `p_value <= 0.05`.
 
 ## Details
 
-The **OOB RATE two-sided test** is known to be anti-conservative
-(roughly 30\\ vignette). The one-sided version is approximately valid
-when the direction is pre-specified. The sequential RATE test has
-correct size.
+The function combines five tests of treatment effect heterogeneity,
+ranging from well-calibrated to heuristic:
+
+1.  **Calibration test** (Chernozhukov et al., 2018): Regresses doubly
+    robust scores on the forest's CATE predictions. The "differential
+    forest prediction" coefficient tests whether the forest captures
+    meaningful heterogeneity beyond the ATE.
+
+2.  **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
+    median predicted CATE and compares the ATE in each half. A
+    significant difference suggests the forest detects real variation.
+
+3.  **Sequential RATE** (Wager, 2024): A k-fold cross-validated test
+    with correct size (valid Type I error). This is the most trustworthy
+    test in the battery and should be preferred for formal inference.
+
+4.  **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE
+    predictions directly. Known to be anti-conservative (~30\\ null at
+    nominal 5\\ screening tool, not for formal inference.
+
+5.  **OOB RATE, one-sided** (heuristic): One-sided version of the above.
+    Approximately valid when the direction of heterogeneity is
+    pre-specified.
 
 ## References
 
@@ -44,7 +80,14 @@ Athey, S. and Wager, S. (2019). Estimating Treatment Effects with Causal
 Forests: An Application. *Observational Studies*, 5, 37–51.
 
 Wager, S. (2024). Sequential Validation of Treatment Heterogeneity.
-arXiv:2405.05534.
+[doi:10.48550/arXiv.2405.05534](https://doi.org/10.48550/arXiv.2405.05534)
+
+## See also
+
+[`summary.causal_forest()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.causal_forest.md)
+which calls this function as part of its output,
+[`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
+for variable-level importance rather than an omnibus heterogeneity test.
 
 ## Examples
 

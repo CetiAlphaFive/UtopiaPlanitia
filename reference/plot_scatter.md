@@ -54,7 +54,36 @@ plot_scatter(
 
 ## Value
 
-A ggplot2 object with the scatter plot.
+A `utopia_plot` object (a `ggExtraPlot` with marginal histograms).
+
+## Details
+
+Each point is one unit's out-of-bag CATE prediction plotted against its
+observed covariate value. Unlike
+[`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md),
+which marginalizes over the remaining covariates by averaging
+predictions at each grid point, this plot shows raw individual
+predictions — making it faster but more sensitive to confounding between
+covariates.
+
+The optional LOESS smoother (or other method via `method`) helps reveal
+the conditional relationship between the covariate and the treatment
+effect. When the smoother deviates from the ATE band, this suggests the
+covariate modifies the treatment effect.
+
+## References
+
+Friedman, J. H. (2001). Greedy Function Approximation: A Gradient
+Boosting Machine. *Annals of Statistics*, 29(5), 1189–1232.
+
+## See also
+
+[`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md)
+for the marginalized partial dependence version,
+[`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md)
+for ranked CATEs with CIs,
+[`plot.causal_forest()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.causal_forest.md)
+to call this via `plot(cf, type = "scatter", x_var = ...)`.
 
 ## Examples
 

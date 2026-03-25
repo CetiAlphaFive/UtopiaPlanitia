@@ -60,22 +60,49 @@ high/low CATE split (Athey and Wager, 2019), the sequential RATE test
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
-<dd><p>An integer seed for reproducibility. Default is <code>1995</code>.</p></dd>
+<dd><p>An integer seed for reproducibility. Default is <code>1995</code>.
+Controls the fold assignment in the sequential RATE test.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A data frame summarizing the results of the heterogeneity tests,
-including the test names, estimates, p-values, and whether heterogeneity
-is detected at the 0.05 level.</p>
-    </div>
+    <p>A data frame with one row per test and the following columns:</p><dl><dt>heterogeneity_test</dt>
+<dd><p>Character. Name and citation of the test.</p></dd>
+
+<dt>estimate</dt>
+<dd><p>Numeric. The test statistic or effect estimate.
+<code>NA</code> for the sequential RATE test (which only produces a p-value).</p></dd>
+
+<dt>p_value</dt>
+<dd><p>Numeric. Two-sided p-value (or one-sided for the final
+row). Small values indicate evidence of treatment effect
+heterogeneity.</p></dd>
+
+<dt>hetero_detected</dt>
+<dd><p>Logical. <code>TRUE</code> if <code>p_value &lt;= 0.05</code>.</p></dd>
+
+
+</dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The <strong>OOB RATE two-sided test</strong> is known to be anti-conservative (roughly
-30\<!-- % rejection rate under the null at nominal 5\\%; see the grf RATE -->
-vignette). The one-sided version is approximately valid when the direction
-is pre-specified. The sequential RATE test has correct size.</p>
-    </div>
+    <p>The function combines five tests of treatment effect heterogeneity,
+ranging from well-calibrated to heuristic:</p><ol><li><p><strong>Calibration test</strong> (Chernozhukov et al., 2018): Regresses doubly
+robust scores on the forest's CATE predictions. The "differential
+forest prediction" coefficient tests whether the forest captures
+meaningful heterogeneity beyond the ATE.</p></li>
+<li><p><strong>High vs. low CATE</strong> (Athey and Wager, 2019): Splits units at the
+median predicted CATE and compares the ATE in each half. A significant
+difference suggests the forest detects real variation.</p></li>
+<li><p><strong>Sequential RATE</strong> (Wager, 2024): A k-fold cross-validated test with
+correct size (valid Type I error). This is the most trustworthy test
+in the battery and should be preferred for formal inference.</p></li>
+<li><p><strong>OOB RATE, two-sided</strong> (heuristic): Uses out-of-bag CATE predictions
+directly. Known to be anti-conservative (~30\<!-- % rejection rate under the -->
+null at nominal 5\<!-- %; see the grf RATE vignette). Useful as a quick -->
+screening tool, not for formal inference.</p></li>
+<li><p><strong>OOB RATE, one-sided</strong> (heuristic): One-sided version of the above.
+Approximately valid when the direction of heterogeneity is pre-specified.</p></li>
+</ol></div>
     <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Chernozhukov, V., Demirer, M., Duflo, E., and Fernandez-Val, I. (2018).
@@ -84,7 +111,13 @@ Randomized Experiments. NBER Working Paper 24678.</p>
 <p>Athey, S. and Wager, S. (2019). Estimating Treatment Effects with Causal
 Forests: An Application. <em>Observational Studies</em>, 5, 37–51.</p>
 <p>Wager, S. (2024). Sequential Validation of Treatment Heterogeneity.
-arXiv:2405.05534.</p>
+<a href="https://doi.org/10.48550/arXiv.2405.05534" class="external-link">doi:10.48550/arXiv.2405.05534</a></p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="summary.causal_forest.html">summary.causal_forest()</a></code> which calls this function as part of
+its output, <code><a href="cf_loco.html">cf_loco()</a></code> for variable-level importance rather than an
+omnibus heterogeneity test.</p></div>
     </div>
 
     <div class="section level2">

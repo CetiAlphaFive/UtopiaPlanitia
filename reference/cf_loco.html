@@ -129,10 +129,47 @@ near-identical propensity scores. Default <code>1e-6</code>. Set to <code>0</cod
 
 </dl></div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p><strong>What LOCO measures.</strong> Leave-one-covariate-out (LOCO) importance drops
+each covariate (or group of covariates) from the model, refits the forest
+without it, and measures how much worse the individualized predictions
+become. A large score means the variable is important for predicting
+heterogeneous treatment effects; a score near zero means the forest can
+recover the same CATEs without that variable.</p>
+<p><strong>Debiasing.</strong> Naive LOCO is biased because refitting a forest introduces
+retrain variance. This implementation uses the debiased estimator of
+Benard and Josse (2023): a full-data refit is used as a bias correction
+term, and per-observation CATE re-estimation is performed via forest
+weights rather than raw OOB predictions.</p>
+<p><strong>Computational cost.</strong> The function refits <code>p + 1</code> causal forests (one
+per dropped variable plus one full-data refit), each with the same
+hyperparameters as the original. For large datasets or many covariates,
+consider using the <code>screen</code> argument to reduce the number of refits.</p>
+<p><strong>Normalization.</strong> When <code>normalize = TRUE</code>, negative importance scores
+(which can occur when dropping a variable improves predictions) are set
+to zero, and the remaining scores are rescaled to sum to one. This gives
+a proportional importance interpretation but discards directional
+information.</p>
+<p><strong>Variable grouping.</strong> Highly correlated covariates can be grouped so
+they are dropped together. Use <code>group.by.corr = TRUE</code> for automatic
+grouping via a correlation threshold, or supply a manual list via
+<code>variable.groups</code>.</p>
+    </div>
+    <div class="section level2">
     <h2 id="references">References<a class="anchor" aria-label="anchor" href="#references"></a></h2>
     <p>Benard, C. and Josse, J. (2023). Variable Importance for Causal Forests:
 Breaking Down the Heterogeneity of Treatment Effects.
 <a href="https://doi.org/10.48550/arXiv.2308.03369" class="external-link">doi:10.48550/arXiv.2308.03369</a></p>
+<p>Athey, S., Tibshirani, J., and Wager, S. (2019). Generalized Random
+Forests. <em>Annals of Statistics</em>, 47(2), 1148–1178.
+<a href="https://doi.org/10.1214/18-AOS1709" class="external-link">doi:10.1214/18-AOS1709</a></p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="compute_vimp.html">compute_vimp()</a></code> for the internal per-refit importance
+calculation, <code><a href="loco.html">loco()</a></code> for LOCO importance with ranger models,
+<code><a href="plot.cf_loco.html">plot.cf_loco()</a></code> and <code><a href="summary.cf_loco.html">summary.cf_loco()</a></code> for visualizing and
+summarizing results, <code><a href="omni_hetero.html">omni_hetero()</a></code> for heterogeneity testing.</p></div>
     </div>
 
     <div class="section level2">
@@ -158,6 +195,22 @@ Breaking Down the Heterogeneity of Treatment Effects.
 <span class="r-out co"><span class="r-pr">#&gt;</span>        X3  -0.008641</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        X5  -0.012525</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>        X4  -0.013253</span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot</a></span><span class="op">(</span><span class="va">vi</span><span class="op">)</span></span></span>
+<span class="r-plt img"><img src="cf_loco-1.png" alt="" width="700" height="433"></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Normalized importance (sums to 1)</span></span></span>
+<span class="r-in"><span><span class="va">vi_norm</span> <span class="op">&lt;-</span> <span class="fu">cf_loco</span><span class="op">(</span><span class="va">cf</span>, normalize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">vi_norm</span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> LOCO Variable Importance (Benard and Josse, 2023)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   n = 200  p = 5 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   Normalized: TRUE </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Variable Importance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        X1          1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        X2          0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        X3          0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        X4          0</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>        X5          0</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

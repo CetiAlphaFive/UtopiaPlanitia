@@ -1,6 +1,9 @@
 # Print Summary of a Causal Forest
 
-Print Summary of a Causal Forest
+Formats and prints the output of
+[`summary.causal_forest()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.causal_forest.md),
+showing the ATE, variable importance scores (sorted descending), and the
+heterogeneity test table.
 
 ## Usage
 
@@ -22,3 +25,7 @@ print(x, ...)
 ## Value
 
 The input object `x` (invisibly).
+
+## See also
+
+[`summary.causal_forest()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.causal_forest.md)

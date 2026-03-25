@@ -25,3 +25,10 @@ print(x, ...)
 ## Value
 
 Invisibly returns `x`.
+
+## See also
+
+[`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md)
+and
+[`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md),
+which return `utopia_plot` objects.
