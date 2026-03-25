@@ -1,7 +1,7 @@
 # UtopiaPlanitia [![UtopiaPlanitia hex sticker](reference/figures/utopiaplanitia_sticker.png)](https://github.com/CetiAlphaFive/UtopiaPlanitia/blob/main/man/figures/utopiaplanitia_sticker.png)
 
 ![Utopia Planitia on
-Mars](reference/figures/Utopia_Planitia_on_Mars_pillars.jpg)
+Mars](https://raw.githubusercontent.com/CetiAlphaFive/UtopiaPlanitia/main/Utopia_Planitia_on_Mars_pillars.jpg)
 
 Utopia Planitia on Mars
 
