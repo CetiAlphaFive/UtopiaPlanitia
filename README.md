@@ -1,6 +1,4 @@
-![UtopiaPlanitia](https://github.com/CetiAlphaFive/UtopiaPlanitia/blob/main/Utopia_Planitia_on_Mars_pillars.jpg)
-
-# UtopiaPlanitia
+# UtopiaPlanitia <a href='https://github.com/CetiAlphaFive/UtopiaPlanitia/blob/main/man/figures/utopiaplanitia_sticker.png'><img src='man/figures/utopiaplanitia_sticker.png' align="right" height="139" /></a>
 
 [![R-CMD-check](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/check-standard.yaml)
 [![Codecov](https://codecov.io/gh/CetiAlphaFive/UtopiaPlanitia/graph/badge.svg)](https://codecov.io/gh/CetiAlphaFive/UtopiaPlanitia)

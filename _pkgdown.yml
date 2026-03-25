@@ -2,31 +2,55 @@ url: https://cetialphafive.github.io/UtopiaPlanitia/
 template:
   bootstrap: 5
 
+home:
+  title: UtopiaPlanitia
+  description: Variable importance, heterogeneity tests, and visualization tools for causal forests.
+
+navbar:
+  structure:
+    left: [intro, reference, news]
+    right: [search, github]
+  components:
+    github:
+      icon: fa-github
+      href: https://github.com/CetiAlphaFive/UtopiaPlanitia
+
 reference:
-  - title: S3 Methods
+  - title: Causal Forest Summary
+    desc: S3 methods for summarizing and plotting causal forests.
     contents:
       - summary.causal_forest
       - print.summary.causal_forest
       - plot.causal_forest
-      - summary.cf_loco
-      - print.cf_loco
-      - plot.cf_loco
-      - print.utopia_plot
 
   - title: Variable Importance
+    desc: Leave-one-covariate-out (LOCO) importance for causal forests and ranger models.
     contents:
       - cf_loco
       - compute_vimp
       - loco
 
   - title: Heterogeneity Tests
+    desc: Omnibus battery of treatment effect heterogeneity tests.
     contents:
       - omni_hetero
 
-  - title: Plot Functions
+  - title: Visualization
+    desc: Diagnostic, partial dependence, scatter, and ranked CATE plots.
     contents:
       - plot_diag
       - plot_pdp
       - plot_scatter
-      - plot_inter
       - plot_rank
+      - plot_inter
+
+  - title: S3 Methods for cf_loco
+    desc: Print, summary, and plot methods for LOCO results.
+    contents:
+      - summary.cf_loco
+      - print.cf_loco
+      - plot.cf_loco
+
+  - title: Utilities
+    contents:
+      - print.utopia_plot
