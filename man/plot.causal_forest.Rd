@@ -14,7 +14,7 @@
 \item \code{"diag"}: multi-panel diagnostics (\code{\link[=plot_diag]{plot_diag()}})
 \item \code{"pdp"}: partial dependence plot (\code{\link[=plot_pdp]{plot_pdp()}})
 \item \code{"scatter"}: individual CATE scatter (\code{\link[=plot_scatter]{plot_scatter()}})
-\item \code{"rank"}: ranked CATEs with CIs (\code{\link[=rank_plot]{rank_plot()}})
+\item \code{"rank"}: ranked CATEs with CIs (\code{\link[=plot_rank]{plot_rank()}})
 \item \code{"inter"}: (deprecated) hex interaction plot (\code{\link[=plot_inter]{plot_inter()}})
 }}
 

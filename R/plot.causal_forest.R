@@ -7,7 +7,7 @@
 #'   - `"diag"`: multi-panel diagnostics ([plot_diag()])
 #'   - `"pdp"`: partial dependence plot ([plot_pdp()])
 #'   - `"scatter"`: individual CATE scatter ([plot_scatter()])
-#'   - `"rank"`: ranked CATEs with CIs ([rank_plot()])
+#'   - `"rank"`: ranked CATEs with CIs ([plot_rank()])
 #'   - `"inter"`: (deprecated) hex interaction plot ([plot_inter()])
 #' @param ... Additional arguments passed to the underlying plot function
 #'   (e.g., `x_var` for `"pdp"`, `"scatter"`, and `"inter"`).
@@ -30,7 +30,7 @@ plot.causal_forest <- function(x, type = c("diag", "pdp", "scatter", "rank", "in
     diag    = plot_diag(x, ...),
     pdp     = plot_pdp(x, ...),
     scatter = plot_scatter(x, ...),
-    rank    = rank_plot(x, ...),
+    rank    = plot_rank(x, ...),
     inter   = plot_inter(x, ...)
   )
   invisible(out)

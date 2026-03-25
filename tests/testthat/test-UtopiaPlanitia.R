@@ -62,12 +62,19 @@ test_that("plot.causal_forest validates type argument", {
   expect_error(plot(cf, type = "invalid"), "should be one of")
 })
 
-test_that("rank_plot returns a ggplot", {
+test_that("plot_rank returns a ggplot", {
   skip_if_not_installed("ggplot2")
   skip_if_not_installed("ggdist")
   cf <- make_cf()
-  p <- rank_plot(cf)
+  p <- plot_rank(cf)
   expect_s3_class(p, "gg")
+})
+
+test_that("rank_plot is deprecated", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggdist")
+  cf <- make_cf()
+  expect_warning(rank_plot(cf), "deprecated")
 })
 
 test_that("plot_scatter returns a ggExtraPlot", {
@@ -196,4 +203,75 @@ test_that("cf_loco screen = FALSE with small p does not prompt", {
   result <- cf_loco(cf, screen = FALSE)
   expect_s3_class(result, "cf_loco")
   expect_equal(nrow(result$vimp), 5)
+})
+
+# -- omni_hetero tests --------------------------------------------------------
+
+test_that("omni_hetero returns correct structure", {
+  cf <- make_cf()
+  result <- omni_hetero(cf)
+  expect_s3_class(result, "data.frame")
+  expect_named(result, c("heterogeneity_test", "estimate", "p_value", "hetero_detected"))
+  expect_equal(nrow(result), 5)
+  # p-values should be between 0 and 1 (NA allowed for estimate-only rows)
+  pvals <- result$p_value[!is.na(result$p_value)]
+  expect_true(all(pvals >= 0 & pvals <= 1))
+  # hetero_detected should be logical
+  expect_type(result$hetero_detected, "logical")
+})
+
+test_that("omni_hetero rejects non-causal_forest input", {
+  expect_error(omni_hetero("not a forest"), "must be a grf causal forest")
+})
+
+test_that("omni_hetero seed is reproducible", {
+  cf <- make_cf()
+  r1 <- omni_hetero(cf, seed = 42)
+  r2 <- omni_hetero(cf, seed = 42)
+  expect_equal(r1, r2)
+})
+
+# -- loco tests ---------------------------------------------------------------
+
+test_that("loco OOB mode returns correct structure", {
+  skip_if_not_installed("ranger")
+  set.seed(1995)
+  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100), x3 = rnorm(100))
+  mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
+  result <- loco(mod, split = FALSE)
+  expect_s3_class(result, "data.frame")
+  expect_named(result, c("variable", "importance"))
+  expect_equal(nrow(result), 3)
+})
+
+test_that("loco rejects non-ranger input", {
+  expect_error(loco(list()), "ranger")
+})
+
+test_that("loco OOB mode importance values are numeric", {
+  skip_if_not_installed("ranger")
+  set.seed(1995)
+  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100))
+  mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
+  result <- loco(mod, split = FALSE)
+  expect_type(result$importance, "double")
+  expect_true(all(!is.na(result$importance)))
+})
+
+# -- plot_diag tests -----------------------------------------------------------
+
+test_that("plot_diag returns correct structure", {
+  skip_if_not_installed("ggplot2")
+  skip_if_not_installed("ggdist")
+  skip_if_not_installed("gridExtra")
+  skip_if_not_installed("MLbalance")
+  cf <- make_cf()
+  result <- expect_output(plot_diag(cf), "RMSE")
+  expect_type(result, "list")
+  expect_named(result, c("outcome_check_plot", "treatment_propensity_plot",
+                          "cates_distribution_plot", "rmse_out"))
+  expect_s3_class(result$outcome_check_plot, "gg")
+  expect_s3_class(result$cates_distribution_plot, "gg")
+  expect_type(result$rmse_out, "double")
+  expect_true(result$rmse_out > 0)
 })

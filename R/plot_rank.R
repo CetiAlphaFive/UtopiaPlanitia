@@ -17,8 +17,8 @@
 #' W <- rbinom(n, 1, 0.5)
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
-#' rank_plot(cf)
-rank_plot <- function(c.forest, show_ate_region = TRUE) {
+#' plot_rank(cf)
+plot_rank <- function(c.forest, show_ate_region = TRUE) {
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a causal_forest object from the grf package.")
@@ -87,4 +87,11 @@ rank_plot <- function(c.forest, show_ate_region = TRUE) {
     }
 
   p
+}
+
+#' @rdname plot_rank
+#' @export
+rank_plot <- function(c.forest, show_ate_region = TRUE) {
+  .Deprecated("plot_rank")
+  plot_rank(c.forest, show_ate_region = show_ate_region)
 }
