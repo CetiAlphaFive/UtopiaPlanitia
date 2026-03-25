@@ -15,5 +15,29 @@
 A \code{ggplot} object.
 }
 \description{
-Draws a horizontal lollipop chart of LOCO variable importance scores.
+Draws a horizontal lollipop chart of LOCO variable importance scores,
+sorted from least to most important (bottom to top).
+}
+\details{
+Variables are displayed as horizontal segments ending in points, with
+length proportional to importance. When \code{normalize = TRUE} was used in
+\code{\link[=cf_loco]{cf_loco()}}, the y-axis label changes to "Importance (normalized)".
+}
+\examples{
+\dontshow{if (rlang::is_installed("ggplot2")) withAutoprint(\{ # examplesIf}
+library(grf)
+set.seed(1995)
+n <- 200; p <- 5
+X <- matrix(rnorm(n * p), n, p)
+colnames(X) <- paste0("X", seq_len(p))
+W <- rbinom(n, 1, 0.5)
+Y <- X[, 1] * W + rnorm(n)
+cf <- causal_forest(X, Y, W, num.trees = 100)
+vi <- cf_loco(cf)
+plot(vi)
+\dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=cf_loco]{cf_loco()}} to compute the scores, \code{\link[=summary.cf_loco]{summary.cf_loco()}} for
+tabular output.
 }

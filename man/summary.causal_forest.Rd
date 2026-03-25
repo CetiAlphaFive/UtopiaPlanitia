@@ -9,7 +9,8 @@
 \arguments{
 \item{object}{A fitted causal forest object from the \code{grf} package.}
 
-\item{seed}{Integer seed for reproducibility. Default is \code{1995}.}
+\item{seed}{Integer seed for reproducibility. Default is \code{1995}.
+Passed to \code{\link[=omni_hetero]{omni_hetero()}} for the sequential RATE fold assignment.}
 
 \item{...}{Additional arguments (currently unused).}
 }
@@ -17,14 +18,33 @@
 An object of class \code{"summary.causal_forest"} (returned invisibly)
 with components:
 \describe{
-\item{heterogeneity}{Data frame from \code{\link[=omni_hetero]{omni_hetero()}}.}
-\item{vimp}{Named numeric vector of variable importance scores.}
-\item{ate}{Named numeric vector with \code{estimate} and \code{std.err}.}
+\item{ate}{Named numeric vector with \code{estimate} and \code{std.err} from
+\code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}}.}
+\item{vimp}{Named numeric vector of split-frequency variable
+importance scores from \code{\link[grf:variable_importance]{grf::variable_importance()}}. These reflect
+how often each variable is used in tree splits — a fast heuristic,
+not the debiased LOCO scores from \code{\link[=cf_loco]{cf_loco()}}.}
+\item{heterogeneity}{Data frame from \code{\link[=omni_hetero]{omni_hetero()}} with five
+heterogeneity tests.}
 }
 }
 \description{
-Produces a summary of heterogeneity tests, variable importance scores,
-and the average treatment effect for a fitted causal forest.
+Produces a one-stop summary of a fitted causal forest: the average
+treatment effect (ATE), split-frequency variable importance, and a
+battery of heterogeneity tests.
+}
+\details{
+This method assembles three diagnostics:
+\enumerate{
+\item \strong{ATE}: The doubly robust average treatment effect estimate from grf.
+\item \strong{Variable importance}: grf's native split-frequency scores, which
+measure how often each covariate is selected for splitting. These are
+fast to compute but do not have a formal statistical interpretation.
+For debiased LOCO importance with proper methodology, use \code{\link[=cf_loco]{cf_loco()}}.
+\item \strong{Heterogeneity tests}: The full \code{\link[=omni_hetero]{omni_hetero()}} battery, including
+the calibration test, high/low CATE comparison, sequential RATE, and
+OOB RATE heuristics. See \code{\link[=omni_hetero]{omni_hetero()}} for details on each test.
+}
 }
 \examples{
 \donttest{
@@ -38,4 +58,14 @@ Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 summary(cf)
 }
+}
+\references{
+Athey, S., Tibshirani, J., and Wager, S. (2019). Generalized Random
+Forests. \emph{Annals of Statistics}, 47(2), 1148--1178.
+\doi{10.1214/18-AOS1709}
+}
+\seealso{
+\code{\link[=print.summary.causal_forest]{print.summary.causal_forest()}} for formatted output,
+\code{\link[=omni_hetero]{omni_hetero()}} for the heterogeneity tests, \code{\link[=cf_loco]{cf_loco()}} for debiased
+variable importance, \code{\link[=plot.causal_forest]{plot.causal_forest()}} for visual diagnostics.
 }

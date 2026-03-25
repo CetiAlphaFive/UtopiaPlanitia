@@ -15,5 +15,10 @@
 The input object \code{x} (invisibly).
 }
 \description{
-Print Summary of a Causal Forest
+Formats and prints the output of \code{\link[=summary.causal_forest]{summary.causal_forest()}}, showing the
+ATE, variable importance scores (sorted descending), and the
+heterogeneity test table.
+}
+\seealso{
+\code{\link[=summary.causal_forest]{summary.causal_forest()}}
 }

@@ -27,20 +27,35 @@
 #'   }
 #'
 #' @details
-#' The split-sample method requires the `conformalInference` package, which is
+#' **Choosing a mode.** The split-sample method (`split = TRUE`) provides
+#' valid confidence intervals and p-values via conformal inference, but is
+#' slower because it splits the data internally. The OOB method
+#' (`split = FALSE`) is faster and suitable for screening or exploratory
+#' analysis, but provides only point estimates with no formal inference.
+#'
+#' **Split-sample mode** requires the `conformalInference` package, which is
 #' available only from GitHub:
 #' ```
 #' devtools::install_github("ryantibs/conformal", subdir = "conformalInference")
 #' ```
 #'
-#' The OOB method refits the original ranger model once per covariate, each time
-#' dropping one predictor, and compares OOB prediction error to the full-model
-#' baseline.
+#' **OOB mode** refits the original ranger model once per covariate, each
+#' time dropping one predictor, and compares OOB prediction error to the
+#' full-model baseline. The importance score is the increase in OOB error
+#' when the variable is removed; larger values indicate more important
+#' variables.
 #'
 #' @references
 #' Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., & Wasserman, L. (2018).
 #' Distribution-Free Predictive Inference for Regression.
 #' *Journal of the American Statistical Association*, 113(523), 1094--1111.
+#'
+#' Rinaldo, A., Wasserman, L., & G'Sell, M. (2019). Bootstrapping and
+#' Sample Splitting for High-Dimensional, Assumption-Lean Inference.
+#' *Annals of Statistics*, 47(6), 3438--3469.
+#'
+#' @seealso [cf_loco()] for LOCO importance tailored to causal forests
+#'   (treatment effect heterogeneity rather than prediction accuracy).
 #'
 #' @export
 #' @examples

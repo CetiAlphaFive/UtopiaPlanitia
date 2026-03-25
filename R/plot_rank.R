@@ -1,11 +1,44 @@
 #' Rank Plot of Individual CATE Estimates
 #'
-#' Generates a rank plot of individual CATE (Conditional Average Treatment Effect)
-#' estimates from a fitted causal forest model.
+#' Generates a rank plot of individual CATE (Conditional Average Treatment
+#' Effect) estimates from a fitted causal forest, sorted by magnitude with
+#' 95\% confidence intervals.
 #'
-#' @param c.forest A fitted causal forest model object from the \code{grf} package.
-#' @param show_ate_region Logical indicating whether to show the ATE region (confidence interval). Default is TRUE.
-#' @return A ggplot2 object with the rank plot of individual CATE estimates.
+#' @param c.forest A fitted causal forest object from the \code{grf} package.
+#' @param show_ate_region Logical. If `TRUE` (default), draws a horizontal
+#'   band showing the ATE +/- 1.96 standard errors. Units whose CIs fall
+#'   entirely outside this band have strong evidence of individual-level
+#'   heterogeneity.
+#' @return A `ggplot2` object. Individual CATEs are plotted on the y-axis,
+#'   ranked by magnitude on the x-axis, with color indicating effect
+#'   direction and magnitude (red = negative, green = positive).
+#'
+#' @details
+#' Each point represents one unit's out-of-bag CATE estimate, with a 95\%
+#' confidence interval derived from the forest's variance estimates
+#' (`estimate.variance = TRUE` in [grf::predict.causal_forest()]). Units
+#' are sorted from most negative to most positive treatment effect.
+#'
+#' **Interpretation.** A flat rank plot (all CIs overlapping the ATE band)
+#' suggests homogeneous effects. A steep S-curve with CIs separating from
+#' the ATE band suggests meaningful heterogeneity — some units benefit much
+#' more (or less) than average. The color gradient reinforces this: red
+#' points are units harmed or unaffected by treatment, green points are
+#' units that benefit most.
+#'
+#' @references
+#' Athey, S. and Wager, S. (2019). Estimating Treatment Effects with Causal
+#' Forests: An Application. *Observational Studies*, 5, 37--51.
+#'
+#' Wager, S. and Athey, S. (2018). Estimation and Inference of Heterogeneous
+#' Treatment Effects Using Random Forests. *Journal of the American
+#' Statistical Association*, 113(523), 1228--1242.
+#' \doi{10.1080/01621459.2017.1319839}
+#'
+#' @seealso [plot_scatter()] for CATEs against a single covariate,
+#'   [plot_pdp()] for partial dependence, [plot.causal_forest()] to call
+#'   this via `plot(cf, type = "rank")`.
+#'
 #' @importFrom rlang .data
 #' @importFrom stats predict
 #' @export

@@ -1,8 +1,14 @@
 #' Summarize LOCO Variable Importance
 #'
+#' Prints a formatted summary of LOCO variable importance results.
+#' Equivalent to calling `print()` on the object.
+#'
 #' @param object An object of class `"cf_loco"` returned by [cf_loco()].
 #' @param ... Additional arguments (currently unused).
 #' @return The `cf_loco` object (invisibly).
+#'
+#' @seealso [cf_loco()], [print.cf_loco()], [plot.cf_loco()]
+#'
 #' @method summary cf_loco
 #' @export
 summary.cf_loco <- function(object, ...) {
@@ -11,9 +17,16 @@ summary.cf_loco <- function(object, ...) {
 
 #' Print LOCO Variable Importance
 #'
+#' Displays a table of LOCO variable importance scores sorted from most to
+#' least important. Shows sample size, number of covariates, and whether
+#' scores are normalized.
+#'
 #' @param x An object of class `"cf_loco"` returned by [cf_loco()].
 #' @param ... Additional arguments (currently unused).
 #' @return The `cf_loco` object (invisibly).
+#'
+#' @seealso [cf_loco()], [summary.cf_loco()], [plot.cf_loco()]
+#'
 #' @method print cf_loco
 #' @export
 print.cf_loco <- function(x, ...) {
@@ -32,11 +45,33 @@ print.cf_loco <- function(x, ...) {
 
 #' Plot LOCO Variable Importance
 #'
-#' Draws a horizontal lollipop chart of LOCO variable importance scores.
+#' Draws a horizontal lollipop chart of LOCO variable importance scores,
+#' sorted from least to most important (bottom to top).
 #'
 #' @param x An object of class `"cf_loco"` returned by [cf_loco()].
 #' @param ... Additional arguments (currently unused).
 #' @return A `ggplot` object.
+#'
+#' @details
+#' Variables are displayed as horizontal segments ending in points, with
+#' length proportional to importance. When `normalize = TRUE` was used in
+#' [cf_loco()], the y-axis label changes to "Importance (normalized)".
+#'
+#' @seealso [cf_loco()] to compute the scores, [summary.cf_loco()] for
+#'   tabular output.
+#'
+#' @examplesIf rlang::is_installed("ggplot2")
+#' library(grf)
+#' set.seed(1995)
+#' n <- 200; p <- 5
+#' X <- matrix(rnorm(n * p), n, p)
+#' colnames(X) <- paste0("X", seq_len(p))
+#' W <- rbinom(n, 1, 0.5)
+#' Y <- X[, 1] * W + rnorm(n)
+#' cf <- causal_forest(X, Y, W, num.trees = 100)
+#' vi <- cf_loco(cf)
+#' plot(vi)
+#'
 #' @importFrom rlang .data
 #' @method plot cf_loco
 #' @export

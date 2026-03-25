@@ -15,5 +15,9 @@
 The \code{cf_loco} object (invisibly).
 }
 \description{
-Summarize LOCO Variable Importance
+Prints a formatted summary of LOCO variable importance results.
+Equivalent to calling \code{print()} on the object.
+}
+\seealso{
+\code{\link[=cf_loco]{cf_loco()}}, \code{\link[=print.cf_loco]{print.cf_loco()}}, \code{\link[=plot.cf_loco]{plot.cf_loco()}}
 }

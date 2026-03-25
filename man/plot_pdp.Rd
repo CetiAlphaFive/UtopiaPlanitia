@@ -106,3 +106,7 @@ plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 20)
 Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting
 Machine. \emph{Annals of Statistics}, 29(5), 1189--1232.
 }
+\seealso{
+\code{\link[=plot_scatter]{plot_scatter()}} for individual OOB CATEs (not marginalized),
+\code{\link[=plot.causal_forest]{plot.causal_forest()}} to call this via \code{plot(cf, type = "pdp")}.
+}

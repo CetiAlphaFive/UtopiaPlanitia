@@ -7,17 +7,37 @@
 plot_diag(c.forest)
 }
 \arguments{
-\item{c.forest}{A fitted causal forest model object from the \code{grf} package.}
+\item{c.forest}{A fitted causal forest object from the \code{grf} package.}
 }
 \value{
 A list containing the following elements:
 \item{out_check}{A ggplot2 object showing the density plot comparing real Y and predicted Y.}
 \item{bal_perm_plot}{A ggplot2 object showing the treatment propensity plot.}
 \item{cate_distro_plot}{A ggplot2 object showing the density plot of the distribution of CATEs.}
-\item{rmse_out}{The Root Mean Squared Error (RMSE) for the random forest model predictions.}
+\item{rmse_out}{The Root Mean Squared Error (RMSE) for the outcome model
+predictions. Also printed to the console.}
 }
 \description{
-Generates a multi-panel diagnostics figure for a causal forest model.
+Generates a multi-panel diagnostics figure for a causal forest model,
+covering outcome model fit, treatment balance, and CATE distribution.
+}
+\details{
+The figure contains three panels:
+\enumerate{
+\item \strong{Outcome check} (top-left): Overlays the density of the observed
+outcome \code{Y} against the forest's outcome model predictions
+\code{Y.hat}. Good overlap indicates a well-specified outcome model.
+The RMSE is printed to the console.
+\item \strong{Balance permutation test} (top-right): Uses
+\code{\link[MLbalance:random_check]{MLbalance::random_check()}} to test whether the treatment assignment
+\code{W} is predictable from the covariates \code{X}. A non-significant result
+(large p-value) is consistent with random or as-if-random assignment.
+See Gagnon-Bartsch and Shem-Tov (2019).
+\item \strong{CATE distribution} (bottom): Histogram with interval summary of
+the out-of-bag CATE estimates. A tight distribution centered at zero
+suggests little heterogeneity; a spread distribution suggests
+meaningful variation in treatment effects across units.
+}
 }
 \examples{
 \dontshow{if (rlang::is_installed(c("ggplot2", "ggdist", "gridExtra", "MLbalance"))) withAutoprint(\{ # examplesIf}
@@ -30,4 +50,14 @@ Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_diag(cf)
 \dontshow{\}) # examplesIf}
+}
+\references{
+Gagnon-Bartsch, J. and Shem-Tov, Y. (2019). The Classification
+Permutation Test: A Flexible Approach to Testing for Covariate
+Imbalance in Observational and Experimental Studies.
+\doi{10.48550/arXiv.1903.07841}
+}
+\seealso{
+\code{\link[=summary.causal_forest]{summary.causal_forest()}} for a text-based summary,
+\code{\link[=plot.causal_forest]{plot.causal_forest()}} to call this via \code{plot(cf, type = "diag")}.
 }

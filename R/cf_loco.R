@@ -37,10 +37,49 @@
 #'     \item{p}{Number of covariates.}
 #'   }
 #'
+#' @details
+#' **What LOCO measures.** Leave-one-covariate-out (LOCO) importance drops
+#' each covariate (or group of covariates) from the model, refits the forest
+#' without it, and measures how much worse the individualized predictions
+#' become. A large score means the variable is important for predicting
+#' heterogeneous treatment effects; a score near zero means the forest can
+#' recover the same CATEs without that variable.
+#'
+#' **Debiasing.** Naive LOCO is biased because refitting a forest introduces
+#' retrain variance. This implementation uses the debiased estimator of
+#' Benard and Josse (2023): a full-data refit is used as a bias correction
+#' term, and per-observation CATE re-estimation is performed via forest
+#' weights rather than raw OOB predictions.
+#'
+#' **Computational cost.** The function refits `p + 1` causal forests (one
+#' per dropped variable plus one full-data refit), each with the same
+#' hyperparameters as the original. For large datasets or many covariates,
+#' consider using the `screen` argument to reduce the number of refits.
+#'
+#' **Normalization.** When `normalize = TRUE`, negative importance scores
+#' (which can occur when dropping a variable improves predictions) are set
+#' to zero, and the remaining scores are rescaled to sum to one. This gives
+#' a proportional importance interpretation but discards directional
+#' information.
+#'
+#' **Variable grouping.** Highly correlated covariates can be grouped so
+#' they are dropped together. Use `group.by.corr = TRUE` for automatic
+#' grouping via a correlation threshold, or supply a manual list via
+#' `variable.groups`.
+#'
 #' @references
 #' Benard, C. and Josse, J. (2023). Variable Importance for Causal Forests:
 #' Breaking Down the Heterogeneity of Treatment Effects.
 #' \doi{10.48550/arXiv.2308.03369}
+#'
+#' Athey, S., Tibshirani, J., and Wager, S. (2019). Generalized Random
+#' Forests. *Annals of Statistics*, 47(2), 1148--1178.
+#' \doi{10.1214/18-AOS1709}
+#'
+#' @seealso [compute_vimp()] for the internal per-refit importance
+#'   calculation, [loco()] for LOCO importance with ranger models,
+#'   [plot.cf_loco()] and [summary.cf_loco()] for visualizing and
+#'   summarizing results, [omni_hetero()] for heterogeneity testing.
 #'
 #' @export
 #' @examples
@@ -55,6 +94,11 @@
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' vi <- cf_loco(cf)
 #' summary(vi)
+#' plot(vi)
+#'
+#' # Normalized importance (sums to 1)
+#' vi_norm <- cf_loco(cf, normalize = TRUE)
+#' summary(vi_norm)
 #' }
 cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, screen = FALSE, stabilize = 1e-6, seed = 1995) {
 

@@ -12,6 +12,26 @@
 #' @param ... Additional arguments passed to the underlying plot function
 #'   (e.g., `x_var` for `"pdp"`, `"scatter"`, and `"inter"`).
 #' @return A plot object (the return value of the dispatched function).
+#'
+#' @details
+#' This is a convenience dispatcher. Each type targets a different diagnostic
+#' question:
+#' \describe{
+#'   \item{`"diag"`}{Are the nuisance models (outcome, propensity) well
+#'     calibrated? Is there treatment effect heterogeneity?}
+#'   \item{`"pdp"`}{How does the CATE change as a function of one or two
+#'     covariates, marginalizing over the rest?}
+#'   \item{`"scatter"`}{What do the individual OOB CATE predictions look
+#'     like against a single covariate?}
+#'   \item{`"rank"`}{What is the distribution of individual CATEs, sorted
+#'     by magnitude, with confidence intervals?}
+#'   \item{`"inter"`}{(Deprecated) Hex-binned interaction plot; use
+#'     `"pdp"` with a `y_var` argument instead.}
+#' }
+#'
+#' @seealso [plot_diag()], [plot_pdp()], [plot_scatter()], [plot_rank()],
+#'   [plot_inter()]
+#'
 #' @method plot causal_forest
 #' @export
 #' @examplesIf rlang::is_installed(c("ggplot2", "ggdist"))

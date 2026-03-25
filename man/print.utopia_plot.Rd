@@ -19,3 +19,7 @@ Ensures \code{grid.newpage()} is always called before drawing, which fixes
 silent‐plot issues in VS Code and other environments where
 \code{grDevices::dev.interactive()} returns \code{FALSE}.
 }
+\seealso{
+\code{\link[=plot_pdp]{plot_pdp()}} and \code{\link[=plot_scatter]{plot_scatter()}}, which return \code{utopia_plot}
+objects.
+}

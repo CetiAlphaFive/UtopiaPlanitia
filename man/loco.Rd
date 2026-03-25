@@ -40,15 +40,23 @@ inference (confidence intervals and p-values), or OOB-based LOCO (point
 estimates only).
 }
 \details{
-The split-sample method requires the \code{conformalInference} package, which is
+\strong{Choosing a mode.} The split-sample method (\code{split = TRUE}) provides
+valid confidence intervals and p-values via conformal inference, but is
+slower because it splits the data internally. The OOB method
+(\code{split = FALSE}) is faster and suitable for screening or exploratory
+analysis, but provides only point estimates with no formal inference.
+
+\strong{Split-sample mode} requires the \code{conformalInference} package, which is
 available only from GitHub:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{devtools::install_github("ryantibs/conformal", subdir = "conformalInference")
 }\if{html}{\out{</div>}}
 
-The OOB method refits the original ranger model once per covariate, each time
-dropping one predictor, and compares OOB prediction error to the full-model
-baseline.
+\strong{OOB mode} refits the original ranger model once per covariate, each
+time dropping one predictor, and compares OOB prediction error to the
+full-model baseline. The importance score is the increase in OOB error
+when the variable is removed; larger values indicate more important
+variables.
 }
 \examples{
 \donttest{
@@ -64,4 +72,12 @@ if (requireNamespace("ranger", quietly = TRUE)) {
 Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., & Wasserman, L. (2018).
 Distribution-Free Predictive Inference for Regression.
 \emph{Journal of the American Statistical Association}, 113(523), 1094--1111.
+
+Rinaldo, A., Wasserman, L., & G'Sell, M. (2019). Bootstrapping and
+Sample Splitting for High-Dimensional, Assumption-Lean Inference.
+\emph{Annals of Statistics}, 47(6), 3438--3469.
+}
+\seealso{
+\code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests
+(treatment effect heterogeneity rather than prediction accuracy).
 }

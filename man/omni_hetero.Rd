@@ -9,12 +9,20 @@ omni_hetero(c.forest, seed = 1995)
 \arguments{
 \item{c.forest}{A fitted causal forest object from the \code{grf} package.}
 
-\item{seed}{An integer seed for reproducibility. Default is \code{1995}.}
+\item{seed}{An integer seed for reproducibility. Default is \code{1995}.
+Controls the fold assignment in the sequential RATE test.}
 }
 \value{
-A data frame summarizing the results of the heterogeneity tests,
-including the test names, estimates, p-values, and whether heterogeneity
-is detected at the 0.05 level.
+A data frame with one row per test and the following columns:
+\describe{
+\item{heterogeneity_test}{Character. Name and citation of the test.}
+\item{estimate}{Numeric. The test statistic or effect estimate.
+\code{NA} for the sequential RATE test (which only produces a p-value).}
+\item{p_value}{Numeric. Two-sided p-value (or one-sided for the final
+row). Small values indicate evidence of treatment effect
+heterogeneity.}
+\item{hetero_detected}{Logical. \code{TRUE} if \code{p_value <= 0.05}.}
+}
 }
 \description{
 Performs various heterogeneity tests on a fitted causal forest model.
@@ -23,10 +31,26 @@ high/low CATE split (Athey and Wager, 2019), the sequential RATE test
 (Wager, 2024), and OOB RATE heuristics into a single summary table.
 }
 \details{
-The \strong{OOB RATE two-sided test} is known to be anti-conservative (roughly
-30\\% rejection rate under the null at nominal 5\\%; see the grf RATE
-vignette). The one-sided version is approximately valid when the direction
-is pre-specified. The sequential RATE test has correct size.
+The function combines five tests of treatment effect heterogeneity,
+ranging from well-calibrated to heuristic:
+\enumerate{
+\item \strong{Calibration test} (Chernozhukov et al., 2018): Regresses doubly
+robust scores on the forest's CATE predictions. The "differential
+forest prediction" coefficient tests whether the forest captures
+meaningful heterogeneity beyond the ATE.
+\item \strong{High vs. low CATE} (Athey and Wager, 2019): Splits units at the
+median predicted CATE and compares the ATE in each half. A significant
+difference suggests the forest detects real variation.
+\item \strong{Sequential RATE} (Wager, 2024): A k-fold cross-validated test with
+correct size (valid Type I error). This is the most trustworthy test
+in the battery and should be preferred for formal inference.
+\item \strong{OOB RATE, two-sided} (heuristic): Uses out-of-bag CATE predictions
+directly. Known to be anti-conservative (~30\\% rejection rate under the
+null at nominal 5\\%; see the grf RATE vignette). Useful as a quick
+screening tool, not for formal inference.
+\item \strong{OOB RATE, one-sided} (heuristic): One-sided version of the above.
+Approximately valid when the direction of heterogeneity is pre-specified.
+}
 }
 \examples{
 \donttest{
@@ -49,5 +73,10 @@ Athey, S. and Wager, S. (2019). Estimating Treatment Effects with Causal
 Forests: An Application. \emph{Observational Studies}, 5, 37--51.
 
 Wager, S. (2024). Sequential Validation of Treatment Heterogeneity.
-arXiv:2405.05534.
+\doi{10.48550/arXiv.2405.05534}
+}
+\seealso{
+\code{\link[=summary.causal_forest]{summary.causal_forest()}} which calls this function as part of
+its output, \code{\link[=cf_loco]{cf_loco()}} for variable-level importance rather than an
+omnibus heterogeneity test.
 }

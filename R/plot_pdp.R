@@ -53,6 +53,9 @@
 #' Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting
 #' Machine. *Annals of Statistics*, 29(5), 1189--1232.
 #'
+#' @seealso [plot_scatter()] for individual OOB CATEs (not marginalized),
+#'   [plot.causal_forest()] to call this via `plot(cf, type = "pdp")`.
+#'
 #' @importFrom rlang .data
 #' @export
 #' @examplesIf rlang::is_installed(c("ggplot2", "ggExtra"))

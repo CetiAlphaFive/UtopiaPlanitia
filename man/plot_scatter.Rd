@@ -30,12 +30,24 @@ plot_scatter(
 \item{y.limits}{y axis limits specified as c() vector. Defaults to range of Y.}
 }
 \value{
-A ggplot2 object with the scatter plot.
+A \code{utopia_plot} object (a \code{ggExtraPlot} with marginal histograms).
 }
 \description{
 Plots individual out-of-bag CATE estimates against a covariate with an
 optional loess smoother and ATE confidence region. This is \strong{not} a
 Friedman (2001) partial dependence plot — see \code{\link[=plot_pdp]{plot_pdp()}} for that.
+}
+\details{
+Each point is one unit's out-of-bag CATE prediction plotted against its
+observed covariate value. Unlike \code{\link[=plot_pdp]{plot_pdp()}}, which marginalizes over
+the remaining covariates by averaging predictions at each grid point,
+this plot shows raw individual predictions — making it faster but more
+sensitive to confounding between covariates.
+
+The optional LOESS smoother (or other method via \code{method}) helps reveal
+the conditional relationship between the covariate and the treatment
+effect. When the smoother deviates from the ATE band, this suggests the
+covariate modifies the treatment effect.
 }
 \examples{
 \dontshow{if (rlang::is_installed(c("ggplot2", "ggExtra"))) withAutoprint(\{ # examplesIf}
@@ -49,4 +61,13 @@ Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_scatter(cf, x_var = "X1")
 \dontshow{\}) # examplesIf}
+}
+\references{
+Friedman, J. H. (2001). Greedy Function Approximation: A Gradient Boosting
+Machine. \emph{Annals of Statistics}, 29(5), 1189--1232.
+}
+\seealso{
+\code{\link[=plot_pdp]{plot_pdp()}} for the marginalized partial dependence version,
+\code{\link[=plot_rank]{plot_rank()}} for ranked CATEs with CIs, \code{\link[=plot.causal_forest]{plot.causal_forest()}} to
+call this via \code{plot(cf, type = "scatter", x_var = ...)}.
 }

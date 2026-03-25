@@ -24,6 +24,10 @@
 #' @param x A `utopia_plot` object.
 #' @param ... Ignored.
 #' @return Invisibly returns `x`.
+#'
+#' @seealso [plot_pdp()] and [plot_scatter()], which return `utopia_plot`
+#'   objects.
+#'
 #' @export
 print.utopia_plot <- function(x, ...) {
   grid::grid.newpage()

@@ -47,3 +47,6 @@ cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_inter(cf, x_var = "X1", y_var = "X2")
 \dontshow{\}) # examplesIf}
 }
+\seealso{
+\code{\link[=plot_pdp]{plot_pdp()}} for the recommended replacement.
+}

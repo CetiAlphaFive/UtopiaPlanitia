@@ -27,6 +27,22 @@ A plot object (the return value of the dispatched function).
 \description{
 Dispatches to one of the package's plot functions based on \code{type}.
 }
+\details{
+This is a convenience dispatcher. Each type targets a different diagnostic
+question:
+\describe{
+\item{\code{"diag"}}{Are the nuisance models (outcome, propensity) well
+calibrated? Is there treatment effect heterogeneity?}
+\item{\code{"pdp"}}{How does the CATE change as a function of one or two
+covariates, marginalizing over the rest?}
+\item{\code{"scatter"}}{What do the individual OOB CATE predictions look
+like against a single covariate?}
+\item{\code{"rank"}}{What is the distribution of individual CATEs, sorted
+by magnitude, with confidence intervals?}
+\item{\code{"inter"}}{(Deprecated) Hex-binned interaction plot; use
+\code{"pdp"} with a \code{y_var} argument instead.}
+}
+}
 \examples{
 \dontshow{if (rlang::is_installed(c("ggplot2", "ggdist"))) withAutoprint(\{ # examplesIf}
 library(grf)
@@ -39,4 +55,8 @@ Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot(cf, type = "rank")
 \dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=plot_diag]{plot_diag()}}, \code{\link[=plot_pdp]{plot_pdp()}}, \code{\link[=plot_scatter]{plot_scatter()}}, \code{\link[=plot_rank]{plot_rank()}},
+\code{\link[=plot_inter]{plot_inter()}}
 }

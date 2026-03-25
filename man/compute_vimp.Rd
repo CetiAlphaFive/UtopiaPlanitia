@@ -2,30 +2,60 @@
 % Please edit documentation in R/compute_vimp.R
 \name{compute_vimp}
 \alias{compute_vimp}
-\title{Compute Variable Importance}
+\title{Compute Variable Importance (Internal)}
 \usage{
 compute_vimp(alpha, Y.centered, W.centered, tau.hat, stabilize = 1e-06)
 }
 \arguments{
-\item{alpha}{Coefficients alpha of the retrained forest.}
+\item{alpha}{Sparse weight matrix from \code{\link[grf:get_forest_weights]{grf::get_forest_weights()}}.
+Each row \code{i} gives the weights that forest observations receive when
+predicting unit \code{i}'s treatment effect.}
 
-\item{Y.centered}{Centered outcome.}
+\item{Y.centered}{Numeric vector. Outcome residuals \code{Y - Y.hat}, where
+\code{Y.hat} is the forest's outcome model (marginal mean of Y given X).}
 
-\item{W.centered}{Centered treatment assignment.}
+\item{W.centered}{Numeric vector. Treatment residuals \code{W - W.hat}, where
+\code{W.hat} is the estimated propensity score.}
 
-\item{tau.hat}{Original out-of-bag predictions.}
+\item{tau.hat}{Numeric vector. Original out-of-bag CATE predictions from
+the full (non-dropped) causal forest.}
 
 \item{stabilize}{Numeric floor for the per-observation denominator
 \code{Var_alpha(W.centered)}. Prevents division-by-zero when forest weights
 concentrate on units with near-identical propensity scores.
-Default \code{1e-6}.}
+Default \code{1e-6}. Set to \code{0} to disable.}
 }
 \value{
-A numeric value representing variable importance.
+A single numeric value: the importance score for this refit.
+Higher values indicate greater importance.
 }
 \description{
-Computes variable importance from coefficients alpha of the retrained forest,
-centered outcome and treatment assignment, and original OOB predictions.
-This is an internal helper used by \code{\link[=cf_loco]{cf_loco()}}.
+Computes a single variable importance score from forest weights and
+centered data. This is an internal helper called by \code{\link[=cf_loco]{cf_loco()}} for each
+dropped-variable refit; most users should call \code{cf_loco()} directly.
+}
+\details{
+For each observation, the function re-estimates the CATE using the
+weight-based regression:
+
+\deqn{\hat{\tau}_i^{new} = \frac{Cov_\alpha(W_i, Y_i) - \hat{\tau}_i \cdot Var_\alpha(W_i)}{Var_\alpha(W_i)}}
+
+where \eqn{Cov_\alpha} and \eqn{Var_\alpha} are weighted covariances and
+variances using the forest weights \eqn{\alpha}. The importance score is
+then the normalized squared difference between the original and
+re-estimated CATEs, divided by the variance of the original predictions.
+
+When \code{Var_alpha(W.centered)} is near zero for some observations (e.g.,
+because the forest weights concentrate on units with similar propensity
+scores), the \code{stabilize} parameter clamps the denominator to prevent
+numerical instability.
+}
+\references{
+Benard, C. and Josse, J. (2023). Variable Importance for Causal Forests:
+Breaking Down the Heterogeneity of Treatment Effects.
+\doi{10.48550/arXiv.2308.03369}
+}
+\seealso{
+\code{\link[=cf_loco]{cf_loco()}} which calls this function internally.
 }
 \keyword{internal}

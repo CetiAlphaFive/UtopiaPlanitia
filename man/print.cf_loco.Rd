@@ -15,5 +15,10 @@
 The \code{cf_loco} object (invisibly).
 }
 \description{
-Print LOCO Variable Importance
+Displays a table of LOCO variable importance scores sorted from most to
+least important. Shows sample size, number of covariates, and whether
+scores are normalized.
+}
+\seealso{
+\code{\link[=cf_loco]{cf_loco()}}, \code{\link[=summary.cf_loco]{summary.cf_loco()}}, \code{\link[=plot.cf_loco]{plot.cf_loco()}}
 }

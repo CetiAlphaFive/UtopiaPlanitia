@@ -12,6 +12,9 @@
 #' @param bin_count Number of bins for the hexagonal binning. Default is 50.
 #' @param limits The limits of the color scale, by default the minimum and maximum of the CATEs.
 #' @return A ggplot2 object with the interaction plot.
+#'
+#' @seealso [plot_pdp()] for the recommended replacement.
+#'
 #' @importFrom rlang .data
 #' @export
 #' @examplesIf rlang::is_installed(c("ggplot2", "ggExtra", "hexbin"))
