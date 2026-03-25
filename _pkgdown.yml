@@ -2,19 +2,6 @@ url: https://cetialphafive.github.io/UtopiaPlanitia/
 template:
   bootstrap: 5
 
-home:
-  title: UtopiaPlanitia
-  description: Variable importance, heterogeneity tests, and visualization tools for causal forests.
-
-navbar:
-  structure:
-    left: [intro, reference, news]
-    right: [search, github]
-  components:
-    github:
-      icon: fa-github
-      href: https://github.com/CetiAlphaFive/UtopiaPlanitia
-
 reference:
   - title: Causal Forest Summary
     desc: S3 methods for summarizing and plotting causal forests.
