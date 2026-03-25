@@ -6,10 +6,12 @@ reference:
   - title: S3 Methods
     contents:
       - summary.causal_forest
+      - print.summary.causal_forest
       - plot.causal_forest
       - summary.cf_loco
       - print.cf_loco
       - plot.cf_loco
+      - print.utopia_plot
 
   - title: Variable Importance
     contents:
