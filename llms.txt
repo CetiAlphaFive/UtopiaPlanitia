@@ -4,6 +4,10 @@
 
 UtopiaPlanitia
 
+[![R-CMD-check](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/check-standard.yaml/badge.svg)](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/check-standard.yaml)
+[![Codecov](https://codecov.io/gh/CetiAlphaFive/UtopiaPlanitia/graph/badge.svg)](https://codecov.io/gh/CetiAlphaFive/UtopiaPlanitia)
+[![lint](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/lint.yaml/badge.svg)](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/lint.yaml)
+
 This package contains various functions that are under construction.
 *Use at your own risk.*
 
