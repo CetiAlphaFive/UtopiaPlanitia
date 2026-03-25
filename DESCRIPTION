@@ -30,6 +30,5 @@ Suggests:
   ranger,
   conformalInference
 Remotes:
-  ryantibs/conformal/conformalInference,
   CetiAlphaFive/MLbalance
 Config/testthat/edition: 3
