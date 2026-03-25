@@ -210,14 +210,37 @@ test_that("cf_loco screen = FALSE with small p does not prompt", {
 test_that("omni_hetero returns correct structure", {
   cf <- make_cf()
   result <- omni_hetero(cf)
+  expect_s3_class(result, "omni_hetero")
   expect_s3_class(result, "data.frame")
-  expect_named(result, c("heterogeneity_test", "estimate", "p_value", "hetero_detected"))
+  expect_named(result, c("category", "heterogeneity_test", "estimate", "p_value", "hetero_detected"))
   expect_equal(nrow(result), 5)
+  # Preferred tests first, then Heuristic
+  expect_equal(result$category, c("Preferred", "Preferred", "Heuristic", "Heuristic", "Heuristic"))
+  expect_equal(result$heterogeneity_test[1], "Sequential RATE (Wager, 2024)")
+  expect_equal(result$heterogeneity_test[2], "Calibration Test (Chernozhukov et al., 2018)")
   # p-values should be between 0 and 1 (NA allowed for estimate-only rows)
   pvals <- result$p_value[!is.na(result$p_value)]
   expect_true(all(pvals >= 0 & pvals <= 1))
   # hetero_detected should be logical
   expect_type(result$hetero_detected, "logical")
+})
+
+test_that("print.omni_hetero runs without error", {
+  cf <- make_cf()
+  result <- omni_hetero(cf)
+  expect_output(print(result), "Preferred")
+  expect_output(print(result), "Heuristic")
+})
+
+test_that("print.omni_hetero latex output produces valid LaTeX", {
+  cf <- make_cf()
+  result <- omni_hetero(cf)
+  out <- capture.output(print(result, latex = TRUE))
+  expect_true(any(grepl("\\\\begin\\{table\\}", out)))
+  expect_true(any(grepl("\\\\end\\{table\\}", out)))
+  expect_true(any(grepl("\\\\textit\\{Preferred\\}", out)))
+  expect_true(any(grepl("\\\\textit\\{Heuristic\\}", out)))
+  expect_true(any(grepl("Sequential RATE", out)))
 })
 
 test_that("omni_hetero rejects non-causal_forest input", {

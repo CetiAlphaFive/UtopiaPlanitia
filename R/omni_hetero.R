@@ -8,8 +8,11 @@
 #' @param c.forest A fitted causal forest object from the \code{grf} package.
 #' @param seed An integer seed for reproducibility. Default is `1995`.
 #'   Controls the fold assignment in the sequential RATE test.
-#' @return A data frame with one row per test and the following columns:
+#' @return An object of class `"omni_hetero"` (a data frame) with one row
+#'   per test and the following columns:
 #'   \describe{
+#'     \item{category}{Character. `"Preferred"` for tests with valid Type I
+#'       error control, `"Heuristic"` for screening tests.}
 #'     \item{heterogeneity_test}{Character. Name and citation of the test.}
 #'     \item{estimate}{Numeric. The test statistic or effect estimate.
 #'       `NA` for the sequential RATE test (which only produces a p-value).}
@@ -21,20 +24,24 @@
 #'
 #' @details
 #' The function combines five tests of treatment effect heterogeneity,
-#' ranging from well-calibrated to heuristic:
+#' grouped into **Preferred** (valid size) and **Heuristic** categories:
 #'
-#' 1. **Calibration test** (Chernozhukov et al., 2018): Regresses doubly
+#' **Preferred tests** (valid Type I error control):
+#'
+#' 1. **Sequential RATE** (Wager, 2024): A k-fold cross-validated test with
+#'    correct size (valid Type I error). This is the most trustworthy test
+#'    in the battery and should be preferred for formal inference.
+#'
+#' 2. **Calibration test** (Chernozhukov et al., 2018): Regresses doubly
 #'    robust scores on the forest's CATE predictions. The "differential
 #'    forest prediction" coefficient tests whether the forest captures
 #'    meaningful heterogeneity beyond the ATE.
 #'
-#' 2. **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
+#' **Heuristic tests** (useful for screening, not formal inference):
+#'
+#' 3. **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
 #'    median predicted CATE and compares the ATE in each half. A significant
 #'    difference suggests the forest detects real variation.
-#'
-#' 3. **Sequential RATE** (Wager, 2024): A k-fold cross-validated test with
-#'    correct size (valid Type I error). This is the most trustworthy test
-#'    in the battery and should be preferred for formal inference.
 #'
 #' 4. **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE predictions
 #'    directly. Known to be anti-conservative (~30\% rejection rate under the
@@ -178,37 +185,142 @@ omni_hetero <- function(c.forest, seed = 1995) {
   p.val          <- 2 * stats::pnorm(-abs(t.stat.oob))
   p.val.onesided <- stats::pnorm(t.stat.oob, lower.tail = FALSE)
 
-  # Combine results
+  # Combine results (Preferred tests first, then Heuristic)
   summary_table <- data.frame(
+    category = c(
+      "Preferred",
+      "Preferred",
+      "Heuristic",
+      "Heuristic",
+      "Heuristic"
+    ),
     heterogeneity_test = c(
+      "Sequential RATE (Wager, 2024)",
       "Calibration Test (Chernozhukov et al., 2018)",
       "High vs. Low CATE (Athey and Wager, 2019)",
-      "Sequential RATE (Wager, 2024)",
       "OOB RATE, two-sided (heuristic, anti-conservative)",
       "OOB RATE, one-sided (heuristic)"
     ),
     estimate = c(
+      NA_real_,
       cal.est,
       naive_high_low_diff,
-      NA_real_,
       rate.oob$estimate,
       rate.oob$estimate
     ),
     p_value = c(
+      sequential_rate_test_pvalue,
       cal.pval,
       naive_high_low_p_value,
-      sequential_rate_test_pvalue,
       p.val,
       p.val.onesided
     ),
     hetero_detected = c(
+      sequential_rate_test_pvalue <= 0.05,
       cal.pval <= 0.05,
       naive_high_low_p_value <= 0.05,
-      sequential_rate_test_pvalue <= 0.05,
       p.val <= 0.05,
       p.val.onesided <= 0.05
     )
   )
 
-  return(summary_table)
+  class(summary_table) <- c("omni_hetero", "data.frame")
+  summary_table
+}
+
+#' Print Omnibus Heterogeneity Tests
+#'
+#' Formats the [omni_hetero()] output as a clean table suitable for an
+#' appendix, grouped by Preferred and Heuristic categories.
+#'
+#' @param x An object of class `"omni_hetero"`.
+#' @param latex Logical. If `TRUE`, prints a self-contained LaTeX
+#'   `tabular` environment ready to copy-paste into a manuscript.
+#'   Default is `FALSE`.
+#' @param ... Additional arguments (currently unused).
+#' @return The input object `x` (invisibly).
+#'
+#' @seealso [omni_hetero()]
+#'
+#' @method print omni_hetero
+#' @export
+print.omni_hetero <- function(x, latex = FALSE, ...) {
+
+  if (latex) {
+    print_omni_latex(x)
+    return(invisible(x))
+  }
+
+  fmt <- as.data.frame(x)
+  fmt$estimate <- ifelse(is.na(x$estimate), "\u2014",
+                         formatC(x$estimate, format = "f", digits = 4))
+  fmt$p_value <- formatC(x$p_value, format = "f", digits = 4)
+  fmt$hetero_detected <- ifelse(x$hetero_detected, "Yes", "No")
+
+  preferred <- fmt[fmt$category == "Preferred", -1, drop = FALSE]
+  heuristic <- fmt[fmt$category == "Heuristic", -1, drop = FALSE]
+
+  cat("Omnibus Heterogeneity Tests\n")
+  cat(strrep("-", 40), "\n")
+  cat("\nPreferred (valid size)\n\n")
+  print.data.frame(preferred, row.names = FALSE, right = FALSE)
+  cat("\nHeuristic (screening only)\n\n")
+  print.data.frame(heuristic, row.names = FALSE, right = FALSE)
+
+  invisible(x)
+}
+
+#' Format p-value for LaTeX output
+#' @noRd
+fmt_pval_latex <- function(p) {
+  ifelse(is.na(p) | is.nan(p), "---",
+  ifelse(p < 0.001, "$<$0.001",
+         formatC(p, format = "f", digits = 3)))
+}
+
+#' Print omni_hetero as LaTeX tabular
+#' @noRd
+print_omni_latex <- function(x) {
+
+  # Short test names (no citations — those go in table notes)
+  short_names <- c(
+    "Sequential RATE (Wager, 2024)"                      = "Sequential RATE",
+    "Calibration Test (Chernozhukov et al., 2018)"        = "Calibration test",
+    "High vs. Low CATE (Athey and Wager, 2019)"           = "High vs.\\ low CATE",
+    "OOB RATE, two-sided (heuristic, anti-conservative)"  = "OOB RATE (two-sided)",
+    "OOB RATE, one-sided (heuristic)"                     = "OOB RATE (one-sided)"
+  )
+
+  est <- ifelse(is.na(x$estimate), "---",
+                formatC(x$estimate, format = "f", digits = 4))
+  pval <- fmt_pval_latex(x$p_value)
+  sig <- ifelse(!is.na(x$hetero_detected) & x$hetero_detected, "Yes", "No")
+  test <- short_names[x$heterogeneity_test]
+
+  cat("\\begin{table}[ht]\n")
+  cat("\\centering\n")
+  cat("\\caption{Omnibus Tests of Treatment Effect Heterogeneity}\n")
+  cat("\\label{tab:hetero}\n")
+  cat("\\begin{tabular}{llccc}\n")
+  cat("\\hline\n")
+  cat(" & Test & Estimate & $p$-value & Detected \\\\\n")
+  cat("\\hline\n")
+
+  # Preferred
+  pref_idx <- which(x$category == "Preferred")
+  cat("\\textit{Preferred} & & & & \\\\\n")
+  for (i in pref_idx) {
+    cat(sprintf("  & %s & %s & %s & %s \\\\\n", test[i], est[i], pval[i], sig[i]))
+  }
+
+  # Heuristic
+  heur_idx <- which(x$category == "Heuristic")
+  cat("\\textit{Heuristic} & & & & \\\\\n")
+  for (i in heur_idx) {
+    cat(sprintf("  & %s & %s & %s & %s \\\\\n", test[i], est[i], pval[i], sig[i]))
+  }
+
+  cat("\\hline\n")
+  cat("\\end{tabular}\n")
+  cat("\\end{table}\n")
 }

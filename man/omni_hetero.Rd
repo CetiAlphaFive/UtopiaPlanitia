@@ -13,8 +13,11 @@ omni_hetero(c.forest, seed = 1995)
 Controls the fold assignment in the sequential RATE test.}
 }
 \value{
-A data frame with one row per test and the following columns:
+An object of class \code{"omni_hetero"} (a data frame) with one row
+per test and the following columns:
 \describe{
+\item{category}{Character. \code{"Preferred"} for tests with valid Type I
+error control, \code{"Heuristic"} for screening tests.}
 \item{heterogeneity_test}{Character. Name and citation of the test.}
 \item{estimate}{Numeric. The test statistic or effect estimate.
 \code{NA} for the sequential RATE test (which only produces a p-value).}
@@ -32,18 +35,24 @@ high/low CATE split (Athey and Wager, 2019), the sequential RATE test
 }
 \details{
 The function combines five tests of treatment effect heterogeneity,
-ranging from well-calibrated to heuristic:
+grouped into \strong{Preferred} (valid size) and \strong{Heuristic} categories:
+
+\strong{Preferred tests} (valid Type I error control):
 \enumerate{
+\item \strong{Sequential RATE} (Wager, 2024): A k-fold cross-validated test with
+correct size (valid Type I error). This is the most trustworthy test
+in the battery and should be preferred for formal inference.
 \item \strong{Calibration test} (Chernozhukov et al., 2018): Regresses doubly
 robust scores on the forest's CATE predictions. The "differential
 forest prediction" coefficient tests whether the forest captures
 meaningful heterogeneity beyond the ATE.
+}
+
+\strong{Heuristic tests} (useful for screening, not formal inference):
+\enumerate{
 \item \strong{High vs. low CATE} (Athey and Wager, 2019): Splits units at the
 median predicted CATE and compares the ATE in each half. A significant
 difference suggests the forest detects real variation.
-\item \strong{Sequential RATE} (Wager, 2024): A k-fold cross-validated test with
-correct size (valid Type I error). This is the most trustworthy test
-in the battery and should be preferred for formal inference.
 \item \strong{OOB RATE, two-sided} (heuristic): Uses out-of-bag CATE predictions
 directly. Known to be anti-conservative (~30\\% rejection rate under the
 null at nominal 5\\%; see the grf RATE vignette). Useful as a quick
