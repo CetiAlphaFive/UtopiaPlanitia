@@ -1,4 +1,8 @@
+<div class="github-only">
+
 ![Utopia Planitia on Mars](https://raw.githubusercontent.com/CetiAlphaFive/UtopiaPlanitia/main/Utopia_Planitia_on_Mars_pillars.jpg)
+
+</div>
 
 # UtopiaPlanitia <a href='https://github.com/CetiAlphaFive/UtopiaPlanitia/blob/main/man/figures/utopiaplanitia_sticker.png'><img src='man/figures/utopiaplanitia_sticker.png' align="right" height="120" alt="UtopiaPlanitia hex sticker" /></a>
 
