@@ -42,7 +42,7 @@ test_that("plot.cf_loco returns a ggplot", {
 
 test_that("summary.causal_forest returns correct class and structure", {
   cf <- make_cf()
-  s <- summary(cf)
+  s <- suppressWarnings(suppressMessages(summary(cf)))
   expect_s3_class(s, "summary.causal_forest")
   expect_named(s, c("ate", "vimp", "heterogeneity"))
   expect_length(s$ate, 2)
@@ -53,7 +53,7 @@ test_that("summary.causal_forest returns correct class and structure", {
 
 test_that("print.summary.causal_forest runs without error", {
   cf <- make_cf()
-  s <- summary(cf)
+  s <- suppressWarnings(suppressMessages(summary(cf)))
   expect_output(print(s), "Average Treatment Effect")
 })
 
@@ -209,7 +209,7 @@ test_that("cf_loco screen = FALSE with small p does not prompt", {
 
 test_that("omni_hetero returns correct structure", {
   cf <- make_cf()
-  result <- omni_hetero(cf)
+  result <- suppressWarnings(suppressMessages(omni_hetero(cf)))
   expect_s3_class(result, "omni_hetero")
   expect_s3_class(result, "data.frame")
   expect_named(result, c("category", "heterogeneity_test", "estimate", "p_value", "hetero_detected"))
@@ -227,14 +227,14 @@ test_that("omni_hetero returns correct structure", {
 
 test_that("print.omni_hetero runs without error", {
   cf <- make_cf()
-  result <- omni_hetero(cf)
+  result <- suppressWarnings(suppressMessages(omni_hetero(cf)))
   expect_output(print(result), "Preferred")
   expect_output(print(result), "Heuristic")
 })
 
 test_that("print.omni_hetero latex output produces valid LaTeX", {
   cf <- make_cf()
-  result <- omni_hetero(cf)
+  result <- suppressWarnings(suppressMessages(omni_hetero(cf)))
   out <- capture.output(print(result, latex = TRUE))
   expect_true(any(grepl("\\\\begin\\{table\\}", out)))
   expect_true(any(grepl("\\\\end\\{table\\}", out)))
@@ -249,8 +249,8 @@ test_that("omni_hetero rejects non-causal_forest input", {
 
 test_that("omni_hetero seed is reproducible", {
   cf <- make_cf()
-  r1 <- omni_hetero(cf, seed = 42)
-  r2 <- omni_hetero(cf, seed = 42)
+  r1 <- suppressWarnings(suppressMessages(omni_hetero(cf, seed = 42)))
+  r2 <- suppressWarnings(suppressMessages(omni_hetero(cf, seed = 42)))
   expect_equal(r1, r2)
 })
 

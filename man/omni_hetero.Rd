@@ -4,13 +4,26 @@
 \alias{omni_hetero}
 \title{Omnibus Tests of Heterogeneity}
 \usage{
-omni_hetero(c.forest, seed = 1995)
+omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
 }
 \arguments{
 \item{c.forest}{A fitted causal forest object from the \code{grf} package.}
 
 \item{seed}{An integer seed for reproducibility. Default is \code{1995}.
 Controls the fold assignment in the sequential RATE test.}
+
+\item{min_fold_n}{Minimum per-fold training sample size below which the
+Sequential RATE test is considered unstable. When \code{n < 400} or
+\code{n / num.folds < min_fold_n}, a warning is emitted at the start of the
+Sequential RATE computation and users are advised to prefer the
+Calibration test (Chernozhukov et al., 2018) or OOB RATE heuristics
+for small samples. Within the fold loop, any fold whose test-set CATE
+predictions are (near-)constant, whose RATE standard error is zero,
+or whose t-statistic is \code{NaN} is dropped from aggregation rather than
+allowed to propagate a silent \code{NaN} into the final p-value. If fewer
+than 2 usable folds remain, the Sequential RATE p-value is returned
+as \code{NA_real_} with an explanatory \code{reason} attribute. Default is
+\code{100}.}
 }
 \value{
 An object of class \code{"omni_hetero"} (a data frame) with one row

@@ -8,6 +8,18 @@
 #' @param c.forest A fitted causal forest object from the \code{grf} package.
 #' @param seed An integer seed for reproducibility. Default is `1995`.
 #'   Controls the fold assignment in the sequential RATE test.
+#' @param min_fold_n Minimum per-fold training sample size below which the
+#'   Sequential RATE test is considered unstable. When `n < 400` or
+#'   `n / num.folds < min_fold_n`, a warning is emitted at the start of the
+#'   Sequential RATE computation and users are advised to prefer the
+#'   Calibration test (Chernozhukov et al., 2018) or OOB RATE heuristics
+#'   for small samples. Within the fold loop, any fold whose test-set CATE
+#'   predictions are (near-)constant, whose RATE standard error is zero,
+#'   or whose t-statistic is `NaN` is dropped from aggregation rather than
+#'   allowed to propagate a silent `NaN` into the final p-value. If fewer
+#'   than 2 usable folds remain, the Sequential RATE p-value is returned
+#'   as `NA_real_` with an explanatory `reason` attribute. Default is
+#'   `100`.
 #' @return An object of class `"omni_hetero"` (a data frame) with one row
 #'   per test and the following columns:
 #'   \describe{
@@ -79,7 +91,7 @@
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' omni_hetero(cf)
 #' }
-omni_hetero <- function(c.forest, seed = 1995) {
+omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a grf causal forest.")
@@ -116,13 +128,27 @@ omni_hetero <- function(c.forest, seed = 1995) {
   naive_high_low_p_value <- 2 * stats::pnorm(-abs(naive_high_low_diff / naive_high_low_se))
 
   # Wager's sequential RATE test
+  #
+  # Robustness additions (v0.3.2):
+  #   - Upfront size check: warn if n < 400 or n/num.folds < min_fold_n.
+  #   - Per-fold degeneracy guard: drop folds where the test-set CATE forest
+  #     predicts (near-)constant, where the fold RATE std.err is zero, or
+  #     where the resulting t-statistic is NaN / non-finite. These otherwise
+  #     propagate silently into the aggregated p-value.
+  #   - If fewer than 2 usable folds remain, return NA_real_ with a `reason`
+  #     attribute instead of a silent NaN.
+  #   - The sum(t)/sqrt(num.folds - 1) aggregation is PRESERVED (any change
+  #     to that formula is a separate, higher-tier concern about fold
+  #     independence — see omni_hetero audit).
   rate_sequential <- function(X, Y, W, num.folds = 5) {
 
     set.seed(seed)
     fold.id <- sample(rep(1:num.folds, length = nrow(X)))
     samples.by.fold <- split(seq_along(fold.id), fold.id)
 
-    t.statistics <- c()
+    t.statistics  <- c()
+    dropped.folds <- integer(0)
+    drop.reasons  <- character(0)
 
     # Form AIPW scores for estimating RATE (full-sample, per Wager 2024)
     nuisance.forest <- causal_forest(X, Y, W,
@@ -141,6 +167,9 @@ omni_hetero <- function(c.forest, seed = 1995) {
                                      ci.group.size = cigs,
                                      seed = seed)
     DR.scores <- get_scores(nuisance.forest)
+
+    # small-sample tolerance for near-constant CATE predictions
+    cate.tol <- 1e-8
 
     for (k in 2:num.folds) {
       train <- unlist(samples.by.fold[1:(k - 1)])
@@ -164,10 +193,61 @@ omni_hetero <- function(c.forest, seed = 1995) {
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
 
+      # guard 1: degenerate training fit — CATE forest predicts (near-)constant
+      if (!is.finite(stats::sd(cate.hat.test)) ||
+          stats::sd(cate.hat.test) < cate.tol) {
+        dropped.folds <- c(dropped.folds, k)
+        drop.reasons  <- c(drop.reasons,
+                           "near-constant CATE predictions on test fold")
+        next
+      }
+
       rate.fold <- rank_average_treatment_effect.fit(DR.scores[test], cate.hat.test)
-      t.statistics <- c(t.statistics, rate.fold$estimate / rate.fold$std.err)
+
+      # guard 2: RATE std.err is zero / non-finite (t = 0/0 = NaN)
+      if (!is.finite(rate.fold$std.err) || rate.fold$std.err == 0) {
+        dropped.folds <- c(dropped.folds, k)
+        drop.reasons  <- c(drop.reasons,
+                           "zero or non-finite RATE std.err")
+        next
+      }
+
+      t.stat <- rate.fold$estimate / rate.fold$std.err
+
+      # guard 3: defensive — any remaining non-finite t (e.g. Inf / NaN)
+      if (!is.finite(t.stat)) {
+        dropped.folds <- c(dropped.folds, k)
+        drop.reasons  <- c(drop.reasons, "non-finite t-statistic")
+        next
+      }
+
+      t.statistics <- c(t.statistics, t.stat)
     }
 
+    n.usable <- length(t.statistics)
+
+    if (length(dropped.folds) > 0L) {
+      warning("Sequential RATE: dropped ", length(dropped.folds),
+              " of ", num.folds - 1, " folds due to degenerate fits (",
+              paste(unique(drop.reasons), collapse = "; "), ").",
+              call. = FALSE)
+    }
+
+    if (n.usable < 2L) {
+      reason <- paste0(
+        "Fewer than 2 usable folds after degeneracy filtering (",
+        n.usable, " usable, ", length(dropped.folds), " dropped). ",
+        "Likely cause: sample size too small for k-fold sequential RATE. ",
+        "Prefer the Calibration test for formal inference at this n."
+      )
+      pval <- NA_real_
+      attr(pval, "reason") <- reason
+      return(pval)
+    }
+
+    # Aggregation formula preserved per Wager (2024).
+    # Uses sqrt(num.folds - 1) = sqrt(K-1), matching the original fold-count
+    # normalization; this is intentionally not rescaled by n.usable here.
     2 * stats::pnorm(-abs(sum(t.statistics) / sqrt(num.folds - 1)))
   }
 
@@ -175,7 +255,29 @@ omni_hetero <- function(c.forest, seed = 1995) {
   Y <- c.forest$Y.orig
   W <- c.forest$W.orig
 
+  # Upfront size check (Task A requirement): warn when Sequential RATE
+  # likely unstable. Uses default num.folds = 5 from rate_sequential().
+  .seq.num.folds <- 5L
+  .n <- nrow(X)
+  if (.n < 400L || (.n / .seq.num.folds) < min_fold_n) {
+    warning(
+      "Sequential RATE may be unstable at this sample size (n = ", .n,
+      ", n/num.folds = ", round(.n / .seq.num.folds, 1),
+      "; min_fold_n = ", min_fold_n, "). Training folds may be too small ",
+      "for the per-fold CATE forest to detect heterogeneity, which can ",
+      "produce degenerate RATE statistics. Consider the Calibration test ",
+      "(Chernozhukov et al., 2018) or the OOB RATE heuristics instead.",
+      call. = FALSE
+    )
+  }
+
   sequential_rate_test_pvalue <- rate_sequential(X, Y, W)
+  if (is.na(sequential_rate_test_pvalue) &&
+      !is.null(attr(sequential_rate_test_pvalue, "reason"))) {
+    message("Sequential RATE: ", attr(sequential_rate_test_pvalue, "reason"))
+    # strip attribute so it doesn't leak into the data.frame column
+    sequential_rate_test_pvalue <- NA_real_
+  }
 
   # Wager's heuristic OOB RATE test
   tau.hat.oob <- c.forest$predictions
