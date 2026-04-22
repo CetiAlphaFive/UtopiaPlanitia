@@ -117,6 +117,30 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
   calibration_test <- test_calibration(c.forest)
   cal.est  <- calibration_test["differential.forest.prediction", "Estimate"]
   cal.pval <- calibration_test["differential.forest.prediction", "Pr(>t)"]
+  cal.se   <- calibration_test["differential.forest.prediction", "Std. Error"]
+  cal.mean.est <- calibration_test["mean.forest.prediction", "Estimate"]
+
+  # BLP plot payload: cache the inputs so plot.omni_hetero() can reproduce
+  # the Chernozhukov (2018) partial-residual regression without touching the
+  # forest a second time. All quantities below mirror the regressors grf
+  # constructs inside test_calibration():
+  #   response = AIPW doubly-robust scores
+  #   x1       = mean forest prediction (a constant equal to mean OOB CATE)
+  #   x2       = differential forest prediction (OOB CATE - mean OOB CATE)
+  blp_dr      <- grf::get_scores(c.forest)
+  blp_tau.oob <- c.forest$predictions
+  blp_mean    <- mean(blp_tau.oob)
+  blp_diff    <- blp_tau.oob - blp_mean
+  blp_payload <- list(
+    dr        = as.numeric(blp_dr),
+    tau_oob   = as.numeric(blp_tau.oob),
+    centered  = as.numeric(blp_diff),
+    mean_pred = blp_mean,
+    beta_mean = cal.mean.est,
+    beta_diff = cal.est,
+    se_diff   = cal.se,
+    p_diff    = cal.pval
+  )
 
   # Naive high/low test (Athey and Wager, 2019)
   tau.hat <- c.forest$predictions
@@ -149,6 +173,9 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
     t.statistics  <- c()
     dropped.folds <- integer(0)
     drop.reasons  <- character(0)
+    # per-fold accumulator for plot.omni_hetero(); one row per attempted
+    # fold (including dropped ones, flagged via `dropped`).
+    folds.list <- vector("list", length = num.folds - 1L)
 
     # Form AIPW scores for estimating RATE (full-sample, per Wager 2024)
     nuisance.forest <- causal_forest(X, Y, W,
@@ -192,6 +219,7 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
                                    seed = seed)
 
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
+      n.test <- length(test)
 
       # guard 1: degenerate training fit — CATE forest predicts (near-)constant
       if (!is.finite(stats::sd(cate.hat.test)) ||
@@ -199,6 +227,12 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
         dropped.folds <- c(dropped.folds, k)
         drop.reasons  <- c(drop.reasons,
                            "near-constant CATE predictions on test fold")
+        folds.list[[k - 1L]] <- data.frame(
+          fold = k, n_test = n.test, estimate = NA_real_,
+          std.err = NA_real_, t_stat = NA_real_,
+          dropped = TRUE,
+          drop_reason = "near-constant CATE predictions on test fold"
+        )
         next
       }
 
@@ -209,6 +243,12 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
         dropped.folds <- c(dropped.folds, k)
         drop.reasons  <- c(drop.reasons,
                            "zero or non-finite RATE std.err")
+        folds.list[[k - 1L]] <- data.frame(
+          fold = k, n_test = n.test, estimate = rate.fold$estimate,
+          std.err = rate.fold$std.err, t_stat = NA_real_,
+          dropped = TRUE,
+          drop_reason = "zero or non-finite RATE std.err"
+        )
         next
       }
 
@@ -218,11 +258,24 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
       if (!is.finite(t.stat)) {
         dropped.folds <- c(dropped.folds, k)
         drop.reasons  <- c(drop.reasons, "non-finite t-statistic")
+        folds.list[[k - 1L]] <- data.frame(
+          fold = k, n_test = n.test, estimate = rate.fold$estimate,
+          std.err = rate.fold$std.err, t_stat = NA_real_,
+          dropped = TRUE, drop_reason = "non-finite t-statistic"
+        )
         next
       }
 
       t.statistics <- c(t.statistics, t.stat)
+      folds.list[[k - 1L]] <- data.frame(
+        fold = k, n_test = n.test, estimate = rate.fold$estimate,
+        std.err = rate.fold$std.err, t_stat = t.stat,
+        dropped = FALSE, drop_reason = NA_character_
+      )
     }
+
+    folds.df <- do.call(rbind, folds.list[!vapply(folds.list, is.null, logical(1))])
+    rownames(folds.df) <- NULL
 
     n.usable <- length(t.statistics)
 
@@ -240,15 +293,25 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
         "Likely cause: sample size too small for k-fold sequential RATE. ",
         "Prefer the Calibration test for formal inference at this n."
       )
-      pval <- NA_real_
-      attr(pval, "reason") <- reason
-      return(pval)
+      return(list(p = NA_real_, reason = reason,
+                  folds_df = folds.df,
+                  dropped_folds = dropped.folds,
+                  drop_reasons = drop.reasons,
+                  sequential_t = NA_real_,
+                  num_folds = num.folds))
     }
 
     # Aggregation formula preserved per Wager (2024).
     # Uses sqrt(num.folds - 1) = sqrt(K-1), matching the original fold-count
     # normalization; this is intentionally not rescaled by n.usable here.
-    2 * stats::pnorm(-abs(sum(t.statistics) / sqrt(num.folds - 1)))
+    t_seq <- sum(t.statistics) / sqrt(num.folds - 1)
+    p_seq <- 2 * stats::pnorm(-abs(t_seq))
+    list(p = p_seq, reason = NA_character_,
+         folds_df = folds.df,
+         dropped_folds = dropped.folds,
+         drop_reasons = drop.reasons,
+         sequential_t = t_seq,
+         num_folds = num.folds)
   }
 
   X <- c.forest$X.orig
@@ -271,13 +334,26 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
     )
   }
 
-  sequential_rate_test_pvalue <- rate_sequential(X, Y, W)
-  if (is.na(sequential_rate_test_pvalue) &&
-      !is.null(attr(sequential_rate_test_pvalue, "reason"))) {
-    message("Sequential RATE: ", attr(sequential_rate_test_pvalue, "reason"))
-    # strip attribute so it doesn't leak into the data.frame column
-    sequential_rate_test_pvalue <- NA_real_
+  rate_result <- rate_sequential(X, Y, W)
+  sequential_rate_test_pvalue <- rate_result$p
+  if (is.na(sequential_rate_test_pvalue) && !is.na(rate_result$reason)) {
+    message("Sequential RATE: ", rate_result$reason)
   }
+  rate_payload <- list(
+    folds_df      = rate_result$folds_df,
+    sequential_t  = rate_result$sequential_t,
+    p_value       = rate_result$p,
+    num_folds     = rate_result$num_folds,
+    dropped_folds = rate_result$dropped_folds,
+    drop_reasons  = rate_result$drop_reasons,
+    reason        = rate_result$reason,
+    # OOB TOC curve + summary (the classic grf RATE viz; heuristic, not
+    # the sequential test). Populated below once rate.oob is computed.
+    toc_df           = NULL,
+    oob_rate_target  = NA_character_,
+    oob_rate_est     = NA_real_,
+    oob_rate_se      = NA_real_
+  )
 
   # Wager's heuristic OOB RATE test
   tau.hat.oob <- c.forest$predictions
@@ -286,6 +362,13 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
   t.stat.oob <- rate.oob$estimate / rate.oob$std.err
   p.val          <- 2 * stats::pnorm(-abs(t.stat.oob))
   p.val.onesided <- stats::pnorm(t.stat.oob, lower.tail = FALSE)
+
+  # Stash TOC + OOB RATE summary so plot.omni_hetero() can render the
+  # classic grf TOC curve alongside the per-fold forest plot.
+  rate_payload$toc_df          <- as.data.frame(rate.oob$TOC)
+  rate_payload$oob_rate_target <- as.character(rate.oob$target)
+  rate_payload$oob_rate_est    <- rate.oob$estimate
+  rate_payload$oob_rate_se     <- rate.oob$std.err
 
   # Combine results (Preferred tests first, then Heuristic)
   summary_table <- data.frame(
@@ -327,6 +410,8 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
   )
 
   class(summary_table) <- c("omni_hetero", "data.frame")
+  attr(summary_table, "blp")  <- blp_payload
+  attr(summary_table, "rate") <- rate_payload
   summary_table
 }
 
