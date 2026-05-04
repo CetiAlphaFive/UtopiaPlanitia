@@ -36,6 +36,7 @@ visualization tools for causal forests built on the
 You can install UtopiaPlanitia from GitHub with:
 
 ``` r
+
 # install.packages("pak")
 pak::pak("CetiAlphaFive/UtopiaPlanitia")
 ```
@@ -43,6 +44,7 @@ pak::pak("CetiAlphaFive/UtopiaPlanitia")
 ## Quick start
 
 ``` r
+
 library(grf)
 library(UtopiaPlanitia)
 

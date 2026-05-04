@@ -29,6 +29,22 @@ Omnibus battery of treatment effect heterogeneity tests.
 
 - [`omni_hetero()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/omni_hetero.md)
   : Omnibus Tests of Heterogeneity
+- [`print(`*`<omni_hetero>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.omni_hetero.md)
+  : Print Omnibus Heterogeneity Tests
+- [`plot(`*`<omni_hetero>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.omni_hetero.md)
+  : Plot an Omnibus Heterogeneity Test Object
+
+## Nuisance Estimation
+
+Causal forest refits with alternative nuisance estimators (TabPFN,
+cv.glmnet).
+
+- [`tabcf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/tabcf.md)
+  : Causal Forest with TabPFN-Estimated Nuisances
+- [`glmcf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/glmcf.md)
+  : Causal Forest with cv.glmnet-Estimated Nuisances
+- [`setup_tabpfn_token()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/setup_tabpfn_token.md)
+  : Set up the TABPFN_TOKEN environment variable
 
 ## Visualization
 

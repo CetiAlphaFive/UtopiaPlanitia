@@ -8,7 +8,7 @@ high/low CATE split (Athey and Wager, 2019), the sequential RATE test
 ## Usage
 
 ``` r
-omni_hetero(c.forest, seed = 1995)
+omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
 ```
 
 ## Arguments
@@ -22,9 +22,29 @@ omni_hetero(c.forest, seed = 1995)
   An integer seed for reproducibility. Default is `1995`. Controls the
   fold assignment in the sequential RATE test.
 
+- min_fold_n:
+
+  Minimum per-fold training sample size below which the Sequential RATE
+  test is considered unstable. When `n < 400` or
+  `n / num.folds < min_fold_n`, a warning is emitted at the start of the
+  Sequential RATE computation and users are advised to prefer the
+  Calibration test (Chernozhukov et al., 2018) or OOB RATE heuristics
+  for small samples. Within the fold loop, any fold whose test-set CATE
+  predictions are (near-)constant, whose RATE standard error is zero, or
+  whose t-statistic is `NaN` is dropped from aggregation rather than
+  allowed to propagate a silent `NaN` into the final p-value. If fewer
+  than 2 usable folds remain, the Sequential RATE p-value is returned as
+  `NA_real_` with an explanatory `reason` attribute. Default is `100`.
+
 ## Value
 
-A data frame with one row per test and the following columns:
+An object of class `"omni_hetero"` (a data frame) with one row per test
+and the following columns:
+
+- category:
+
+  Character. `"Preferred"` for tests with valid Type I error control,
+  `"Heuristic"` for screening tests.
 
 - heterogeneity_test:
 
@@ -47,26 +67,30 @@ A data frame with one row per test and the following columns:
 ## Details
 
 The function combines five tests of treatment effect heterogeneity,
-ranging from well-calibrated to heuristic:
+grouped into **Preferred** (valid size) and **Heuristic** categories:
 
-1.  **Calibration test** (Chernozhukov et al., 2018): Regresses doubly
+**Preferred tests** (valid Type I error control):
+
+1.  **Sequential RATE** (Wager, 2024): A k-fold cross-validated test
+    with correct size (valid Type I error). This is the most trustworthy
+    test in the battery and should be preferred for formal inference.
+
+2.  **Calibration test** (Chernozhukov et al., 2018): Regresses doubly
     robust scores on the forest's CATE predictions. The "differential
     forest prediction" coefficient tests whether the forest captures
     meaningful heterogeneity beyond the ATE.
 
-2.  **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
+**Heuristic tests** (useful for screening, not formal inference):
+
+1.  **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
     median predicted CATE and compares the ATE in each half. A
     significant difference suggests the forest detects real variation.
 
-3.  **Sequential RATE** (Wager, 2024): A k-fold cross-validated test
-    with correct size (valid Type I error). This is the most trustworthy
-    test in the battery and should be preferred for formal inference.
-
-4.  **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE
+2.  **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE
     predictions directly. Known to be anti-conservative (~30\\ null at
     nominal 5\\ screening tool, not for formal inference.
 
-5.  **OOB RATE, one-sided** (heuristic): One-sided version of the above.
+3.  **OOB RATE, one-sided** (heuristic): One-sided version of the above.
     Approximately valid when the direction of heterogeneity is
     pre-specified.
 
@@ -101,17 +125,26 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 omni_hetero(cf)
-#>                                   heterogeneity_test  estimate      p_value
-#> 1       Calibration Test (Chernozhukov et al., 2018) 1.3212439 2.949514e-09
-#> 2          High vs. Low CATE (Athey and Wager, 2019) 1.6997625 2.250167e-08
-#> 3                      Sequential RATE (Wager, 2024)        NA          NaN
-#> 4 OOB RATE, two-sided (heuristic, anti-conservative) 0.5295879 9.115004e-04
-#> 5                    OOB RATE, one-sided (heuristic) 0.5295879 4.557502e-04
-#>   hetero_detected
-#> 1            TRUE
-#> 2            TRUE
-#> 3              NA
-#> 4            TRUE
-#> 5            TRUE
+#> Warning: Sequential RATE may be unstable at this sample size (n = 200, n/num.folds = 40; min_fold_n = 100). Training folds may be too small for the per-fold CATE forest to detect heterogeneity, which can produce degenerate RATE statistics. Consider the Calibration test (Chernozhukov et al., 2018) or the OOB RATE heuristics instead.
+#> Warning: Sequential RATE: dropped 1 of 4 folds due to degenerate fits (near-constant CATE predictions on test fold).
+#> Omnibus Heterogeneity Tests
+#> ---------------------------------------- 
+#> 
+#> Preferred (valid size)
+#> 
+#>  heterogeneity_test                           estimate p_value hetero_detected
+#>  Sequential RATE (Wager, 2024)                —        0.0004  Yes            
+#>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            
+#> 
+#> Heuristic (screening only)
+#> 
+#>  heterogeneity_test                                 estimate p_value
+#>  High vs. Low CATE (Athey and Wager, 2019)          1.6998   0.0000 
+#>  OOB RATE, two-sided (heuristic, anti-conservative) 0.5296   0.0010 
+#>  OOB RATE, one-sided (heuristic)                    0.5296   0.0005 
+#>  hetero_detected
+#>  Yes            
+#>  Yes            
+#>  Yes            
 # }
 ```

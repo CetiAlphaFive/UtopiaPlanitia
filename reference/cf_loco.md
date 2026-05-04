@@ -13,7 +13,7 @@ cf_loco(
   corr.threshold = 0.5,
   normalize = FALSE,
   screen = FALSE,
-  stabilize = 1e-06,
+  stabilize = 0.000001,
   seed = 1995
 )
 ```

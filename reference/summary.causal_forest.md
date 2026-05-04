@@ -103,6 +103,8 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 summary(cf)
+#> Warning: Sequential RATE may be unstable at this sample size (n = 200, n/num.folds = 40; min_fold_n = 100). Training folds may be too small for the per-fold CATE forest to detect heterogeneity, which can produce degenerate RATE statistics. Consider the Calibration test (Chernozhukov et al., 2018) or the OOB RATE heuristics instead.
+#> Warning: Sequential RATE: dropped 1 of 4 folds due to degenerate fits (near-constant CATE predictions on test fold).
 #> Average Treatment Effect
 #>   Estimate: -0.0927  SE: 0.1631 
 #> 
@@ -115,17 +117,24 @@ summary(cf)
 #>        X2     0.0687
 #> 
 #> Heterogeneity Tests
-#>                                  heterogeneity_test  estimate      p_value
-#>        Calibration Test (Chernozhukov et al., 2018) 1.3212439 2.949514e-09
-#>           High vs. Low CATE (Athey and Wager, 2019) 1.6997625 2.250167e-08
-#>                       Sequential RATE (Wager, 2024)        NA          NaN
-#>  OOB RATE, two-sided (heuristic, anti-conservative) 0.5295879 9.115004e-04
-#>                     OOB RATE, one-sided (heuristic) 0.5295879 4.557502e-04
+#> Omnibus Heterogeneity Tests
+#> ---------------------------------------- 
+#> 
+#> Preferred (valid size)
+#> 
+#>  heterogeneity_test                           estimate p_value hetero_detected
+#>  Sequential RATE (Wager, 2024)                —        0.0004  Yes            
+#>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            
+#> 
+#> Heuristic (screening only)
+#> 
+#>  heterogeneity_test                                 estimate p_value
+#>  High vs. Low CATE (Athey and Wager, 2019)          1.6998   0.0000 
+#>  OOB RATE, two-sided (heuristic, anti-conservative) 0.5296   0.0010 
+#>  OOB RATE, one-sided (heuristic)                    0.5296   0.0005 
 #>  hetero_detected
-#>             TRUE
-#>             TRUE
-#>               NA
-#>             TRUE
-#>             TRUE
+#>  Yes            
+#>  Yes            
+#>  Yes            
 # }
 ```

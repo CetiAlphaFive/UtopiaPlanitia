@@ -10,7 +10,7 @@ directly.
 ## Usage
 
 ``` r
-compute_vimp(alpha, Y.centered, W.centered, tau.hat, stabilize = 1e-06)
+compute_vimp(alpha, Y.centered, W.centered, tau.hat, stabilize = 0.000001)
 ```
 
 ## Arguments

@@ -14,19 +14,19 @@ forest tooling.
 
 ## Key Source Files (`R/`)
 
-| File                      | Purpose                                                                                                                   |
-|---------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| File | Purpose |
+|----|----|
 | `summary.causal_forest.R` | S3 [`summary()`](https://rdrr.io/r/base/summary.html) + [`print()`](https://rdrr.io/r/base/print.html) for causal forests |
-| `plot.causal_forest.R`    | S3 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) dispatcher for causal forests                                 |
-| `cf_loco.R`               | LOCO variable importance for causal forests                                                                               |
-| `compute_vimp.R`          | Internal helper for [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)                    |
-| `loco.R`                  | LOCO variable importance for ranger models                                                                                |
-| `omni_hetero.R`           | Omnibus heterogeneity test battery                                                                                        |
-| `plot_diag.R`             | Multi-panel diagnostic plots                                                                                              |
-| `plot_pdp.R`              | Real partial dependence plots (1-way and 2-way)                                                                           |
-| `plot_scatter.R`          | CATE scatter plots (individual OOB CATEs vs. covariate)                                                                   |
-| `plot_inter.R`            | Hex interaction plots (deprecated)                                                                                        |
-| `plot_rank.R`             | Ranked CATEs with confidence intervals                                                                                    |
+| `plot.causal_forest.R` | S3 [`plot()`](https://rdrr.io/r/graphics/plot.default.html) dispatcher for causal forests |
+| `cf_loco.R` | LOCO variable importance for causal forests |
+| `compute_vimp.R` | Internal helper for [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md) |
+| `loco.R` | LOCO variable importance for ranger models |
+| `omni_hetero.R` | Omnibus heterogeneity test battery |
+| `plot_diag.R` | Multi-panel diagnostic plots |
+| `plot_pdp.R` | Real partial dependence plots (1-way and 2-way) |
+| `plot_scatter.R` | CATE scatter plots (individual OOB CATEs vs. covariate) |
+| `plot_inter.R` | Hex interaction plots (deprecated) |
+| `plot_rank.R` | Ranked CATEs with confidence intervals |
 
 ## Dev Conventions
 
