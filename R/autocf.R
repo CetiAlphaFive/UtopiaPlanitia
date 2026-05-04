@@ -216,6 +216,18 @@ autocf <- function(c.forest,
     stop("`X` contains NAs. autocf() does not support missing covariates.",
          call. = FALSE)
   }
+  # Normalize colnames so train_df = data.frame(X_train, .y) and
+  # test_df = as.data.frame(X_test) carry identical column names. Without
+  # this, base R names data.frame(matrix-without-colnames) as X1..Xp but
+  # as.data.frame(matrix-without-colnames) as V1..Vp, which breaks
+  # mlr3's predict_newdata column-name check.
+  if (is.null(colnames(X)) || any(!nzchar(colnames(X))) ||
+      any(duplicated(colnames(X)))) {
+    colnames(X) <- paste0("V", seq_len(ncol(X)))
+  }
+  if (!is.numeric(X)) {
+    stop("`X` must be a numeric matrix or coercible to one.", call. = FALSE)
+  }
   if (anyNA(Y)) stop("`Y` contains NAs.", call. = FALSE)
   if (anyNA(W)) stop("`W` contains NAs.", call. = FALSE)
   n <- nrow(X)
@@ -276,21 +288,44 @@ autocf <- function(c.forest,
   }
 
   # ---- 6. run each candidate's K-fold cross-fit ---------------------------
+  # Each candidate is wrapped in tryCatch: if any fold fit fails (e.g.,
+  # cv.glmnet binomial inner CV with extreme class imbalance), the
+  # candidate is dropped from the comparison rather than killing the
+  # whole call. The "grf" baseline is required; if it fails, we error.
   fits <- list()
+  failed <- character(0)
   for (cand in pool_run) {
     if (verbose) message("[autocf] running candidate: ", cand)
-    fits[[cand]] <- .autocf_run_candidate(
-      cand        = cand,
-      X = X, Y = Y, W = W, fold = fold, K = K,
-      w_type      = w_type,
-      sw          = sw,
-      seed        = as.integer(seed),
-      tabpfn_args = tabpfn_args,
-      glmnet_args = glmnet_args,
-      xgboost_args = xgboost_args,
-      term_evals  = term_evals,
-      verbose     = verbose
+    res <- tryCatch(
+      .autocf_run_candidate(
+        cand        = cand,
+        X = X, Y = Y, W = W, fold = fold, K = K,
+        w_type      = w_type,
+        sw          = sw,
+        seed        = as.integer(seed),
+        tabpfn_args = tabpfn_args,
+        glmnet_args = glmnet_args,
+        xgboost_args = xgboost_args,
+        term_evals  = term_evals,
+        verbose     = verbose
+      ),
+      error = function(e) {
+        warning("autocf: candidate '", cand, "' failed (",
+                conditionMessage(e), "); dropping from comparison.",
+                call. = FALSE)
+        NULL
+      }
     )
+    if (is.null(res)) {
+      failed <- c(failed, cand)
+    } else {
+      fits[[cand]] <- res
+    }
+  }
+  pool_run <- setdiff(pool_run, failed)
+  if (!"grf" %in% pool_run) {
+    stop("autocf(): the 'grf' baseline candidate failed; cannot proceed.",
+         call. = FALSE)
   }
 
   # ---- 7. score and select ------------------------------------------------

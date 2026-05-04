@@ -206,6 +206,12 @@ glmcf <- function(c.forest,
     stop("`X` contains NAs. glmcf() does not support missing covariates.",
          call. = FALSE)
   }
+  # Defensive colname normalization (cv.glmnet doesn't require it, but
+  # downstream tools that consume the refit forest may).
+  if (is.null(colnames(X)) || any(!nzchar(colnames(X))) ||
+      any(duplicated(colnames(X)))) {
+    colnames(X) <- paste0("V", seq_len(ncol(X)))
+  }
   if (anyNA(Y)) stop("`Y` contains NAs.", call. = FALSE)
   if (anyNA(W)) stop("`W` contains NAs.", call. = FALSE)
   n <- nrow(X)
@@ -515,6 +521,7 @@ glmcf <- function(c.forest,
   best_alpha <- alpha[1]
   best_fit   <- NULL
   best_cvm   <- Inf
+  last_err   <- NULL
   for (a in alpha) {
     cv_args <- c(
       list(x = X_train, y = y_train, alpha = a, family = family,
@@ -522,7 +529,9 @@ glmcf <- function(c.forest,
       if (!is.null(weights)) list(weights = weights),
       glmnet_args_local
     )
-    fit <- do.call(glmnet::cv.glmnet, cv_args)
+    fit <- tryCatch(do.call(glmnet::cv.glmnet, cv_args),
+                    error = function(e) { last_err <<- e; NULL })
+    if (is.null(fit)) next
     cvm <- min(fit$cvm, na.rm = TRUE)
     if (is.finite(cvm) && cvm < best_cvm) {
       best_cvm   <- cvm
@@ -531,7 +540,16 @@ glmcf <- function(c.forest,
     }
   }
   if (is.null(best_fit)) {
-    stop("glmcf(): all cv.glmnet alpha candidates failed.", call. = FALSE)
+    hint <- if (family == "binomial") {
+      paste0(" Likely cause: severe class imbalance in the training fold ",
+             "(min class count too small for cv.glmnet's inner CV). ",
+             "Try a smaller `glmnet_args = list(nfolds = 3L)`, fewer outer ",
+             "folds (`K`), or use a different nuisance estimator.")
+    } else ""
+    stop("glmcf(): all cv.glmnet alpha candidates failed.",
+         if (!is.null(last_err)) paste0(" Last error: ",
+                                        conditionMessage(last_err)) else "",
+         hint, call. = FALSE)
   }
 
   pr_type <- if (family == "binomial") "response" else "link"

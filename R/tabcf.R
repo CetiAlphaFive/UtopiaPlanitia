@@ -207,6 +207,13 @@ tabcf <- function(c.forest,
     stop("`X` contains NAs. tabcf() does not support missing covariates.",
          call. = FALSE)
   }
+  # Normalize colnames for tabpfn's parsnip-based predict, which requires
+  # train and test to carry identical, non-empty, unique feature names.
+  # Matrices without colnames break the underlying hardhat check.
+  if (is.null(colnames(X)) || any(!nzchar(colnames(X))) ||
+      any(duplicated(colnames(X)))) {
+    colnames(X) <- paste0("V", seq_len(ncol(X)))
+  }
   if (anyNA(Y)) stop("`Y` contains NAs.", call. = FALSE)
   if (anyNA(W)) stop("`W` contains NAs.", call. = FALSE)
   n <- nrow(X)
