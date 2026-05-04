@@ -21,6 +21,15 @@ reference:
     desc: Omnibus battery of treatment effect heterogeneity tests.
     contents:
       - omni_hetero
+      - print.omni_hetero
+      - plot.omni_hetero
+
+  - title: Nuisance Estimation
+    desc: Causal forest refits with alternative nuisance estimators (TabPFN, cv.glmnet).
+    contents:
+      - tabcf
+      - glmcf
+      - setup_tabpfn_token
 
   - title: Visualization
     desc: Diagnostic, partial dependence, scatter, and ranked CATE plots.
