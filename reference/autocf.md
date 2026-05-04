@@ -108,8 +108,12 @@ autocf(
   [`tabpfn::tab_pfn()`](https://tabpfn.tidymodels.org/reference/tab_pfn.html);
   `glmnet_args` to
   [`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html);
-  and `xgboost_args` (currently unused, reserved for future per-call
-  knobs). All default [`list()`](https://rdrr.io/r/base/list.html).
+  `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
+  `param_set$values` (use to set, e.g., `nthread = 4` for multi-core CPU
+  or `device = "cuda"` to enable GPU on systems with a CUDA xgboost
+  build; defaults to mlr3's reproducibility-oriented `nthread = 1` and
+  CPU). Tuned hyperparameters override matching keys. All default
+  [`list()`](https://rdrr.io/r/base/list.html).
 
 - verbose:
 
