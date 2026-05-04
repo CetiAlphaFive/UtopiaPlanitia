@@ -13,7 +13,6 @@ License: GPL-3 + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 URL: https://github.com/CetiAlphaFive/UtopiaPlanitia, https://cetialphafive.github.io/UtopiaPlanitia/
 BugReports: https://github.com/CetiAlphaFive/UtopiaPlanitia/issues
 Imports:
@@ -28,7 +27,11 @@ Suggests:
   hexbin,
   MLbalance (>= 0.1.0),
   ranger,
-  conformalInference
+  conformalInference,
+  tabpfn,
+  askpass,
+  withr
 Remotes:
   CetiAlphaFive/MLbalance
 Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
