@@ -25,10 +25,11 @@ reference:
       - plot.omni_hetero
 
   - title: Nuisance Estimation
-    desc: Causal forest refits with alternative nuisance estimators (TabPFN, cv.glmnet).
+    desc: Causal forest refits with alternative nuisance estimators (TabPFN, cv.glmnet, autoML pool).
     contents:
       - tabcf
       - glmcf
+      - autocf
       - setup_tabpfn_token
 
   - title: Visualization

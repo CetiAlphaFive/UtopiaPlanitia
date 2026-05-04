@@ -30,6 +30,12 @@ Suggests:
   conformalInference,
   tabpfn,
   glmnet,
+  xgboost,
+  mlr3,
+  mlr3learners,
+  mlr3tuning,
+  paradox,
+  future,
   askpass,
   withr
 Remotes:
