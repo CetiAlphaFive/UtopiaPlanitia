@@ -71,9 +71,13 @@ uses mlr3's default xgboost hyperparameters. Default \code{10L}.}
 
 \item{tabpfn_args, glmnet_args, xgboost_args}{Optional named lists of
 per-candidate extra arguments. \code{tabpfn_args} is forwarded to
-\code{tabpfn::tab_pfn()}; \code{glmnet_args} to \code{glmnet::cv.glmnet()}; and
-\code{xgboost_args} (currently unused, reserved for future per-call
-knobs). All default \code{list()}.}
+\code{tabpfn::tab_pfn()}; \code{glmnet_args} to \code{glmnet::cv.glmnet()};
+\code{xgboost_args} is forwarded to the mlr3 \code{xgboost} learner's
+\code{param_set$values} (use to set, e.g., \code{nthread = 4} for multi-core
+CPU or \code{device = "cuda"} to enable GPU on systems with a CUDA
+xgboost build; defaults to mlr3's reproducibility-oriented
+\code{nthread = 1} and CPU). Tuned hyperparameters override matching
+keys. All default \code{list()}.}
 
 \item{verbose}{Logical. Print per-candidate / per-fold progress.
 Default \code{FALSE}.}

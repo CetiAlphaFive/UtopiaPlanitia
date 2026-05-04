@@ -46,9 +46,13 @@
 #'   uses mlr3's default xgboost hyperparameters. Default `10L`.
 #' @param tabpfn_args,glmnet_args,xgboost_args Optional named lists of
 #'   per-candidate extra arguments. `tabpfn_args` is forwarded to
-#'   `tabpfn::tab_pfn()`; `glmnet_args` to `glmnet::cv.glmnet()`; and
-#'   `xgboost_args` (currently unused, reserved for future per-call
-#'   knobs). All default `list()`.
+#'   `tabpfn::tab_pfn()`; `glmnet_args` to `glmnet::cv.glmnet()`;
+#'   `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
+#'   `param_set$values` (use to set, e.g., `nthread = 4` for multi-core
+#'   CPU or `device = "cuda"` to enable GPU on systems with a CUDA
+#'   xgboost build; defaults to mlr3's reproducibility-oriented
+#'   `nthread = 1` and CPU). Tuned hyperparameters override matching
+#'   keys. All default `list()`.
 #' @param verbose Logical. Print per-candidate / per-fold progress.
 #'   Default `FALSE`.
 #' @param ... Additional arguments forwarded to `grf::causal_forest()`
@@ -368,7 +372,53 @@ autocf <- function(c.forest,
     threshold_w     = selection$threshold_w,
     min_improvement = min_improvement
   )
+
+  .autocf_print_stats(attr(out, "autocf_meta"))
+
   out
+}
+
+#' @keywords internal
+#' @noRd
+#' @description
+#' Print a small fit-stats table at the end of `autocf()`: per-candidate
+#' weighted CV losses (Y MSE; W Brier for binary, MSE for continuous),
+#' chosen winner per nuisance, swap decision, and the threshold the swap
+#' had to clear.
+.autocf_print_stats <- function(meta) {
+  s <- meta$scores
+  s$Y_MSE   <- formatC(s$y_loss, format = "f", digits = 4)
+  s$Y_SE    <- formatC(s$y_se,   format = "f", digits = 4)
+  w_label   <- if (meta$w_type == "binary") "W_Brier" else "W_MSE"
+  s$W_score <- formatC(s$w_loss, format = "f", digits = 4)
+  s$W_SE    <- formatC(s$w_se,   format = "f", digits = 4)
+
+  display <- data.frame(
+    candidate = s$candidate,
+    Y_MSE     = s$Y_MSE,   Y_SE = s$Y_SE,
+    W_score   = s$W_score, W_SE = s$W_SE,
+    win_Y     = ifelse(s$candidate == meta$winner_y, "*", ""),
+    win_W     = ifelse(s$candidate == meta$winner_w, "*", ""),
+    stringsAsFactors = FALSE
+  )
+  names(display)[names(display) == "W_score"] <- w_label
+
+  cat("\n--- autocf nuisance comparison ---\n")
+  print(display, row.names = FALSE)
+
+  fmt_thr <- function(t) if (is.na(t)) "n/a" else formatC(t, format = "f", digits = 4)
+  cat("\nWinner Y:", meta$winner_y,
+      "  swap:", meta$swap_y,
+      "  gap:",  formatC(meta$gap_y, format = "f", digits = 4),
+      "  threshold:", fmt_thr(meta$threshold_y), "\n")
+  cat("Winner W:", meta$winner_w,
+      "  swap:", meta$swap_w,
+      "  gap:",  formatC(meta$gap_w, format = "f", digits = 4),
+      "  threshold:", fmt_thr(meta$threshold_w), "\n")
+  cat("Rule: min_improvement = ", deparse(meta$min_improvement),
+      "  (swap fires when gap > threshold)\n", sep = "")
+  cat("----------------------------------\n\n")
+  invisible(NULL)
 }
 
 
@@ -762,6 +812,15 @@ autocf <- function(c.forest,
                                 target = ".y")
     learner <- mlr3::lrn("regr.xgboost", nrounds = 200L)
     measure <- mlr3::msr("regr.mse")
+  }
+
+  # Forward user-supplied xgboost params (e.g. nthread, device = "cuda",
+  # tree_method = "hist") to the underlying xgboost call. Tuned params
+  # below override matching keys.
+  if (length(xgboost_args) > 0L) {
+    for (nm in names(xgboost_args)) {
+      learner$param_set$values[[nm]] <- xgboost_args[[nm]]
+    }
   }
 
   if (!is.null(weights)) {
