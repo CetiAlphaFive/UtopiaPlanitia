@@ -108,12 +108,14 @@ Omnibus battery of treatment effect heterogeneity tests.
 ## Nuisance Estimation
 
 Causal forest refits with alternative nuisance estimators (TabPFN,
-cv.glmnet).
+cv.glmnet, autoML pool).
 
 - [`tabcf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/tabcf.md)
   : Causal Forest with TabPFN-Estimated Nuisances
 - [`glmcf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/glmcf.md)
   : Causal Forest with cv.glmnet-Estimated Nuisances
+- [`autocf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/autocf.md)
+  : Auto-Selected Nuisance Causal Forest
 - [`setup_tabpfn_token()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/setup_tabpfn_token.md)
   : Set up the TABPFN_TOKEN environment variable
 
