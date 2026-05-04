@@ -50,3 +50,13 @@ rsconnect/
 
 # Archived source files
 R/old/
+.positai
+
+# Claude Code local settings
+.claude/
+
+# Scratch / planning runs
+runs/
+
+# testthat plot artifact
+Rplots.pdf
