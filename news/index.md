@@ -11,8 +11,8 @@
   renamed from the old
   [`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md),
   which plotted individual OOB CATEs vs. a covariate.
-- [`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md)
-  is deprecated in favor of `plot_pdp(c.forest, x_var, y_var)`.
+- `plot_inter()` is deprecated in favor of
+  `plot_pdp(c.forest, x_var, y_var)`.
 - [`plot.causal_forest()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.causal_forest.md)
   gains `type = "scatter"` for the new
   [`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md).
@@ -32,13 +32,12 @@
   [`plot_diag()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.md),
   [`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md),
   [`rank_plot()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md),
-  and
-  [`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md).
+  and `plot_inter()`.
 - Fixed deprecated `aes_string()` usage across all plot functions.
 - Fixed bare namespace references in
   [`plot_diag()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.md),
   [`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md),
-  [`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md).
+  `plot_inter()`.
 - Replaced `size` with `linewidth` in `geom_smooth()` calls.
 - Pruned from 13 to 8 core exported functions; archived extras in
   `R/old/`.

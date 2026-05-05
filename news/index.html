@@ -37,7 +37,7 @@
 <ul><li>New <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code>: real Friedman (2001) partial dependence plots for 1-way and 2-way CATE surfaces.</li>
 <li>New <code><a href="../reference/plot_scatter.html">plot_scatter()</a></code>: renamed from the old <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code>, which plotted individual OOB CATEs vs. a covariate.</li>
 <li>
-<code><a href="../reference/plot_inter.html">plot_inter()</a></code> is deprecated in favor of <code>plot_pdp(c.forest, x_var, y_var)</code>.</li>
+<code>plot_inter()</code> is deprecated in favor of <code>plot_pdp(c.forest, x_var, y_var)</code>.</li>
 <li>
 <code><a href="../reference/plot.causal_forest.html">plot.causal_forest()</a></code> gains <code>type = "scatter"</code> for the new <code><a href="../reference/plot_scatter.html">plot_scatter()</a></code>.</li>
 </ul></div>
@@ -45,9 +45,9 @@
 <h2 class="pkg-version" data-toc-text="0.2.0" id="utopiaplanitia-020">UtopiaPlanitia 0.2.0<a class="anchor" aria-label="anchor" href="#utopiaplanitia-020"></a></h2>
 <ul><li>Added S3 <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods for <code>causal_forest</code> objects.</li>
 <li>Added S3 <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code>, <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code>, and <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods for <code>cf_loco</code> output.</li>
-<li>Added <code><a href="../reference/plot.causal_forest.html">plot.causal_forest()</a></code> dispatcher for <code><a href="../reference/plot_diag.html">plot_diag()</a></code>, <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code>, <code><a href="../reference/plot_rank.html">rank_plot()</a></code>, and <code><a href="../reference/plot_inter.html">plot_inter()</a></code>.</li>
+<li>Added <code><a href="../reference/plot.causal_forest.html">plot.causal_forest()</a></code> dispatcher for <code><a href="../reference/plot_diag.html">plot_diag()</a></code>, <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code>, <code><a href="../reference/plot_rank.html">rank_plot()</a></code>, and <code>plot_inter()</code>.</li>
 <li>Fixed deprecated <code>aes_string()</code> usage across all plot functions.</li>
-<li>Fixed bare namespace references in <code><a href="../reference/plot_diag.html">plot_diag()</a></code>, <code><a href="../reference/plot_rank.html">plot_rank()</a></code>, <code><a href="../reference/plot_inter.html">plot_inter()</a></code>.</li>
+<li>Fixed bare namespace references in <code><a href="../reference/plot_diag.html">plot_diag()</a></code>, <code><a href="../reference/plot_rank.html">plot_rank()</a></code>, <code>plot_inter()</code>.</li>
 <li>Replaced <code>size</code> with <code>linewidth</code> in <code>geom_smooth()</code> calls.</li>
 <li>Pruned from 13 to 8 core exported functions; archived extras in <code>R/old/</code>.</li>
 <li>Added GitHub Actions for R-CMD-check, pkgdown, test coverage, and linting.</li>

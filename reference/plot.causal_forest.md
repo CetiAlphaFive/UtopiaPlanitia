@@ -6,7 +6,7 @@ Dispatches to one of the package's plot functions based on `type`.
 
 ``` r
 # S3 method for class 'causal_forest'
-plot(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...)
+plot(x, type = c("diag", "pdp", "scatter", "rank"), ...)
 ```
 
 ## Arguments
@@ -30,9 +30,6 @@ plot(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...)
 
   - `"rank"`: ranked CATEs with CIs
     ([`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md))
-
-  - `"inter"`: (deprecated) hex interaction plot
-    ([`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md))
 
 - ...:
 
@@ -68,18 +65,12 @@ diagnostic question:
   What is the distribution of individual CATEs, sorted by magnitude,
   with confidence intervals?
 
-- `"inter"`:
-
-  (Deprecated) Hex-binned interaction plot; use `"pdp"` with a `y_var`
-  argument instead.
-
 ## See also
 
 [`plot_diag()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.md),
 [`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md),
 [`plot_scatter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.md),
-[`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md),
-[`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md)
+[`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md)
 
 ## Examples
 

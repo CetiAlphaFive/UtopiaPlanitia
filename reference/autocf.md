@@ -107,7 +107,7 @@ autocf(
   is forwarded to
   [`tabpfn::tab_pfn()`](https://tabpfn.tidymodels.org/reference/tab_pfn.html);
   `glmnet_args` to
-  [`glmnet::cv.glmnet()`](https://rdrr.io/pkg/glmnet/man/cv.glmnet.html);
+  [`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html);
   `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
   `param_set$values` (use to set, e.g., `nthread = 4` for multi-core CPU
   or `device = "cuda"` to enable GPU on systems with a CUDA xgboost

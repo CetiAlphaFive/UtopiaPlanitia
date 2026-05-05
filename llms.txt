@@ -132,8 +132,6 @@ Diagnostic, partial dependence, scatter, and ranked CATE plots.
 - [`plot_rank()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md)
   [`rank_plot()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_rank.md)
   : Rank Plot of Individual CATE Estimates
-- [`plot_inter()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_inter.md)
-  **\[deprecated\]** : Interaction Plot for Causal Forest (Deprecated)
 
 ## S3 Methods for cf_loco
 
