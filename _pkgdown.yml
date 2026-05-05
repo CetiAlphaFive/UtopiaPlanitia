@@ -1,6 +1,9 @@
 url: https://cetialphafive.github.io/UtopiaPlanitia/
 template:
   bootstrap: 5
+  light-switch: true
+  bootswatch-dark: superhero
+  theme-dark: arrow-dark
 
 reference:
   - title: Causal Forest Summary
