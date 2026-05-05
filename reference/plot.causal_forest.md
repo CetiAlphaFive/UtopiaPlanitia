@@ -34,7 +34,7 @@ plot(x, type = c("diag", "pdp", "scatter", "rank"), ...)
 - ...:
 
   Additional arguments passed to the underlying plot function (e.g.,
-  `x_var` for `"pdp"`, `"scatter"`, and `"inter"`).
+  `x_var` for `"pdp"` and `"scatter"`).
 
 ## Value
 

@@ -147,7 +147,7 @@ uses mlr3's default xgboost hyperparameters. Default <code>10L</code>.</p></dd>
 <dt id="arg-tabpfn-args-glmnet-args-xgboost-args">tabpfn_args, glmnet_args, xgboost_args<a class="anchor" aria-label="anchor" href="#arg-tabpfn-args-glmnet-args-xgboost-args"></a></dt>
 <dd><p>Optional named lists of
 per-candidate extra arguments. <code>tabpfn_args</code> is forwarded to
-<code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
+<code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
 <code>xgboost_args</code> is forwarded to the mlr3 <code>xgboost</code> learner's
 <code>param_set$values</code> (use to set, e.g., <code>nthread = 4</code> for multi-core
 CPU or <code>device = "cuda"</code> to enable GPU on systems with a CUDA
@@ -217,7 +217,7 @@ pool under a shared K-fold cross-fit protocol with weighted CV loss
 W, which is identical to MSE on 0/1 outcomes), reports the comparison
 table, and only swaps in a competitor if it beats the grf baseline by
 a margin you choose.</p>
-<p><strong>Apples-to-apples grf baseline (R1 from review).</strong> The "grf"
+<p><strong>Apples-to-apples grf baseline.</strong> The "grf"
 candidate in the pool is <strong>not</strong> scored using <code>c.forest$Y.hat</code> /
 <code>W.hat</code>, because those come from grf's internal honest-split
 subsampling protocol — not strict K-fold cross-fitting — and would
@@ -227,7 +227,7 @@ other candidates. Instead, <code>autocf()</code> re-trains a
 predicts on the held-out fold, producing strict K-fold OOF
 predictions for the "grf" candidate identically to every other
 candidate.</p>
-<p><strong>1-SE rule for the swap (R2 from review).</strong> With finite-sample CV
+<p><strong>1-SE rule for the swap.</strong> With finite-sample CV
 noise any non-trivial candidate will produce some random improvement
 on a particular seed. Default <code>min_improvement = "1se"</code> requires the
 mean fold-wise loss reduction to exceed the paired-fold standard
@@ -238,7 +238,7 @@ $$\text{swap} \iff
 This is the same kind of conservativism that <code>glmnet</code>'s <code>lambda.1se</code>
 uses, generalized to model selection. Use <code>min_improvement = "0"</code> to
 force any improvement to fire, or supply a numeric absolute threshold.</p>
-<p><strong>Weighted CV losses (R3 from review).</strong> When
+<p><strong>Weighted CV losses.</strong> When
 <code>c.forest$sample.weights</code> is non-trivial, both training and per-fold
 loss computation are weighted, so the loss being minimised matches
 how the chosen nuisances will actually be used downstream by grf.

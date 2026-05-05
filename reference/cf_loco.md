@@ -143,8 +143,6 @@ Forests. *Annals of Statistics*, 47(2), 1148–1178.
 
 ## See also
 
-[`compute_vimp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/compute_vimp.md)
-for the internal per-refit importance calculation,
 [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
 for LOCO importance with ranger models,
 [`plot.cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_loco.md)
