@@ -45,7 +45,7 @@
 #' @seealso [cf_loco()] which calls this function internally.
 #'
 #' @keywords internal
-#' @export
+#' @noRd
 compute_vimp <- function(alpha, Y.centered, W.centered, tau.hat,
                          stabilize = 1e-6) {
   W.bar <- alpha %*% W.centered

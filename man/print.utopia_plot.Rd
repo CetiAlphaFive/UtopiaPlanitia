@@ -23,3 +23,4 @@ silent‐plot issues in VS Code and other environments where
 \code{\link[=plot_pdp]{plot_pdp()}} and \code{\link[=plot_scatter]{plot_scatter()}}, which return \code{utopia_plot}
 objects.
 }
+\keyword{internal}

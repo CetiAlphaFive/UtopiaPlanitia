@@ -76,8 +76,7 @@
 #' Forests. *Annals of Statistics*, 47(2), 1148--1178.
 #' \doi{10.1214/18-AOS1709}
 #'
-#' @seealso [compute_vimp()] for the internal per-refit importance
-#'   calculation, [loco()] for LOCO importance with ranger models,
+#' @seealso [loco()] for LOCO importance with ranger models,
 #'   [plot.cf_loco()] and [summary.cf_loco()] for visualizing and
 #'   summarizing results, [omni_hetero()] for heterogeneity testing.
 #'

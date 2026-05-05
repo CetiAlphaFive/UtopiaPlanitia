@@ -91,7 +91,7 @@
 #' table, and only swaps in a competitor if it beats the grf baseline by
 #' a margin you choose.
 #'
-#' **Apples-to-apples grf baseline (R1 from review).** The "grf"
+#' **Apples-to-apples grf baseline.** The "grf"
 #' candidate in the pool is **not** scored using `c.forest$Y.hat` /
 #' `W.hat`, because those come from grf's internal honest-split
 #' subsampling protocol --- not strict K-fold cross-fitting --- and would
@@ -102,7 +102,7 @@
 #' predictions for the "grf" candidate identically to every other
 #' candidate.
 #'
-#' **1-SE rule for the swap (R2 from review).** With finite-sample CV
+#' **1-SE rule for the swap.** With finite-sample CV
 #' noise any non-trivial candidate will produce some random improvement
 #' on a particular seed. Default `min_improvement = "1se"` requires the
 #' mean fold-wise loss reduction to exceed the paired-fold standard
@@ -114,7 +114,7 @@
 #' uses, generalized to model selection. Use `min_improvement = "0"` to
 #' force any improvement to fire, or supply a numeric absolute threshold.
 #'
-#' **Weighted CV losses (R3 from review).** When
+#' **Weighted CV losses.** When
 #' `c.forest$sample.weights` is non-trivial, both training and per-fold
 #' loss computation are weighted, so the loss being minimised matches
 #' how the chosen nuisances will actually be used downstream by grf.

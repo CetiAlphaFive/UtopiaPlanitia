@@ -14,7 +14,6 @@ reference:
     desc: Leave-one-covariate-out (LOCO) importance for causal forests and ranger models.
     contents:
       - cf_loco
-      - compute_vimp
       - loco
 
   - title: Heterogeneity Tests
@@ -46,7 +45,3 @@ reference:
       - summary.cf_loco
       - print.cf_loco
       - plot.cf_loco
-
-  - title: Utilities
-    contents:
-      - print.utopia_plot

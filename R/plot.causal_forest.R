@@ -9,7 +9,7 @@
 #'   - `"scatter"`: individual CATE scatter ([plot_scatter()])
 #'   - `"rank"`: ranked CATEs with CIs ([plot_rank()])
 #' @param ... Additional arguments passed to the underlying plot function
-#'   (e.g., `x_var` for `"pdp"`, `"scatter"`, and `"inter"`).
+#'   (e.g., `x_var` for `"pdp"` and `"scatter"`).
 #' @return A plot object (the return value of the dispatched function).
 #'
 #' @details

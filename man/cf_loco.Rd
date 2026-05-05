@@ -122,8 +122,7 @@ Forests. \emph{Annals of Statistics}, 47(2), 1148--1178.
 \doi{10.1214/18-AOS1709}
 }
 \seealso{
-\code{\link[=compute_vimp]{compute_vimp()}} for the internal per-refit importance
-calculation, \code{\link[=loco]{loco()}} for LOCO importance with ranger models,
+\code{\link[=loco]{loco()}} for LOCO importance with ranger models,
 \code{\link[=plot.cf_loco]{plot.cf_loco()}} and \code{\link[=summary.cf_loco]{summary.cf_loco()}} for visualizing and
 summarizing results, \code{\link[=omni_hetero]{omni_hetero()}} for heterogeneity testing.
 }

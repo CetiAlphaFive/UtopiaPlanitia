@@ -18,7 +18,7 @@
 }}
 
 \item{...}{Additional arguments passed to the underlying plot function
-(e.g., \code{x_var} for \code{"pdp"}, \code{"scatter"}, and \code{"inter"}).}
+(e.g., \code{x_var} for \code{"pdp"} and \code{"scatter"}).}
 }
 \value{
 A plot object (the return value of the dispatched function).

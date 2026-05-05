@@ -28,6 +28,7 @@
 #' @seealso [plot_pdp()] and [plot_scatter()], which return `utopia_plot`
 #'   objects.
 #'
+#' @keywords internal
 #' @export
 print.utopia_plot <- function(x, ...) {
   grid::grid.newpage()
