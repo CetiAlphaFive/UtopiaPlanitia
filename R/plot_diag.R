@@ -58,11 +58,14 @@ plot_diag <- function(c.forest) {
   if (!requireNamespace("gridExtra", quietly = TRUE)) {
     stop("Package 'gridExtra' is required but not installed.")
   }
-  if (!requireNamespace("MLbalance", quietly = TRUE)) {
-    stop("Package 'MLbalance' is required but not installed.")
-  }
   if (!requireNamespace("ggdist", quietly = TRUE)) {
     stop("Package 'ggdist' is required but not installed.")
+  }
+  has_mlbalance <- requireNamespace("MLbalance", quietly = TRUE)
+  if (!has_mlbalance) {
+    message("plot_diag(): 'MLbalance' not installed; skipping balance ",
+            "permutation panel. Install from ",
+            "https://github.com/CetiAlphaFive/MLbalance to enable it.")
   }
 
   # mlbalance theme to match
@@ -118,13 +121,18 @@ plot_diag <- function(c.forest) {
                   x = expression(hat(CATE) ~ "Estimates")) +
     g_theme()
 
-  # Treatment propensity check using MLbalance
-  p3 <- MLbalance::random_check(W_real = c.forest$W.orig,
-                                X = c.forest$X.orig)$plot +
-    ggplot2::ggtitle("Balance Permutation Test")
+  # Treatment propensity check using MLbalance (optional)
+  p3 <- if (has_mlbalance) {
+    MLbalance::random_check(W_real = c.forest$W.orig,
+                            X = c.forest$X.orig)$plot +
+      ggplot2::ggtitle("Balance Permutation Test")
+  } else {
+    NULL
+  }
 
   # Arrange plots in a multi-panel figure
-  gridExtra::grid.arrange(p1, p3, p2, ncol = 2)
+  panels <- if (is.null(p3)) list(p1, p2) else list(p1, p3, p2)
+  gridExtra::grid.arrange(grobs = panels, ncol = 2)
 
   list(
     outcome_check_plot = p1,

@@ -24,7 +24,6 @@ Suggests:
   ggdist   (>= 3.3.1),
   ggExtra  (>= 0.10.1),
   gridExtra (>= 2.3),
-  hexbin,
   MLbalance (>= 0.1.0),
   ranger,
   conformalInference,
@@ -38,8 +37,6 @@ Suggests:
   future,
   askpass,
   withr
-Remotes:
-  CetiAlphaFive/MLbalance
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
 RoxygenNote: 7.3.3

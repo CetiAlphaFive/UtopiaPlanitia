@@ -69,6 +69,8 @@
 #' }
 loco <- function(model, alpha = 0.1, split = TRUE, seed = 1995,
                  verbose = FALSE) {
+  rlang::check_installed("ranger",
+                         reason = "to fit / refit ranger models in `loco()`.")
   stopifnot(inherits(model, "ranger"))
 
   ## recover training data

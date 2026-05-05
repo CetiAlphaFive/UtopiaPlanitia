@@ -4,7 +4,7 @@
 \alias{plot.causal_forest}
 \title{Plot a Causal Forest}
 \usage{
-\method{plot}{causal_forest}(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...)
+\method{plot}{causal_forest}(x, type = c("diag", "pdp", "scatter", "rank"), ...)
 }
 \arguments{
 \item{x}{A fitted causal forest object from the \code{grf} package.}
@@ -15,7 +15,6 @@
 \item \code{"pdp"}: partial dependence plot (\code{\link[=plot_pdp]{plot_pdp()}})
 \item \code{"scatter"}: individual CATE scatter (\code{\link[=plot_scatter]{plot_scatter()}})
 \item \code{"rank"}: ranked CATEs with CIs (\code{\link[=plot_rank]{plot_rank()}})
-\item \code{"inter"}: (deprecated) hex interaction plot (\code{\link[=plot_inter]{plot_inter()}})
 }}
 
 \item{...}{Additional arguments passed to the underlying plot function
@@ -39,8 +38,6 @@ covariates, marginalizing over the rest?}
 like against a single covariate?}
 \item{\code{"rank"}}{What is the distribution of individual CATEs, sorted
 by magnitude, with confidence intervals?}
-\item{\code{"inter"}}{(Deprecated) Hex-binned interaction plot; use
-\code{"pdp"} with a \code{y_var} argument instead.}
 }
 }
 \examples{
@@ -57,6 +54,5 @@ plot(cf, type = "rank")
 \dontshow{\}) # examplesIf}
 }
 \seealso{
-\code{\link[=plot_diag]{plot_diag()}}, \code{\link[=plot_pdp]{plot_pdp()}}, \code{\link[=plot_scatter]{plot_scatter()}}, \code{\link[=plot_rank]{plot_rank()}},
-\code{\link[=plot_inter]{plot_inter()}}
+\code{\link[=plot_diag]{plot_diag()}}, \code{\link[=plot_pdp]{plot_pdp()}}, \code{\link[=plot_scatter]{plot_scatter()}}, \code{\link[=plot_rank]{plot_rank()}}
 }

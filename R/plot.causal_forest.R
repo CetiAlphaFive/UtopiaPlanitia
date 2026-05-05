@@ -8,7 +8,6 @@
 #'   - `"pdp"`: partial dependence plot ([plot_pdp()])
 #'   - `"scatter"`: individual CATE scatter ([plot_scatter()])
 #'   - `"rank"`: ranked CATEs with CIs ([plot_rank()])
-#'   - `"inter"`: (deprecated) hex interaction plot ([plot_inter()])
 #' @param ... Additional arguments passed to the underlying plot function
 #'   (e.g., `x_var` for `"pdp"`, `"scatter"`, and `"inter"`).
 #' @return A plot object (the return value of the dispatched function).
@@ -25,12 +24,9 @@
 #'     like against a single covariate?}
 #'   \item{`"rank"`}{What is the distribution of individual CATEs, sorted
 #'     by magnitude, with confidence intervals?}
-#'   \item{`"inter"`}{(Deprecated) Hex-binned interaction plot; use
-#'     `"pdp"` with a `y_var` argument instead.}
 #' }
 #'
-#' @seealso [plot_diag()], [plot_pdp()], [plot_scatter()], [plot_rank()],
-#'   [plot_inter()]
+#' @seealso [plot_diag()], [plot_pdp()], [plot_scatter()], [plot_rank()]
 #'
 #' @method plot causal_forest
 #' @export
@@ -44,14 +40,13 @@
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' plot(cf, type = "rank")
-plot.causal_forest <- function(x, type = c("diag", "pdp", "scatter", "rank", "inter"), ...) {
+plot.causal_forest <- function(x, type = c("diag", "pdp", "scatter", "rank"), ...) {
   type <- match.arg(type)
   out <- switch(type,
     diag    = plot_diag(x, ...),
     pdp     = plot_pdp(x, ...),
     scatter = plot_scatter(x, ...),
-    rank    = plot_rank(x, ...),
-    inter   = plot_inter(x, ...)
+    rank    = plot_rank(x, ...)
   )
   invisible(out)
 }

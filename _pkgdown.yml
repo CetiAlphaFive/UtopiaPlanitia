@@ -39,7 +39,6 @@ reference:
       - plot_pdp
       - plot_scatter
       - plot_rank
-      - plot_inter
 
   - title: S3 Methods for cf_loco
     desc: Print, summary, and plot methods for LOCO results.
