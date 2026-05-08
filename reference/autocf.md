@@ -22,12 +22,13 @@ autocf(
   seed = 1995L,
   eps = 0.001,
   tuning = c("orig", "cf.default", "cf.autotune"),
-  pool = c("grf", "glmnet", "xgboost", "tabpfn"),
+  pool = c("grf", "glmnet", "xgboost", "tabpfn", "bart"),
   min_improvement = "1se",
   term_evals = 10L,
   tabpfn_args = list(),
   glmnet_args = list(),
   xgboost_args = list(),
+  bart_args = list(),
   verbose = FALSE,
   ...
 )
@@ -77,13 +78,18 @@ autocf(
 - pool:
 
   Character vector of candidate nuisance estimators to compare. Default
-  `c("grf", "glmnet", "xgboost", "tabpfn")`. Any candidate whose
+  `c("grf", "glmnet", "xgboost", "tabpfn", "bart")`. Any candidate whose
   required dependency is missing (or which is incompatible with
   non-trivial `sample.weights`) is dropped with a warning. The "grf"
   baseline is **always** refit under the same K-fold cross-fit protocol
   as the other candidates (using
   [`grf::regression_forest()`](https://rdrr.io/pkg/grf/man/regression_forest.html)
-  on the held-out fold), so all CV losses are apples-to-apples.
+  on the held-out fold), so all CV losses are apples-to-apples. The
+  "bart" candidate uses
+  [`dbarts::bart()`](https://rdrr.io/pkg/dbarts/man/bart.html) on
+  `dbarts` package defaults, with parallel chains via
+  [`dbarts::guessNumCores()`](https://rdrr.io/pkg/dbarts/man/guessNumCores.html)
+  and a deterministic seed.
 
 - min_improvement:
 
@@ -101,19 +107,25 @@ autocf(
   outer fold per nuisance). `0` disables tuning and uses mlr3's default
   xgboost hyperparameters. Default `10L`.
 
-- tabpfn_args, glmnet_args, xgboost_args:
+- tabpfn_args, glmnet_args, xgboost_args, bart_args:
 
   Optional named lists of per-candidate extra arguments. `tabpfn_args`
   is forwarded to
   [`tabpfn::tab_pfn()`](https://tabpfn.tidymodels.org/reference/tab_pfn.html);
   `glmnet_args` to
-  [`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html);
+  [`glmnet::cv.glmnet()`](https://rdrr.io/pkg/glmnet/man/cv.glmnet.html);
   `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
   `param_set$values` (use to set, e.g., `nthread = 4` for multi-core CPU
   or `device = "cuda"` to enable GPU on systems with a CUDA xgboost
   build; defaults to mlr3's reproducibility-oriented `nthread = 1` and
-  CPU). Tuned hyperparameters override matching keys. All default
-  [`list()`](https://rdrr.io/r/base/list.html).
+  CPU). `bart_args` is forwarded to
+  [`dbarts::bart()`](https://rdrr.io/pkg/dbarts/man/bart.html); by
+  default the adapter sets `nchain` and `nthread` to
+  [`dbarts::guessNumCores()`](https://rdrr.io/pkg/dbarts/man/guessNumCores.html)
+  and uses dbarts defaults for everything else (`ntree = 200`,
+  `ndpost = 1000`, `nskip = 100`, `keeptrees = FALSE`); user keys in
+  `bart_args` override these. Tuned hyperparameters override matching
+  keys. All default [`list()`](https://rdrr.io/r/base/list.html).
 
 - verbose:
 
@@ -227,9 +239,9 @@ downstream inference (e.g.
 [`grf::average_treatment_effect()`](https://rdrr.io/pkg/grf/man/average_treatment_effect.html)),
 chosen nuisances must converge at `o(n^{-1/4})`. The default pool
 members (grf reg-forest, glmnet under sparsity, xgboost under boosting
-consistency) are believed adequate at typical n; tabpfn has no formal
-rate proof and should be treated as exploratory when downstream
-confidence intervals matter.
+consistency, BART under Rockova & van der Pas, 2020) are believed
+adequate at typical n; tabpfn has no formal rate proof and should be
+treated as exploratory when downstream confidence intervals matter.
 
 **Reproducibility under `future` plans.** xgboost's mlr3 AutoTuner inner
 CV runs through the `future` framework. To prevent non-deterministic
@@ -279,7 +291,7 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 200)
 
-# Default: compare grf, glmnet, xgboost, tabpfn (whatever is installed)
+# Default: compare grf, glmnet, xgboost, tabpfn, bart (whatever is installed)
 cf2 <- autocf(cf, K = 5)
 attr(cf2, "autocf_meta")$scores
 attr(cf2, "autocf_meta")$winner_y

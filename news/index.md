@@ -1,5 +1,15 @@
 # Changelog
 
+## UtopiaPlanitia 0.3.1
+
+- [`autocf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/autocf.md)
+  gains a `"bart"` candidate via
+  [`dbarts::bart()`](https://rdrr.io/pkg/dbarts/man/bart.html). Default
+  pool is now `c("grf", "glmnet", "xgboost", "tabpfn", "bart")`. Adapter
+  runs on dbarts defaults with parallel chains
+  (`nchain = nthread = dbarts::guessNumCores()`) and a deterministic
+  seed; user overrides via the new `bart_args` argument.
+
 ## UtopiaPlanitia 0.3.0
 
 - New

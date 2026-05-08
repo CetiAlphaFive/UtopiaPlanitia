@@ -72,12 +72,13 @@ beats grf's own baseline by a configurable margin).</p>
 <span>  seed <span class="op">=</span> <span class="fl">1995L</span>,</span>
 <span>  eps <span class="op">=</span> <span class="fl">0.001</span>,</span>
 <span>  tuning <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"orig"</span>, <span class="st">"cf.default"</span>, <span class="st">"cf.autotune"</span><span class="op">)</span>,</span>
-<span>  pool <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"grf"</span>, <span class="st">"glmnet"</span>, <span class="st">"xgboost"</span>, <span class="st">"tabpfn"</span><span class="op">)</span>,</span>
+<span>  pool <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"grf"</span>, <span class="st">"glmnet"</span>, <span class="st">"xgboost"</span>, <span class="st">"tabpfn"</span>, <span class="st">"bart"</span><span class="op">)</span>,</span>
 <span>  min_improvement <span class="op">=</span> <span class="st">"1se"</span>,</span>
 <span>  term_evals <span class="op">=</span> <span class="fl">10L</span>,</span>
 <span>  tabpfn_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  glmnet_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  xgboost_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  bart_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -125,13 +126,15 @@ tunable hyperparameters are handled in the refit. One of <code>"orig"</code>
 
 <dt id="arg-pool">pool<a class="anchor" aria-label="anchor" href="#arg-pool"></a></dt>
 <dd><p>Character vector of candidate nuisance estimators to
-compare. Default <code>c("grf", "glmnet", "xgboost", "tabpfn")</code>. Any
-candidate whose required dependency is missing (or which is
+compare. Default <code>c("grf", "glmnet", "xgboost", "tabpfn", "bart")</code>.
+Any candidate whose required dependency is missing (or which is
 incompatible with non-trivial <code>sample.weights</code>) is dropped with a
 warning. The "grf" baseline is <strong>always</strong> refit under the same
 K-fold cross-fit protocol as the other candidates (using
 <code><a href="https://rdrr.io/pkg/grf/man/regression_forest.html" class="external-link">grf::regression_forest()</a></code> on the held-out fold), so all CV losses
-are apples-to-apples.</p></dd>
+are apples-to-apples. The "bart" candidate uses <code><a href="https://rdrr.io/pkg/dbarts/man/bart.html" class="external-link">dbarts::bart()</a></code> on
+<code>dbarts</code> package defaults, with parallel chains via
+<code><a href="https://rdrr.io/pkg/dbarts/man/guessNumCores.html" class="external-link">dbarts::guessNumCores()</a></code> and a deterministic seed.</p></dd>
 
 
 <dt id="arg-min-improvement">min_improvement<a class="anchor" aria-label="anchor" href="#arg-min-improvement"></a></dt>
@@ -150,16 +153,20 @@ AutoTuner (per outer fold per nuisance). <code>0</code> disables tuning and
 uses mlr3's default xgboost hyperparameters. Default <code>10L</code>.</p></dd>
 
 
-<dt id="arg-tabpfn-args-glmnet-args-xgboost-args">tabpfn_args, glmnet_args, xgboost_args<a class="anchor" aria-label="anchor" href="#arg-tabpfn-args-glmnet-args-xgboost-args"></a></dt>
-<dd><p>Optional named lists of
-per-candidate extra arguments. <code>tabpfn_args</code> is forwarded to
-<code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
+<dt id="arg-tabpfn-args-glmnet-args-xgboost-args-bart-args">tabpfn_args, glmnet_args, xgboost_args, bart_args<a class="anchor" aria-label="anchor" href="#arg-tabpfn-args-glmnet-args-xgboost-args-bart-args"></a></dt>
+<dd><p>Optional named
+lists of per-candidate extra arguments. <code>tabpfn_args</code> is forwarded
+to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
 <code>xgboost_args</code> is forwarded to the mlr3 <code>xgboost</code> learner's
 <code>param_set$values</code> (use to set, e.g., <code>nthread = 4</code> for multi-core
 CPU or <code>device = "cuda"</code> to enable GPU on systems with a CUDA
 xgboost build; defaults to mlr3's reproducibility-oriented
-<code>nthread = 1</code> and CPU). Tuned hyperparameters override matching
-keys. All default <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code>.</p></dd>
+<code>nthread = 1</code> and CPU). <code>bart_args</code> is forwarded to
+<code><a href="https://rdrr.io/pkg/dbarts/man/bart.html" class="external-link">dbarts::bart()</a></code>; by default the adapter sets <code>nchain</code> and
+<code>nthread</code> to <code><a href="https://rdrr.io/pkg/dbarts/man/guessNumCores.html" class="external-link">dbarts::guessNumCores()</a></code> and uses dbarts defaults for
+everything else (<code>ntree = 200</code>, <code>ndpost = 1000</code>, <code>nskip = 100</code>,
+<code>keeptrees = FALSE</code>); user keys in <code>bart_args</code> override these.
+Tuned hyperparameters override matching keys. All default <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code>.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -262,9 +269,10 @@ finite-sample loss, not the best convergence rate. For valid sqrt(n)
 downstream inference (e.g. <code><a href="https://rdrr.io/pkg/grf/man/average_treatment_effect.html" class="external-link">grf::average_treatment_effect()</a></code>),
 chosen nuisances must converge at <code>o(n^{-1/4})</code>. The default pool
 members (grf reg-forest, glmnet under sparsity, xgboost under
-boosting consistency) are believed adequate at typical n; tabpfn has
-no formal rate proof and should be treated as exploratory when
-downstream confidence intervals matter.</p>
+boosting consistency, BART under Rockova &amp; van der Pas, 2020) are
+believed adequate at typical n; tabpfn has no formal rate proof and
+should be treated as exploratory when downstream confidence intervals
+matter.</p>
 <p><strong>Reproducibility under <code>future</code> plans.</strong> xgboost's mlr3 AutoTuner
 inner CV runs through the <code>future</code> framework. To prevent
 non-deterministic seeding under user-set <code>future::plan(multisession)</code>
@@ -303,7 +311,7 @@ Forests. <em>Annals of Statistics</em>, 47(2), 1148–1178.</p>
 <span class="r-in"><span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="va">X</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">*</span> <span class="va">W</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">cf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/grf/man/causal_forest.html" class="external-link">causal_forest</a></span><span class="op">(</span><span class="va">X</span>, <span class="va">Y</span>, <span class="va">W</span>, num.trees <span class="op">=</span> <span class="fl">200</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Default: compare grf, glmnet, xgboost, tabpfn (whatever is installed)</span></span></span>
+<span class="r-in"><span><span class="co"># Default: compare grf, glmnet, xgboost, tabpfn, bart (whatever is installed)</span></span></span>
 <span class="r-in"><span><span class="va">cf2</span> <span class="op">&lt;-</span> <span class="fu">autocf</span><span class="op">(</span><span class="va">cf</span>, K <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">cf2</span>, <span class="st">"autocf_meta"</span><span class="op">)</span><span class="op">$</span><span class="va">scores</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/attr.html" class="external-link">attr</a></span><span class="op">(</span><span class="va">cf2</span>, <span class="st">"autocf_meta"</span><span class="op">)</span><span class="op">$</span><span class="va">winner_y</span></span></span>

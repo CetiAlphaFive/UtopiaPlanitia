@@ -39,6 +39,11 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.3.1" id="utopiaplanitia-031">UtopiaPlanitia 0.3.1<a class="anchor" aria-label="anchor" href="#utopiaplanitia-031"></a></h2>
+<ul><li>
+<code><a href="../reference/autocf.html">autocf()</a></code> gains a <code>"bart"</code> candidate via <code><a href="https://rdrr.io/pkg/dbarts/man/bart.html" class="external-link">dbarts::bart()</a></code>. Default pool is now <code>c("grf", "glmnet", "xgboost", "tabpfn", "bart")</code>. Adapter runs on dbarts defaults with parallel chains (<code>nchain = nthread = dbarts::guessNumCores()</code>) and a deterministic seed; user overrides via the new <code>bart_args</code> argument.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.0" id="utopiaplanitia-030">UtopiaPlanitia 0.3.0<a class="anchor" aria-label="anchor" href="#utopiaplanitia-030"></a></h2>
 <ul><li>New <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code>: real Friedman (2001) partial dependence plots for 1-way and 2-way CATE surfaces.</li>
 <li>New <code><a href="../reference/plot_scatter.html">plot_scatter()</a></code>: renamed from the old <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code>, which plotted individual OOB CATEs vs. a covariate.</li>
