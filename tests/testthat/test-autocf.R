@@ -30,11 +30,12 @@ test_that("autocf signature exposes expected formals and defaults", {
   f <- formals(autocf)
   expect_true(all(c("c.forest", "X", "Y", "W", "K", "seed", "eps", "tuning",
                     "pool", "min_improvement", "term_evals", "tabpfn_args",
-                    "glmnet_args", "xgboost_args", "verbose") %in% names(f)))
+                    "glmnet_args", "xgboost_args", "bart_args",
+                    "verbose") %in% names(f)))
   expect_equal(eval(f$K), 5L)
   expect_equal(eval(f$seed), 1995L)
   expect_equal(eval(f$eps), 1e-3)
-  expect_equal(eval(f$pool), c("grf", "glmnet", "xgboost", "tabpfn"))
+  expect_equal(eval(f$pool), c("grf", "glmnet", "xgboost", "tabpfn", "bart"))
   expect_equal(eval(f$min_improvement), "1se")
   expect_equal(eval(f$term_evals), 10L)
 })
@@ -246,6 +247,46 @@ test_that("autocf result is compatible with downstream summary()", {
   cf  <- make_small_cf(n = 80, w_kind = "binary")
   cf2 <- suppressWarnings(autocf(cf, K = 2, pool = c("grf", "glmnet")))
   expect_no_error(suppressWarnings(suppressMessages(summary(cf2))))
+})
+
+test_that("autocf with grf+bart runs end-to-end (binary W)", {
+  skip_if_not_installed("dbarts")
+  cf  <- make_small_cf(n = 80, w_kind = "binary")
+  cf2 <- suppressWarnings(autocf(
+    cf, K = 2, pool = c("grf", "bart"),
+    bart_args = list(ndpost = 100L, nskip = 50L, ntree = 50L)
+  ))
+  m <- attr(cf2, "autocf_meta")
+  expect_setequal(m$pool_run, c("grf", "bart"))
+  expect_true(all(is.finite(cf2$Y.hat)))
+  expect_true(all(is.finite(cf2$W.hat)))
+  # binary W: predicted propensities live in [eps, 1-eps]
+  expect_true(all(cf2$W.hat > 0 & cf2$W.hat < 1))
+})
+
+test_that("autocf with grf+bart runs end-to-end (continuous W)", {
+  skip_if_not_installed("dbarts")
+  cf  <- make_small_cf(n = 80, w_kind = "continuous")
+  cf2 <- suppressWarnings(autocf(
+    cf, K = 2, pool = c("grf", "bart"),
+    bart_args = list(ndpost = 100L, nskip = 50L, ntree = 50L)
+  ))
+  m <- attr(cf2, "autocf_meta")
+  expect_equal(m$w_type, "continuous")
+  expect_true(all(is.finite(cf2$Y.hat)))
+  expect_true(all(is.finite(cf2$W.hat)))
+})
+
+test_that("autocf drops bart from pool when dbarts is missing", {
+  skip_if(requireNamespace("dbarts", quietly = TRUE),
+          "dbarts is installed; cannot exercise the missing-dep branch.")
+  cf <- make_small_cf(n = 60, w_kind = "binary")
+  expect_warning(
+    cf2 <- autocf(cf, K = 2, pool = c("grf", "bart")),
+    "bart"
+  )
+  m <- attr(cf2, "autocf_meta")
+  expect_false("bart" %in% m$pool_run)
 })
 
 test_that("autocf drops tabpfn from pool when sample.weights are non-trivial", {

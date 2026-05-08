@@ -13,12 +13,13 @@ autocf(
   seed = 1995L,
   eps = 0.001,
   tuning = c("orig", "cf.default", "cf.autotune"),
-  pool = c("grf", "glmnet", "xgboost", "tabpfn"),
+  pool = c("grf", "glmnet", "xgboost", "tabpfn", "bart"),
   min_improvement = "1se",
   term_evals = 10L,
   tabpfn_args = list(),
   glmnet_args = list(),
   xgboost_args = list(),
+  bart_args = list(),
   verbose = FALSE,
   ...
 )
@@ -49,13 +50,15 @@ tunable hyperparameters are handled in the refit. One of \code{"orig"}
 \code{"cf.default"}, or \code{"cf.autotune"}. User \code{...} overrides win.}
 
 \item{pool}{Character vector of candidate nuisance estimators to
-compare. Default \code{c("grf", "glmnet", "xgboost", "tabpfn")}. Any
-candidate whose required dependency is missing (or which is
+compare. Default \code{c("grf", "glmnet", "xgboost", "tabpfn", "bart")}.
+Any candidate whose required dependency is missing (or which is
 incompatible with non-trivial \code{sample.weights}) is dropped with a
 warning. The "grf" baseline is \strong{always} refit under the same
 K-fold cross-fit protocol as the other candidates (using
 \code{grf::regression_forest()} on the held-out fold), so all CV losses
-are apples-to-apples.}
+are apples-to-apples. The "bart" candidate uses \code{dbarts::bart()} on
+\code{dbarts} package defaults, with parallel chains via
+\code{dbarts::guessNumCores()} and a deterministic seed.}
 
 \item{min_improvement}{Either the character string \code{"1se"} (default),
 the character string \code{"0"}, or a non-negative numeric. Controls the
@@ -69,15 +72,19 @@ when the absolute loss reduction exceeds it.}
 AutoTuner (per outer fold per nuisance). \code{0} disables tuning and
 uses mlr3's default xgboost hyperparameters. Default \code{10L}.}
 
-\item{tabpfn_args, glmnet_args, xgboost_args}{Optional named lists of
-per-candidate extra arguments. \code{tabpfn_args} is forwarded to
-\code{tabpfn::tab_pfn()}; \code{glmnet_args} to \code{glmnet::cv.glmnet()};
+\item{tabpfn_args, glmnet_args, xgboost_args, bart_args}{Optional named
+lists of per-candidate extra arguments. \code{tabpfn_args} is forwarded
+to \code{tabpfn::tab_pfn()}; \code{glmnet_args} to \code{glmnet::cv.glmnet()};
 \code{xgboost_args} is forwarded to the mlr3 \code{xgboost} learner's
 \code{param_set$values} (use to set, e.g., \code{nthread = 4} for multi-core
 CPU or \code{device = "cuda"} to enable GPU on systems with a CUDA
 xgboost build; defaults to mlr3's reproducibility-oriented
-\code{nthread = 1} and CPU). Tuned hyperparameters override matching
-keys. All default \code{list()}.}
+\code{nthread = 1} and CPU). \code{bart_args} is forwarded to
+\code{dbarts::bart()}; by default the adapter sets \code{nchain} and
+\code{nthread} to \code{dbarts::guessNumCores()} and uses dbarts defaults for
+everything else (\code{ntree = 200}, \code{ndpost = 1000}, \code{nskip = 100},
+\code{keeptrees = FALSE}); user keys in \code{bart_args} override these.
+Tuned hyperparameters override matching keys. All default \code{list()}.}
 
 \item{verbose}{Logical. Print per-candidate / per-fold progress.
 Default \code{FALSE}.}
@@ -171,9 +178,10 @@ finite-sample loss, not the best convergence rate. For valid sqrt(n)
 downstream inference (e.g. \code{grf::average_treatment_effect()}),
 chosen nuisances must converge at \code{o(n^{-1/4})}. The default pool
 members (grf reg-forest, glmnet under sparsity, xgboost under
-boosting consistency) are believed adequate at typical n; tabpfn has
-no formal rate proof and should be treated as exploratory when
-downstream confidence intervals matter.
+boosting consistency, BART under Rockova & van der Pas, 2020) are
+believed adequate at typical n; tabpfn has no formal rate proof and
+should be treated as exploratory when downstream confidence intervals
+matter.
 
 \strong{Reproducibility under \code{future} plans.} xgboost's mlr3 AutoTuner
 inner CV runs through the \code{future} framework. To prevent
@@ -192,7 +200,7 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 200)
 
-# Default: compare grf, glmnet, xgboost, tabpfn (whatever is installed)
+# Default: compare grf, glmnet, xgboost, tabpfn, bart (whatever is installed)
 cf2 <- autocf(cf, K = 5)
 attr(cf2, "autocf_meta")$scores
 attr(cf2, "autocf_meta")$winner_y

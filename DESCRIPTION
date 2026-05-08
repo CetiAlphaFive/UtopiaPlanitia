@@ -30,6 +30,7 @@ Suggests:
   tabpfn,
   glmnet,
   xgboost,
+  dbarts,
   mlr3,
   mlr3learners,
   mlr3tuning,

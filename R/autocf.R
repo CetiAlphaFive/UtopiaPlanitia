@@ -27,13 +27,15 @@
 #'   (default, inherit verbatim from `c.forest$tunable.params`),
 #'   `"cf.default"`, or `"cf.autotune"`. User `...` overrides win.
 #' @param pool Character vector of candidate nuisance estimators to
-#'   compare. Default `c("grf", "glmnet", "xgboost", "tabpfn")`. Any
-#'   candidate whose required dependency is missing (or which is
+#'   compare. Default `c("grf", "glmnet", "xgboost", "tabpfn", "bart")`.
+#'   Any candidate whose required dependency is missing (or which is
 #'   incompatible with non-trivial `sample.weights`) is dropped with a
 #'   warning. The "grf" baseline is **always** refit under the same
 #'   K-fold cross-fit protocol as the other candidates (using
 #'   `grf::regression_forest()` on the held-out fold), so all CV losses
-#'   are apples-to-apples.
+#'   are apples-to-apples. The "bart" candidate uses `dbarts::bart()` on
+#'   `dbarts` package defaults, with parallel chains via
+#'   `dbarts::guessNumCores()` and a deterministic seed.
 #' @param min_improvement Either the character string `"1se"` (default),
 #'   the character string `"0"`, or a non-negative numeric. Controls the
 #'   margin by which a candidate must beat the grf baseline to trigger a
@@ -44,15 +46,19 @@
 #' @param term_evals Integer >= 0. Random-search budget for the xgboost
 #'   AutoTuner (per outer fold per nuisance). `0` disables tuning and
 #'   uses mlr3's default xgboost hyperparameters. Default `10L`.
-#' @param tabpfn_args,glmnet_args,xgboost_args Optional named lists of
-#'   per-candidate extra arguments. `tabpfn_args` is forwarded to
-#'   `tabpfn::tab_pfn()`; `glmnet_args` to `glmnet::cv.glmnet()`;
+#' @param tabpfn_args,glmnet_args,xgboost_args,bart_args Optional named
+#'   lists of per-candidate extra arguments. `tabpfn_args` is forwarded
+#'   to `tabpfn::tab_pfn()`; `glmnet_args` to `glmnet::cv.glmnet()`;
 #'   `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
 #'   `param_set$values` (use to set, e.g., `nthread = 4` for multi-core
 #'   CPU or `device = "cuda"` to enable GPU on systems with a CUDA
 #'   xgboost build; defaults to mlr3's reproducibility-oriented
-#'   `nthread = 1` and CPU). Tuned hyperparameters override matching
-#'   keys. All default `list()`.
+#'   `nthread = 1` and CPU). `bart_args` is forwarded to
+#'   `dbarts::bart()`; by default the adapter sets `nchain` and
+#'   `nthread` to `dbarts::guessNumCores()` and uses dbarts defaults for
+#'   everything else (`ntree = 200`, `ndpost = 1000`, `nskip = 100`,
+#'   `keeptrees = FALSE`); user keys in `bart_args` override these.
+#'   Tuned hyperparameters override matching keys. All default `list()`.
 #' @param verbose Logical. Print per-candidate / per-fold progress.
 #'   Default `FALSE`.
 #' @param ... Additional arguments forwarded to `grf::causal_forest()`
@@ -134,9 +140,10 @@
 #' downstream inference (e.g. `grf::average_treatment_effect()`),
 #' chosen nuisances must converge at `o(n^{-1/4})`. The default pool
 #' members (grf reg-forest, glmnet under sparsity, xgboost under
-#' boosting consistency) are believed adequate at typical n; tabpfn has
-#' no formal rate proof and should be treated as exploratory when
-#' downstream confidence intervals matter.
+#' boosting consistency, BART under Rockova & van der Pas, 2020) are
+#' believed adequate at typical n; tabpfn has no formal rate proof and
+#' should be treated as exploratory when downstream confidence intervals
+#' matter.
 #'
 #' **Reproducibility under `future` plans.** xgboost's mlr3 AutoTuner
 #' inner CV runs through the `future` framework. To prevent
@@ -175,7 +182,7 @@
 #' Y <- X[, 1] * W + rnorm(n)
 #' cf <- causal_forest(X, Y, W, num.trees = 200)
 #'
-#' # Default: compare grf, glmnet, xgboost, tabpfn (whatever is installed)
+#' # Default: compare grf, glmnet, xgboost, tabpfn, bart (whatever is installed)
 #' cf2 <- autocf(cf, K = 5)
 #' attr(cf2, "autocf_meta")$scores
 #' attr(cf2, "autocf_meta")$winner_y
@@ -190,12 +197,13 @@ autocf <- function(c.forest,
                    seed = 1995L,
                    eps = 1e-3,
                    tuning = c("orig", "cf.default", "cf.autotune"),
-                   pool = c("grf", "glmnet", "xgboost", "tabpfn"),
+                   pool = c("grf", "glmnet", "xgboost", "tabpfn", "bart"),
                    min_improvement = "1se",
                    term_evals = 10L,
                    tabpfn_args = list(),
                    glmnet_args = list(),
                    xgboost_args = list(),
+                   bart_args = list(),
                    verbose = FALSE,
                    ...) {
 
@@ -246,7 +254,7 @@ autocf <- function(c.forest,
     stop("`pool` must be a non-empty character vector.", call. = FALSE)
   }
   pool <- unique(pool)
-  bad <- setdiff(pool, c("grf", "glmnet", "xgboost", "tabpfn"))
+  bad <- setdiff(pool, c("grf", "glmnet", "xgboost", "tabpfn", "bart"))
   if (length(bad) > 0L) {
     stop("Unknown candidate(s) in `pool`: ",
          paste(bad, collapse = ", "), ".", call. = FALSE)
@@ -306,6 +314,7 @@ autocf <- function(c.forest,
         tabpfn_args = tabpfn_args,
         glmnet_args = glmnet_args,
         xgboost_args = xgboost_args,
+        bart_args   = bart_args,
         term_evals  = term_evals,
         verbose     = verbose
       ),
@@ -568,7 +577,8 @@ autocf <- function(c.forest,
     grf     = "grf",
     glmnet  = "glmnet",
     tabpfn  = "tabpfn",
-    xgboost = c("mlr3", "mlr3learners", "mlr3tuning", "paradox", "xgboost")
+    xgboost = c("mlr3", "mlr3learners", "mlr3tuning", "paradox", "xgboost"),
+    bart    = "dbarts"
   )
 
   for (cand in pool) {
@@ -607,7 +617,7 @@ autocf <- function(c.forest,
 #' and per-fold weighted MSE for both nuisance roles.
 .autocf_run_candidate <- function(cand, X, Y, W, fold, K, w_type, sw, seed,
                                   tabpfn_args, glmnet_args, xgboost_args,
-                                  term_evals, verbose) {
+                                  bart_args, term_evals, verbose) {
   n <- length(Y)
   Y.hat <- numeric(n)
   W.hat <- numeric(n)
@@ -619,6 +629,7 @@ autocf <- function(c.forest,
     glmnet   = .autocf_fp_glmnet,
     xgboost  = .autocf_fp_xgboost,
     tabpfn   = .autocf_fp_tabpfn,
+    bart     = .autocf_fp_bart,
     stop("Unknown candidate: ", cand, call. = FALSE)
   )
 
@@ -644,6 +655,7 @@ autocf <- function(c.forest,
       tabpfn_args = tabpfn_args,
       glmnet_args = glmnet_args,
       xgboost_args = xgboost_args,
+      bart_args   = bart_args,
       term_evals  = term_evals,
       seed = seed + k
     )
@@ -655,6 +667,7 @@ autocf <- function(c.forest,
       tabpfn_args = tabpfn_args,
       glmnet_args = glmnet_args,
       xgboost_args = xgboost_args,
+      bart_args   = bart_args,
       term_evals  = term_evals,
       seed = seed + K + k
     )
@@ -948,6 +961,50 @@ autocf <- function(c.forest,
   if (is.numeric(pr)) return(as.numeric(pr))
   stop("autocf(): unexpected tabpfn predict() return shape: ",
        paste(class(pr), collapse = "/"), call. = FALSE)
+}
+
+#' @keywords internal
+#' @noRd
+.autocf_fp_bart <- function(X_train, y_train, X_test, family,
+                            weights = NULL, bart_args = list(),
+                            seed = 1L, ...) {
+  ncores <- tryCatch(dbarts::guessNumCores(), error = function(e) 1L)
+  if (!is.numeric(ncores) || !is.finite(ncores) || ncores < 1L) ncores <- 1L
+  ncores <- as.integer(ncores)
+
+  if (family == "binomial") {
+    yt <- if (is.factor(y_train))    as.integer(y_train) - 1L
+          else if (is.logical(y_train)) as.integer(y_train)
+          else                          as.integer(y_train)
+    yt <- factor(yt, levels = c("0", "1"))
+  } else {
+    yt <- as.numeric(y_train)
+  }
+
+  args <- list(
+    x.train       = X_train,
+    y.train       = yt,
+    x.test        = X_test,
+    keeptrees     = FALSE,
+    verbose       = FALSE,
+    nchain        = ncores,
+    nthread       = ncores,
+    combinechains = TRUE,
+    seed          = as.integer(seed)
+  )
+  if (!is.null(weights)) args$weights <- as.numeric(weights)
+  for (nm in names(bart_args)) args[[nm]] <- bart_args[[nm]]
+
+  fit <- do.call(dbarts::bart, args)
+
+  if (family == "binomial") {
+    # yhat.test under classification is on latent probit z scale; convert
+    # per draw then average to get posterior mean P(Y = 1 | x).
+    p <- colMeans(stats::pnorm(fit$yhat.test))
+    pmin(pmax(p, 0), 1)
+  } else {
+    colMeans(fit$yhat.test)
+  }
 }
 
 # Lightweight null-coalesce; defined locally so we don't rely on rlang's `%||%`

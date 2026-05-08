@@ -1,3 +1,7 @@
+# UtopiaPlanitia 0.3.1
+
+* `autocf()` gains a `"bart"` candidate via `dbarts::bart()`. Default pool is now `c("grf", "glmnet", "xgboost", "tabpfn", "bart")`. Adapter runs on dbarts defaults with parallel chains (`nchain = nthread = dbarts::guessNumCores()`) and a deterministic seed; user overrides via the new `bart_args` argument.
+
 # UtopiaPlanitia 0.3.0
 
 * New `plot_pdp()`: real Friedman (2001) partial dependence plots for 1-way and 2-way CATE surfaces.
