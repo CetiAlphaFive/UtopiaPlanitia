@@ -73,7 +73,8 @@ plot_rank <- function(c.forest, show_ate_region = TRUE) {
   preds <- predict(c.forest, estimate.variance = TRUE)
 
   # Create data frame for plotting
-  plot.df <- data.frame(cates = preds$predictions, variance = preds$variance)
+  plot.df <- data.frame(cates    = preds$predictions,
+                        variance = preds$variance.estimates)
   plot.df$upper <- plot.df$cates + 1.96 * sqrt(plot.df$variance)
   plot.df$lower <- plot.df$cates - 1.96 * sqrt(plot.df$variance)
 
