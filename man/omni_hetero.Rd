@@ -10,7 +10,8 @@ omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
 \item{c.forest}{A fitted causal forest object from the \code{grf} package.}
 
 \item{seed}{An integer seed for reproducibility. Default is \code{1995}.
-Controls the fold assignment in the sequential RATE test.}
+Controls the fold assignment in the sequential RATE test and the
+half-sample split in the cross-fit High vs. Low test.}
 
 \item{min_fold_n}{Minimum per-fold training sample size below which the
 Sequential RATE test is considered unstable. When \code{n < 400} or
@@ -20,10 +21,12 @@ Calibration test (Chernozhukov et al., 2018) or OOB RATE heuristics
 for small samples. Within the fold loop, any fold whose test-set CATE
 predictions are (near-)constant, whose RATE standard error is zero,
 or whose t-statistic is \code{NaN} is dropped from aggregation rather than
-allowed to propagate a silent \code{NaN} into the final p-value. If fewer
-than 2 usable folds remain, the Sequential RATE p-value is returned
-as \code{NA_real_} with an explanatory \code{reason} attribute. Default is
-\code{100}.}
+allowed to propagate a silent \code{NaN} into the final p-value. If ANY
+fold is dropped (i.e. fewer than \code{num.folds - 1} t-statistics
+accumulate), the Sequential RATE p-value is returned as \code{NA_real_}
+with an explanatory \code{reason} attribute, because the
+\code{sqrt(num.folds - 1)} aggregation denominator would otherwise
+under-normalize and deflate the t-statistic. Default is \code{100}.}
 }
 \value{
 An object of class \code{"omni_hetero"} (a data frame) with one row
@@ -37,14 +40,16 @@ error control, \code{"Heuristic"} for screening tests.}
 \item{p_value}{Numeric. Two-sided p-value (or one-sided for the final
 row). Small values indicate evidence of treatment effect
 heterogeneity.}
-\item{hetero_detected}{Logical. \code{TRUE} if \code{p_value <= 0.05}.}
+\item{hetero_detected}{Logical. \code{TRUE} if \code{p_value <= 0.05}, \code{NA}
+when \code{p_value} is \code{NA}.}
 }
 }
 \description{
 Performs various heterogeneity tests on a fitted causal forest model.
-Combines the calibration test of Chernozhukov et al. (2018), a naive
-high/low CATE split (Athey and Wager, 2019), the sequential RATE test
-(Wager, 2024), and OOB RATE heuristics into a single summary table.
+Combines the calibration test of Chernozhukov et al. (2018), a cross-fit
+high/low CATE split (Athey and Wager, 2019; cf. grf PR #1502), the
+sequential RATE test (Wager, 2024), and OOB RATE heuristics into a single
+summary table.
 }
 \details{
 The function combines five tests of treatment effect heterogeneity,
@@ -63,9 +68,12 @@ meaningful heterogeneity beyond the ATE.
 
 \strong{Heuristic tests} (useful for screening, not formal inference):
 \enumerate{
-\item \strong{High vs. low CATE} (Athey and Wager, 2019): Splits units at the
-median predicted CATE and compares the ATE in each half. A significant
-difference suggests the forest detects real variation.
+\item \strong{High vs. low CATE, cross-fit} (Athey and Wager, 2019): Splits the
+sample in half, predicts CATEs on each half using a forest trained
+on the other half, then median-splits and compares ATE_{high} vs.
+ATE_{low} within each held-out half. Cross-fitting avoids the
+winner's curse that contaminates the naive same-data version (see
+grf PR #1502).
 \item \strong{OOB RATE, two-sided} (heuristic): Uses out-of-bag CATE predictions
 directly. Known to be anti-conservative (~30\\% rejection rate under the
 null at nominal 5\\%; see the grf RATE vignette). Useful as a quick

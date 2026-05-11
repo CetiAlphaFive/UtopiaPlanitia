@@ -1,13 +1,15 @@
 #' Omnibus Tests of Heterogeneity
 #'
 #' Performs various heterogeneity tests on a fitted causal forest model.
-#' Combines the calibration test of Chernozhukov et al. (2018), a naive
-#' high/low CATE split (Athey and Wager, 2019), the sequential RATE test
-#' (Wager, 2024), and OOB RATE heuristics into a single summary table.
+#' Combines the calibration test of Chernozhukov et al. (2018), a cross-fit
+#' high/low CATE split (Athey and Wager, 2019; cf. grf PR #1502), the
+#' sequential RATE test (Wager, 2024), and OOB RATE heuristics into a single
+#' summary table.
 #'
 #' @param c.forest A fitted causal forest object from the \code{grf} package.
 #' @param seed An integer seed for reproducibility. Default is `1995`.
-#'   Controls the fold assignment in the sequential RATE test.
+#'   Controls the fold assignment in the sequential RATE test and the
+#'   half-sample split in the cross-fit High vs. Low test.
 #' @param min_fold_n Minimum per-fold training sample size below which the
 #'   Sequential RATE test is considered unstable. When `n < 400` or
 #'   `n / num.folds < min_fold_n`, a warning is emitted at the start of the
@@ -16,10 +18,12 @@
 #'   for small samples. Within the fold loop, any fold whose test-set CATE
 #'   predictions are (near-)constant, whose RATE standard error is zero,
 #'   or whose t-statistic is `NaN` is dropped from aggregation rather than
-#'   allowed to propagate a silent `NaN` into the final p-value. If fewer
-#'   than 2 usable folds remain, the Sequential RATE p-value is returned
-#'   as `NA_real_` with an explanatory `reason` attribute. Default is
-#'   `100`.
+#'   allowed to propagate a silent `NaN` into the final p-value. If ANY
+#'   fold is dropped (i.e. fewer than `num.folds - 1` t-statistics
+#'   accumulate), the Sequential RATE p-value is returned as `NA_real_`
+#'   with an explanatory `reason` attribute, because the
+#'   `sqrt(num.folds - 1)` aggregation denominator would otherwise
+#'   under-normalize and deflate the t-statistic. Default is `100`.
 #' @return An object of class `"omni_hetero"` (a data frame) with one row
 #'   per test and the following columns:
 #'   \describe{
@@ -31,7 +35,8 @@
 #'     \item{p_value}{Numeric. Two-sided p-value (or one-sided for the final
 #'       row). Small values indicate evidence of treatment effect
 #'       heterogeneity.}
-#'     \item{hetero_detected}{Logical. `TRUE` if `p_value <= 0.05`.}
+#'     \item{hetero_detected}{Logical. `TRUE` if `p_value <= 0.05`, `NA`
+#'       when `p_value` is `NA`.}
 #'   }
 #'
 #' @details
@@ -51,9 +56,12 @@
 #'
 #' **Heuristic tests** (useful for screening, not formal inference):
 #'
-#' 3. **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
-#'    median predicted CATE and compares the ATE in each half. A significant
-#'    difference suggests the forest detects real variation.
+#' 3. **High vs. low CATE, cross-fit** (Athey and Wager, 2019): Splits the
+#'    sample in half, predicts CATEs on each half using a forest trained
+#'    on the other half, then median-splits and compares ATE_{high} vs.
+#'    ATE_{low} within each held-out half. Cross-fitting avoids the
+#'    winner's curse that contaminates the naive same-data version (see
+#'    grf PR #1502).
 #'
 #' 4. **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE predictions
 #'    directly. Known to be anti-conservative (~30\% rejection rate under the
@@ -142,14 +150,95 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
     p_diff    = cal.pval
   )
 
-  # Naive high/low test (Athey and Wager, 2019)
-  tau.hat <- c.forest$predictions
-  high.effect <- tau.hat > stats::median(tau.hat)
-  ate.high <- average_treatment_effect(c.forest, subset = high.effect)
-  ate.low  <- average_treatment_effect(c.forest, subset = !high.effect)
-  naive_high_low_diff <- ate.high[["estimate"]] - ate.low[["estimate"]]
-  naive_high_low_se   <- sqrt(ate.high[["std.err"]]^2 + ate.low[["std.err"]]^2)
-  naive_high_low_p_value <- 2 * stats::pnorm(-abs(naive_high_low_diff / naive_high_low_se))
+  # ------------------------------------------------------------------
+  # H2 (audit-20260511): Cross-fit High vs. Low CATE test
+  #
+  # The naive median-split (which uses the same data to predict CATEs,
+  # split at the median, AND estimate ATEs on each half) is severely
+  # anti-conservative: Monte Carlo under the null DGP at n=200 measured a
+  # rejection rate of 0.45 [0.26, 0.66] at nominal alpha = 0.05 -- a 9x
+  # inflation due to winner's curse. See grf PR #1502 for the canonical
+  # honest construction.
+  #
+  # Replacement: single-direction sample-split cross-fit (matches the
+  # audit-20260511 reference implementation that achieved nominal 0.05
+  # Type I).
+  #   1. Random half-sample split: idx_A vs idx_B.
+  #   2. Fit cf_A on idx_A; predict tau on idx_B units. This separates
+  #      "splitting at the median" from "fitting the forest".
+  #   3. Fit cf_B on idx_B independently; use cf_B to estimate the ATEs
+  #      on the high / low subsets of idx_B (selected by tau predictions
+  #      from cf_A). The forest doing the ATE is independent of the
+  #      forest that decided the split -- no winner's curse.
+  #   4. Joint SE: sqrt(se_high^2 + se_low^2).
+  #
+  # Variable names retain the "naive_high_low_*" prefix purely to avoid
+  # rippling renames into downstream code (summary_table assembly below).
+  # The test is now cross-fit; the name is historical.
+  # ------------------------------------------------------------------
+  X <- c.forest$X.orig
+  Y <- c.forest$Y.orig
+  W <- c.forest$W.orig
+  n <- nrow(X)
+
+  idx_A <- sample(seq_len(n), floor(n / 2))
+  idx_B <- setdiff(seq_len(n), idx_A)
+
+  cf_A <- grf::causal_forest(X[idx_A, , drop = FALSE], Y[idx_A], W[idx_A],
+                             num.trees = n.trees,
+                             sample.weights = sw[idx_A],
+                             clusters = cls[idx_A],
+                             equalize.cluster.weights = ecw,
+                             sample.fraction = tp$sample.fraction,
+                             mtry = tp$mtry,
+                             min.node.size = tp$min.node.size,
+                             honesty.fraction = tp$honesty.fraction,
+                             honesty.prune.leaves = tp$honesty.prune.leaves,
+                             alpha = tp$alpha,
+                             imbalance.penalty = tp$imbalance.penalty,
+                             ci.group.size = cigs,
+                             seed = seed)
+  cf_B <- grf::causal_forest(X[idx_B, , drop = FALSE], Y[idx_B], W[idx_B],
+                             num.trees = n.trees,
+                             sample.weights = sw[idx_B],
+                             clusters = cls[idx_B],
+                             equalize.cluster.weights = ecw,
+                             sample.fraction = tp$sample.fraction,
+                             mtry = tp$mtry,
+                             min.node.size = tp$min.node.size,
+                             honesty.fraction = tp$honesty.fraction,
+                             honesty.prune.leaves = tp$honesty.prune.leaves,
+                             alpha = tp$alpha,
+                             imbalance.penalty = tp$imbalance.penalty,
+                             ci.group.size = cigs,
+                             seed = seed + 1L)
+
+  # Predict tau on idx_B using cf_A (forest that has NOT seen idx_B);
+  # median-split the predictions; ATE estimation on idx_B is then done
+  # by cf_B, which has NOT been used to choose the split.
+  tau_B      <- stats::predict(cf_A, X[idx_B, , drop = FALSE])$predictions
+  med_B      <- stats::median(tau_B)
+  high_B_pos <- which(tau_B >  med_B)
+  low_B_pos  <- which(tau_B <= med_B)
+
+  # Guard against degenerate half-samples (too few units on one side).
+  if (length(high_B_pos) < 2L || length(low_B_pos) < 2L) {
+    warning("High/Low cross-fit: half-sample has <2 units on at least ",
+            "one side of the median; returning NA.",
+            call. = FALSE)
+    naive_high_low_diff    <- NA_real_
+    naive_high_low_se      <- NA_real_
+    naive_high_low_p_value <- NA_real_
+  } else {
+    ate_high <- grf::average_treatment_effect(cf_B, subset = high_B_pos)
+    ate_low  <- grf::average_treatment_effect(cf_B, subset = low_B_pos)
+
+    naive_high_low_diff    <- ate_high[["estimate"]] - ate_low[["estimate"]]
+    naive_high_low_se      <- sqrt(ate_high[["std.err"]]^2 +
+                                   ate_low[["std.err"]]^2)
+    naive_high_low_p_value <- 2 * stats::pnorm(-abs(naive_high_low_diff /
+                                                    naive_high_low_se))
+  }
 
   # Wager's sequential RATE test
   #
@@ -159,11 +248,12 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
   #     predicts (near-)constant, where the fold RATE std.err is zero, or
   #     where the resulting t-statistic is NaN / non-finite. These otherwise
   #     propagate silently into the aggregated p-value.
-  #   - If fewer than 2 usable folds remain, return NA_real_ with a `reason`
-  #     attribute instead of a silent NaN.
+  #   - If ANY fold is dropped (audit-20260511 H3), return NA_real_ with a
+  #     reason rather than aggregating a deflated t-statistic against the
+  #     sqrt(num.folds - 1) denominator.
   #   - The sum(t)/sqrt(num.folds - 1) aggregation is PRESERVED (any change
   #     to that formula is a separate, higher-tier concern about fold
-  #     independence — see omni_hetero audit).
+  #     independence -- see omni_hetero audit).
   rate_sequential <- function(X, Y, W, num.folds = 5) {
 
     set.seed(seed)
@@ -177,7 +267,10 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
     # fold (including dropped ones, flagged via `dropped`).
     folds.list <- vector("list", length = num.folds - 1L)
 
-    # Form AIPW scores for estimating RATE (full-sample, per Wager 2024)
+    # Form AIPW scores for estimating RATE (full-sample, per Wager 2024).
+    # The full-sample nuisance forest legitimately uses the full-sample
+    # plug-in Y.hat / W.hat: it only computes DR scores, which are not
+    # used to fit the per-fold CATE forests below.
     nuisance.forest <- causal_forest(X, Y, W,
                                      Y.hat = Y.hat, W.hat = W.hat,
                                      num.trees = n.trees,
@@ -202,8 +295,14 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
       train <- unlist(samples.by.fold[1:(k - 1)])
       test  <- samples.by.fold[[k]]
 
+      # C1 (audit-20260511): Wager (2024) Sec. 2 martingale requirement.
+      # The per-fold CATE forest must fit nuisance internally on the
+      # training subsample. Do NOT pass Y.hat[train] / W.hat[train]
+      # here -- those are slices of a full-sample fit that uses the
+      # test fold for plug-in estimation, breaking the sequential
+      # martingale property. The reference grf vignette
+      # (`rate_cv.Rmd` on master) fits cleanly per fold.
       cate.forest <- causal_forest(X[train, ], Y[train], W[train],
-                                   Y.hat = Y.hat[train], W.hat = W.hat[train],
                                    num.trees = n.trees,
                                    sample.weights = sw[train],
                                    clusters = cls[train],
@@ -301,6 +400,29 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
                   num_folds = num.folds))
     }
 
+    # H3 (audit-20260511): when one or more folds were dropped, the
+    # sqrt(num.folds - 1) denominator under-normalizes (denom > n.usable),
+    # deflating the aggregated t-statistic. Rather than emit a deflated
+    # (and weakly anti-conservative-by-omission) p-value, return NA with
+    # a reason. Users get clean NA + message instead of a silently biased
+    # p-value.
+    if (length(t.statistics) < (num.folds - 1)) {
+      reason <- paste0(
+        "Sequential RATE: ", length(t.statistics), " of ",
+        num.folds - 1, " folds usable after degeneracy filtering. ",
+        "Aggregation denominator sqrt(num.folds - 1) would deflate the ",
+        "t-statistic relative to the number of contributing folds. ",
+        "Returning NA p-value. Increase sample size or use the Calibration ",
+        "test for formal inference at this n."
+      )
+      return(list(p = NA_real_, reason = reason,
+                  folds_df = folds.df,
+                  dropped_folds = dropped.folds,
+                  drop_reasons = drop.reasons,
+                  sequential_t = NA_real_,
+                  num_folds = num.folds))
+    }
+
     # Aggregation formula preserved per Wager (2024).
     # Uses sqrt(num.folds - 1) = sqrt(K-1), matching the original fold-count
     # normalization; this is intentionally not rescaled by n.usable here.
@@ -313,10 +435,6 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
          sequential_t = t_seq,
          num_folds = num.folds)
   }
-
-  X <- c.forest$X.orig
-  Y <- c.forest$Y.orig
-  W <- c.forest$W.orig
 
   # Upfront size check (Task A requirement): warn when Sequential RATE
   # likely unstable. Uses default num.folds = 5 from rate_sequential().
@@ -382,7 +500,7 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
     heterogeneity_test = c(
       "Sequential RATE (Wager, 2024)",
       "Calibration Test (Chernozhukov et al., 2018)",
-      "High vs. Low CATE (Athey and Wager, 2019)",
+      "High vs. Low CATE, cross-fit (Athey and Wager, 2019)",
       "OOB RATE, two-sided (heuristic, anti-conservative)",
       "OOB RATE, one-sided (heuristic)"
     ),
@@ -401,9 +519,17 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
       p.val.onesided
     ),
     hetero_detected = c(
-      sequential_rate_test_pvalue <= 0.05,
+      # C2a (audit-20260511): explicit NA propagation when p-value is NA.
+      # Using ifelse(is.na(p), NA, p <= 0.05) gives a true logical NA in
+      # the column (rather than `isTRUE()` which silently collapses NA to
+      # FALSE and would print as "No heterogeneity"). The print method
+      # then renders "—" for NA, signalling "test did not run" rather
+      # than the wrong-and-confident "No".
+      ifelse(is.na(sequential_rate_test_pvalue),
+             NA, sequential_rate_test_pvalue <= 0.05),
       cal.pval <= 0.05,
-      naive_high_low_p_value <= 0.05,
+      ifelse(is.na(naive_high_low_p_value),
+             NA, naive_high_low_p_value <= 0.05),
       p.val <= 0.05,
       p.val.onesided <= 0.05
     )
@@ -439,10 +565,15 @@ print.omni_hetero <- function(x, latex = FALSE, ...) {
   }
 
   fmt <- as.data.frame(x)
-  fmt$estimate <- ifelse(is.na(x$estimate), "\u2014",
+  fmt$estimate <- ifelse(is.na(x$estimate), "—",
                          formatC(x$estimate, format = "f", digits = 4))
-  fmt$p_value <- formatC(x$p_value, format = "f", digits = 4)
-  fmt$hetero_detected <- ifelse(x$hetero_detected, "Yes", "No")
+  fmt$p_value <- ifelse(is.na(x$p_value), "—",
+                        formatC(x$p_value, format = "f", digits = 4))
+  # C2b (audit-20260511): NA-safe formatter -- print em-dash when the
+  # underlying p-value (and hence hetero_detected) is NA, instead of
+  # propagating <NA> into the printed table.
+  fmt$hetero_detected <- ifelse(is.na(x$hetero_detected), "—",
+                                ifelse(x$hetero_detected, "Yes", "No"))
 
   preferred <- fmt[fmt$category == "Preferred", -1, drop = FALSE]
   heuristic <- fmt[fmt$category == "Heuristic", -1, drop = FALSE]
@@ -471,11 +602,11 @@ print_omni_latex <- function(x) {
 
   # Short test names (no citations — those go in table notes)
   short_names <- c(
-    "Sequential RATE (Wager, 2024)"                      = "Sequential RATE",
-    "Calibration Test (Chernozhukov et al., 2018)"        = "Calibration test",
-    "High vs. Low CATE (Athey and Wager, 2019)"           = "High vs.\\ low CATE",
-    "OOB RATE, two-sided (heuristic, anti-conservative)"  = "OOB RATE (two-sided)",
-    "OOB RATE, one-sided (heuristic)"                     = "OOB RATE (one-sided)"
+    "Sequential RATE (Wager, 2024)"                              = "Sequential RATE",
+    "Calibration Test (Chernozhukov et al., 2018)"                = "Calibration test",
+    "High vs. Low CATE, cross-fit (Athey and Wager, 2019)"        = "High vs.\\ low CATE (cross-fit)",
+    "OOB RATE, two-sided (heuristic, anti-conservative)"          = "OOB RATE (two-sided)",
+    "OOB RATE, one-sided (heuristic)"                             = "OOB RATE (one-sided)"
   )
 
   est <- ifelse(is.na(x$estimate), "---",

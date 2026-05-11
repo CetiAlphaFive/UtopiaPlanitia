@@ -283,9 +283,19 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
   }
 
   if(normalize){
-    # normalize importance values to sum to 1, using absolute values
+    # H5 (audit-20260511): negative values clipped to zero, remaining
+    # values rescaled to sum to 1. When every score is <= 0 (raw LOCO
+    # detected no useful variation -- e.g. pure-noise DGPs), the sum is
+    # zero and a naive divide yields NaN; we instead return uniform 1/p
+    # with a warning so downstream code never sees NaN.
     In <- ifelse(In >= 0, abs(In), 0)
-    In_out <- In / sum(In)
+    if (sum(In) == 0) {
+      warning("cf_loco: all non-negative LOCO scores are zero; returning ",
+              "uniform 1/p importance.", call. = FALSE)
+      In_out <- rep(1 / length(In), length(In))
+    } else {
+      In_out <- In / sum(In)
+    }
   } else {
     In_out <- In
   }
