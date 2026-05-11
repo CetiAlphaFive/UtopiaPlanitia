@@ -58,8 +58,8 @@
 #'
 #' 3. **High vs. low CATE, cross-fit** (Athey and Wager, 2019): Splits the
 #'    sample in half, predicts CATEs on each half using a forest trained
-#'    on the other half, then median-splits and compares ATE_{high} vs.
-#'    ATE_{low} within each held-out half. Cross-fitting avoids the
+#'    on the other half, then median-splits and compares \eqn{ATE_{high}} vs.
+#'    \eqn{ATE_{low}} within each held-out half. Cross-fitting avoids the
 #'    winner's curse that contaminates the naive same-data version (see
 #'    grf PR #1502).
 #'
@@ -320,7 +320,7 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
       cate.hat.test <- stats::predict(cate.forest, X[test, ])$predictions
       n.test <- length(test)
 
-      # guard 1: degenerate training fit — CATE forest predicts (near-)constant
+      # guard 1: degenerate training fit -- CATE forest predicts (near-)constant
       if (!is.finite(stats::sd(cate.hat.test)) ||
           stats::sd(cate.hat.test) < cate.tol) {
         dropped.folds <- c(dropped.folds, k)
@@ -353,7 +353,7 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
 
       t.stat <- rate.fold$estimate / rate.fold$std.err
 
-      # guard 3: defensive — any remaining non-finite t (e.g. Inf / NaN)
+      # guard 3: defensive -- any remaining non-finite t (e.g. Inf / NaN)
       if (!is.finite(t.stat)) {
         dropped.folds <- c(dropped.folds, k)
         drop.reasons  <- c(drop.reasons, "non-finite t-statistic")
@@ -523,7 +523,7 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
       # Using ifelse(is.na(p), NA, p <= 0.05) gives a true logical NA in
       # the column (rather than `isTRUE()` which silently collapses NA to
       # FALSE and would print as "No heterogeneity"). The print method
-      # then renders "—" for NA, signalling "test did not run" rather
+      # then renders "--" for NA, signalling "test did not run" rather
       # than the wrong-and-confident "No".
       ifelse(is.na(sequential_rate_test_pvalue),
              NA, sequential_rate_test_pvalue <= 0.05),
@@ -565,14 +565,14 @@ print.omni_hetero <- function(x, latex = FALSE, ...) {
   }
 
   fmt <- as.data.frame(x)
-  fmt$estimate <- ifelse(is.na(x$estimate), "—",
+  fmt$estimate <- ifelse(is.na(x$estimate), "--",
                          formatC(x$estimate, format = "f", digits = 4))
-  fmt$p_value <- ifelse(is.na(x$p_value), "—",
+  fmt$p_value <- ifelse(is.na(x$p_value), "--",
                         formatC(x$p_value, format = "f", digits = 4))
   # C2b (audit-20260511): NA-safe formatter -- print em-dash when the
   # underlying p-value (and hence hetero_detected) is NA, instead of
   # propagating <NA> into the printed table.
-  fmt$hetero_detected <- ifelse(is.na(x$hetero_detected), "—",
+  fmt$hetero_detected <- ifelse(is.na(x$hetero_detected), "--",
                                 ifelse(x$hetero_detected, "Yes", "No"))
 
   preferred <- fmt[fmt$category == "Preferred", -1, drop = FALSE]
@@ -600,7 +600,7 @@ fmt_pval_latex <- function(p) {
 #' @noRd
 print_omni_latex <- function(x) {
 
-  # Short test names (no citations — those go in table notes)
+  # Short test names (no citations -- those go in table notes)
   short_names <- c(
     "Sequential RATE (Wager, 2024)"                              = "Sequential RATE",
     "Calibration Test (Chernozhukov et al., 2018)"                = "Calibration test",

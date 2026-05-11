@@ -70,8 +70,8 @@ meaningful heterogeneity beyond the ATE.
 \enumerate{
 \item \strong{High vs. low CATE, cross-fit} (Athey and Wager, 2019): Splits the
 sample in half, predicts CATEs on each half using a forest trained
-on the other half, then median-splits and compares ATE_{high} vs.
-ATE_{low} within each held-out half. Cross-fitting avoids the
+on the other half, then median-splits and compares \eqn{ATE_{high}} vs.
+\eqn{ATE_{low}} within each held-out half. Cross-fitting avoids the
 winner's curse that contaminates the naive same-data version (see
 grf PR #1502).
 \item \strong{OOB RATE, two-sided} (heuristic): Uses out-of-bag CATE predictions
