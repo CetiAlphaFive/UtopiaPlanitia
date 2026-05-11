@@ -5,62 +5,48 @@ library(testthat)
 library(grf)
 library(UtopiaPlanitia)
 
-# Resolve the R source path robustly — load_all path vs installed package path.
-.uto_R_dir <- function() {
-  # Prefer the dev source if we are running under devtools::test()
-  cand <- c(
-    file.path("..", "..", "R"),                                          # tests/testthat -> pkg/
-    "/run/media/jack/storage/Dropbox/UtopiaPlanitia/R"                   # absolute fallback
-  )
-  for (d in cand) if (dir.exists(d)) return(normalizePath(d))
-  stop("Cannot locate UtopiaPlanitia R/ source directory.")
-}
-
 # ------------------------------------------------------------------
 # T-C1: Sequential RATE per-fold forest does NOT receive full-sample
 # Y.hat / W.hat. Outer nuisance forest DOES.
+# Works against installed package (no R/ source dir needed).
 # ------------------------------------------------------------------
 test_that("C1: inner per-fold causal_forest in rate_sequential drops Y.hat[train]/W.hat[train]", {
-  src_path <- file.path(.uto_R_dir(), "omni_hetero.R")
-  expect_true(file.exists(src_path))
-  src <- readLines(src_path)
-  joined <- paste(src, collapse = "\n")
+  body_txt <- paste(deparse(body(UtopiaPlanitia::omni_hetero)), collapse = "\n")
 
-  # The inner cate.forest fit should not have Y.hat[train] or W.hat[train]
-  # anywhere in its argument list. We locate the cate.forest binding then
-  # take the source up to the matching closing paren.
+  cate_pos <- regexpr("cate\\.forest\\s*<-\\s*causal_forest\\(", body_txt)
+  expect_gt(cate_pos, 0)
 
-  cate_start <- grep("cate\\.forest\\s*<-\\s*causal_forest\\(", src)
-  expect_length(cate_start, 1)
-
-  # Walk paren depth from that line to find the closing call
-  depth <- 0
-  end_line <- NA_integer_
-  for (i in cate_start:length(src)) {
-    depth <- depth + lengths(regmatches(src[i], gregexpr("\\(", src[i])))
-    depth <- depth - lengths(regmatches(src[i], gregexpr("\\)", src[i])))
-    if (depth <= 0) { end_line <- i; break }
+  tail_txt <- substring(body_txt, cate_pos)
+  chars <- strsplit(tail_txt, "")[[1]]
+  depth <- 0L
+  end_idx <- NA_integer_
+  started <- FALSE
+  for (i in seq_along(chars)) {
+    if (chars[i] == "(") { depth <- depth + 1L; started <- TRUE }
+    else if (chars[i] == ")") { depth <- depth - 1L }
+    if (started && depth == 0L) { end_idx <- i; break }
   }
-  expect_false(is.na(end_line))
-  inner_block <- paste(src[cate_start:end_line], collapse = "\n")
+  expect_false(is.na(end_idx))
+  inner_block <- paste(chars[seq_len(end_idx)], collapse = "")
 
   expect_false(grepl("Y.hat[train]", inner_block, fixed = TRUE),
                info = "inner cate.forest must not receive Y.hat[train]")
   expect_false(grepl("W.hat[train]", inner_block, fixed = TRUE),
                info = "inner cate.forest must not receive W.hat[train]")
 
-  # Now: the OUTER nuisance.forest call SHOULD still pass Y.hat = Y.hat and
-  # W.hat = W.hat (full-sample). Locate it.
-  nuis_start <- grep("nuisance\\.forest\\s*<-\\s*causal_forest\\(", src)
-  expect_length(nuis_start, 1)
-  depth <- 0
-  end_line <- NA_integer_
-  for (i in nuis_start:length(src)) {
-    depth <- depth + lengths(regmatches(src[i], gregexpr("\\(", src[i])))
-    depth <- depth - lengths(regmatches(src[i], gregexpr("\\)", src[i])))
-    if (depth <= 0) { end_line <- i; break }
+  nuis_pos <- regexpr("nuisance\\.forest\\s*<-\\s*causal_forest\\(", body_txt)
+  expect_gt(nuis_pos, 0)
+  tail_txt <- substring(body_txt, nuis_pos)
+  chars <- strsplit(tail_txt, "")[[1]]
+  depth <- 0L
+  end_idx <- NA_integer_
+  started <- FALSE
+  for (i in seq_along(chars)) {
+    if (chars[i] == "(") { depth <- depth + 1L; started <- TRUE }
+    else if (chars[i] == ")") { depth <- depth - 1L }
+    if (started && depth == 0L) { end_idx <- i; break }
   }
-  outer_block <- paste(src[nuis_start:end_line], collapse = "\n")
+  outer_block <- paste(chars[seq_len(end_idx)], collapse = "")
   expect_true(grepl("Y.hat\\s*=\\s*Y.hat\\b", outer_block),
               info = "outer nuisance.forest must still pass full-sample Y.hat")
   expect_true(grepl("W.hat\\s*=\\s*W.hat\\b", outer_block),
