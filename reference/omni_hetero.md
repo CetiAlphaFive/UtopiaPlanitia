@@ -89,10 +89,10 @@ grouped into **Preferred** (valid size) and **Heuristic** categories:
 
 1.  **High vs. low CATE, cross-fit** (Athey and Wager, 2019): Splits the
     sample in half, predicts CATEs on each half using a forest trained
-    on the other half, then median-splits and compares ATE_high vs.
-    ATE_low within each held-out half. Cross-fitting avoids the winner's
-    curse that contaminates the naive same-data version (see grf PR
-    \#1502).
+    on the other half, then median-splits and compares \\ATE\_{high}\\
+    vs. \\ATE\_{low}\\ within each held-out half. Cross-fitting avoids
+    the winner's curse that contaminates the naive same-data version
+    (see grf PR \#1502).
 
 2.  **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE
     predictions directly. Known to be anti-conservative (~30\\ null at
@@ -142,7 +142,7 @@ omni_hetero(cf)
 #> Preferred (valid size)
 #> 
 #>  heterogeneity_test                           estimate p_value hetero_detected
-#>  Sequential RATE (Wager, 2024)                —        —       —              
+#>  Sequential RATE (Wager, 2024)                --       --      --             
 #>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            
 #> 
 #> Heuristic (screening only)

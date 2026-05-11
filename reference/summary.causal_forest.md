@@ -124,7 +124,7 @@ summary(cf)
 #> Preferred (valid size)
 #> 
 #>  heterogeneity_test                           estimate p_value hetero_detected
-#>  Sequential RATE (Wager, 2024)                —        —       —              
+#>  Sequential RATE (Wager, 2024)                --       --      --             
 #>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            
 #> 
 #> Heuristic (screening only)
