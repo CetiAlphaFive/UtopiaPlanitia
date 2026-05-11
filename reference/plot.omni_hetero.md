@@ -110,6 +110,7 @@ cf <- causal_forest(X, Y, W, num.trees = 200)
 oh <- omni_hetero(cf)
 #> Warning: Sequential RATE may be unstable at this sample size (n = 300, n/num.folds = 60; min_fold_n = 100). Training folds may be too small for the per-fold CATE forest to detect heterogeneity, which can produce degenerate RATE statistics. Consider the Calibration test (Chernozhukov et al., 2018) or the OOB RATE heuristics instead.
 #> Warning: Sequential RATE: dropped 1 of 4 folds due to degenerate fits (near-constant CATE predictions on test fold).
+#> Sequential RATE: Sequential RATE: 3 of 4 folds usable after degeneracy filtering. Aggregation denominator sqrt(num.folds - 1) would deflate the t-statistic relative to the number of contributing folds. Returning NA p-value. Increase sample size or use the Calibration test for formal inference at this n.
 plot(oh)                  # BLP left, TOC + fold forest stacked right
 
 plot(oh, which = "blp")

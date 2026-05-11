@@ -105,6 +105,7 @@ cf <- causal_forest(X, Y, W, num.trees = 100)
 summary(cf)
 #> Warning: Sequential RATE may be unstable at this sample size (n = 200, n/num.folds = 40; min_fold_n = 100). Training folds may be too small for the per-fold CATE forest to detect heterogeneity, which can produce degenerate RATE statistics. Consider the Calibration test (Chernozhukov et al., 2018) or the OOB RATE heuristics instead.
 #> Warning: Sequential RATE: dropped 1 of 4 folds due to degenerate fits (near-constant CATE predictions on test fold).
+#> Sequential RATE: Sequential RATE: 3 of 4 folds usable after degeneracy filtering. Aggregation denominator sqrt(num.folds - 1) would deflate the t-statistic relative to the number of contributing folds. Returning NA p-value. Increase sample size or use the Calibration test for formal inference at this n.
 #> Average Treatment Effect
 #>   Estimate: -0.0927  SE: 0.1631 
 #> 
@@ -123,15 +124,15 @@ summary(cf)
 #> Preferred (valid size)
 #> 
 #>  heterogeneity_test                           estimate p_value hetero_detected
-#>  Sequential RATE (Wager, 2024)                —        0.0004  Yes            
+#>  Sequential RATE (Wager, 2024)                —        —       —              
 #>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            
 #> 
 #> Heuristic (screening only)
 #> 
-#>  heterogeneity_test                                 estimate p_value
-#>  High vs. Low CATE (Athey and Wager, 2019)          1.6998   0.0000 
-#>  OOB RATE, two-sided (heuristic, anti-conservative) 0.5296   0.0010 
-#>  OOB RATE, one-sided (heuristic)                    0.5296   0.0005 
+#>  heterogeneity_test                                   estimate p_value
+#>  High vs. Low CATE, cross-fit (Athey and Wager, 2019) 2.0233   0.0000 
+#>  OOB RATE, two-sided (heuristic, anti-conservative)   0.5296   0.0010 
+#>  OOB RATE, one-sided (heuristic)                      0.5296   0.0005 
 #>  hetero_detected
 #>  Yes            
 #>  Yes            

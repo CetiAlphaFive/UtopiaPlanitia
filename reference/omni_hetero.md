@@ -1,9 +1,10 @@
 # Omnibus Tests of Heterogeneity
 
 Performs various heterogeneity tests on a fitted causal forest model.
-Combines the calibration test of Chernozhukov et al. (2018), a naive
-high/low CATE split (Athey and Wager, 2019), the sequential RATE test
-(Wager, 2024), and OOB RATE heuristics into a single summary table.
+Combines the calibration test of Chernozhukov et al. (2018), a cross-fit
+high/low CATE split (Athey and Wager, 2019; cf. grf PR \#1502), the
+sequential RATE test (Wager, 2024), and OOB RATE heuristics into a
+single summary table.
 
 ## Usage
 
@@ -20,7 +21,8 @@ omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
 - seed:
 
   An integer seed for reproducibility. Default is `1995`. Controls the
-  fold assignment in the sequential RATE test.
+  fold assignment in the sequential RATE test and the half-sample split
+  in the cross-fit High vs. Low test.
 
 - min_fold_n:
 
@@ -32,9 +34,12 @@ omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
   for small samples. Within the fold loop, any fold whose test-set CATE
   predictions are (near-)constant, whose RATE standard error is zero, or
   whose t-statistic is `NaN` is dropped from aggregation rather than
-  allowed to propagate a silent `NaN` into the final p-value. If fewer
-  than 2 usable folds remain, the Sequential RATE p-value is returned as
-  `NA_real_` with an explanatory `reason` attribute. Default is `100`.
+  allowed to propagate a silent `NaN` into the final p-value. If ANY
+  fold is dropped (i.e. fewer than `num.folds - 1` t-statistics
+  accumulate), the Sequential RATE p-value is returned as `NA_real_`
+  with an explanatory `reason` attribute, because the
+  `sqrt(num.folds - 1)` aggregation denominator would otherwise
+  under-normalize and deflate the t-statistic. Default is `100`.
 
 ## Value
 
@@ -62,7 +67,7 @@ and the following columns:
 
 - hetero_detected:
 
-  Logical. `TRUE` if `p_value <= 0.05`.
+  Logical. `TRUE` if `p_value <= 0.05`, `NA` when `p_value` is `NA`.
 
 ## Details
 
@@ -82,9 +87,12 @@ grouped into **Preferred** (valid size) and **Heuristic** categories:
 
 **Heuristic tests** (useful for screening, not formal inference):
 
-1.  **High vs. low CATE** (Athey and Wager, 2019): Splits units at the
-    median predicted CATE and compares the ATE in each half. A
-    significant difference suggests the forest detects real variation.
+1.  **High vs. low CATE, cross-fit** (Athey and Wager, 2019): Splits the
+    sample in half, predicts CATEs on each half using a forest trained
+    on the other half, then median-splits and compares ATE_high vs.
+    ATE_low within each held-out half. Cross-fitting avoids the winner's
+    curse that contaminates the naive same-data version (see grf PR
+    \#1502).
 
 2.  **OOB RATE, two-sided** (heuristic): Uses out-of-bag CATE
     predictions directly. Known to be anti-conservative (~30\\ null at
@@ -127,21 +135,22 @@ cf <- causal_forest(X, Y, W, num.trees = 100)
 omni_hetero(cf)
 #> Warning: Sequential RATE may be unstable at this sample size (n = 200, n/num.folds = 40; min_fold_n = 100). Training folds may be too small for the per-fold CATE forest to detect heterogeneity, which can produce degenerate RATE statistics. Consider the Calibration test (Chernozhukov et al., 2018) or the OOB RATE heuristics instead.
 #> Warning: Sequential RATE: dropped 1 of 4 folds due to degenerate fits (near-constant CATE predictions on test fold).
+#> Sequential RATE: Sequential RATE: 3 of 4 folds usable after degeneracy filtering. Aggregation denominator sqrt(num.folds - 1) would deflate the t-statistic relative to the number of contributing folds. Returning NA p-value. Increase sample size or use the Calibration test for formal inference at this n.
 #> Omnibus Heterogeneity Tests
 #> ---------------------------------------- 
 #> 
 #> Preferred (valid size)
 #> 
 #>  heterogeneity_test                           estimate p_value hetero_detected
-#>  Sequential RATE (Wager, 2024)                —        0.0004  Yes            
+#>  Sequential RATE (Wager, 2024)                —        —       —              
 #>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            
 #> 
 #> Heuristic (screening only)
 #> 
-#>  heterogeneity_test                                 estimate p_value
-#>  High vs. Low CATE (Athey and Wager, 2019)          1.6998   0.0000 
-#>  OOB RATE, two-sided (heuristic, anti-conservative) 0.5296   0.0010 
-#>  OOB RATE, one-sided (heuristic)                    0.5296   0.0005 
+#>  heterogeneity_test                                   estimate p_value
+#>  High vs. Low CATE, cross-fit (Athey and Wager, 2019) 2.0233   0.0000 
+#>  OOB RATE, two-sided (heuristic, anti-conservative)   0.5296   0.0010 
+#>  OOB RATE, one-sided (heuristic)                      0.5296   0.0005 
 #>  hetero_detected
 #>  Yes            
 #>  Yes            

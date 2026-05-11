@@ -129,6 +129,7 @@ variable importance, <code><a href="plot.causal_forest.html">plot.causal_forest(
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">cf</span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Sequential RATE may be unstable at this sample size (n = 200, n/num.folds = 40; min_fold_n = 100). Training folds may be too small for the per-fold CATE forest to detect heterogeneity, which can produce degenerate RATE statistics. Consider the Calibration test (Chernozhukov et al., 2018) or the OOB RATE heuristics instead.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Sequential RATE: dropped 1 of 4 folds due to degenerate fits (near-constant CATE predictions on test fold).</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Sequential RATE: Sequential RATE: 3 of 4 folds usable after degeneracy filtering. Aggregation denominator sqrt(num.folds - 1) would deflate the t-statistic relative to the number of contributing folds. Returning NA p-value. Increase sample size or use the Calibration test for formal inference at this n.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Average Treatment Effect</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   Estimate: -0.0927  SE: 0.1631 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
@@ -147,15 +148,15 @@ variable importance, <code><a href="plot.causal_forest.html">plot.causal_forest(
 <span class="r-out co"><span class="r-pr">#&gt;</span> Preferred (valid size)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  heterogeneity_test                           estimate p_value hetero_detected</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  Sequential RATE (Wager, 2024)                —        0.0004  Yes            </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  Sequential RATE (Wager, 2024)                —        —       —              </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Calibration Test (Chernozhukov et al., 2018) 1.3212   0.0000  Yes            </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Heuristic (screening only)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  heterogeneity_test                                 estimate p_value</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  High vs. Low CATE (Athey and Wager, 2019)          1.6998   0.0000 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  OOB RATE, two-sided (heuristic, anti-conservative) 0.5296   0.0010 </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  OOB RATE, one-sided (heuristic)                    0.5296   0.0005 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  heterogeneity_test                                   estimate p_value</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  High vs. Low CATE, cross-fit (Athey and Wager, 2019) 2.0233   0.0000 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  OOB RATE, two-sided (heuristic, anti-conservative)   0.5296   0.0010 </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  OOB RATE, one-sided (heuristic)                      0.5296   0.0005 </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  hetero_detected</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Yes            </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>  Yes            </span>
