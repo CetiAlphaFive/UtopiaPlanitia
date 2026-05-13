@@ -1,5 +1,152 @@
 # Changelog
 
+## UtopiaPlanitia (development version)
+
+### `loco()` gains classification DV support and group-LOCO
+
+- **Classification / probability forests are now first-class.** The
+  `treetype` guard has been relaxed: regression, probability estimation,
+  and (hard) classification ranger forests are all supported. Survival
+  forests remain rejected.
+- **New `loss` argument** (`"auto"`, `"abs"`, `"mse"`, `"brier"`,
+  `"zero_one"`, `"log"`). Defaults to `"auto"` which resolves to `"abs"`
+  for regression (back-compat with the historic conformal-LOCO
+  convention), `"brier"` for probability forests, and `"zero_one"` for
+  classification forests. Disallowed combinations (e.g. `"brier"` on a
+  hard-classification forest) raise an informative error pointing the
+  user to refit with `probability = TRUE`.
+- **New `groups` argument** for group-LOCO. Pass `NULL` (default) for
+  per-variable behavior; pass a character vector for a single unnamed
+  group; pass a named list of character vectors for multiple groups
+  dropped jointly. Validates non-overlap, known names, non-emptiness,
+  and that at least one predictor remains after the drop.
+- **New `members` column** appears in the output when `groups` is
+  supplied; it is a list-column of character vectors naming each group’s
+  members.
+- **New `loss` column** is added unconditionally to the output so
+  downstream consumers can tell which residual flavor produced the row.
+- **Split mode dispatch:** when `groups = NULL` and the model is a
+  regression forest with `loss = "abs"`, we still delegate to
+  \[conformalInference::loco()\] (bit-for-bit back-compat with the prior
+  split-mode results). Every other split-mode configuration
+  (classification, probability, custom loss, or any group LOCO) is
+  handled by a new in-package custom split loop that mirrors
+  conformalInference’s sample-splitting + one-sided Z and Wilcoxon
+  inference but drops *sets* of columns and computes user-defined
+  per-observation loss residuals.
+
+#### Backward compatibility for the classification + group features
+
+The default-argument call signature `loco(model)` is unchanged. Existing
+per-variable regression callers see the same `variable`, `importance`,
+(`ci.lower`, `ci.upper`, `p.value`,) `method` columns; the only output
+diff is the new `loss` column (always `"abs"` on existing regression
+calls).
+
+#### Small-sim evidence (classification + group)
+
+- Brier-LOCO Type-I rate on classification null variables (n=250,
+  trees=200, 20 reps, alpha=0.10, uncorrected): roughly 10-35%,
+  comparable to and modestly better than the previously-documented
+  regression over-rejection.
+- Brier-LOCO power on the true signal in the same DGP: 0.95.
+- Group-LOCO sanity: signal-group importance exceeds noise-group
+  importance in 20/20 reps under a regression DGP with three signal and
+  three noise predictors.
+
+#### Tests added
+
+- `test-loco.R` cases: probability-forest auto-loss (brier),
+  probability-forest with `zero_one` and `log` losses,
+  classification-forest auto-loss (zero_one), classification rejects
+  `brier`/`log`, regression rejects `brier`/`zero_one`/`log`,
+  probability rejects `abs`/`mse`, split-mode classification and
+  probability paths, multi-class probability across all loss choices,
+  MSE vs ABS loss differ, survival-forest rejection.
+- Group-LOCO cases: OOB and split output shape, singleton groups in
+  pred-name order equal per-variable LOCO, character vector becomes
+  single group, validation errors (unknown names, overlap, empty group,
+  drop-all, duplicated group names), group with classification forest,
+  group + split + classification.
+
+### `loco()` overhaul (correctness audit + p-values)
+
+- **New `method = c("z", "wilcox")` argument** for `split = TRUE`. Both
+  tests are computed by
+  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
+  already; the Wilcoxon signed-rank variant is more robust to
+  heavy-tailed residual distributions than the default normal-theory
+  Z-test.
+- **New `bonf.correct` argument** (default `TRUE` to match the old
+  hidden behavior) exposes Bonferroni correction explicitly.
+- **New `data` argument** lets callers pass the training frame directly.
+  Use this when the model was fit in a scope where `model$call$data` no
+  longer resolves.
+- **Output gains a `method` column** (`"z"`, `"wilcox"`, or `"oob"`) so
+  downstream code can tell which inference path produced the row.
+- **One-sided p-value semantics documented.** The split-mode p-value
+  tests `H0: importance <= 0` vs `H1: importance > 0`. Values near 1
+  mean “no evidence of importance”, not “evidence of zero importance”.
+
+### `loco()` bug fixes
+
+- **Hyperparameters now recovered from the fitted model object.**
+  Previously
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  parsed `model$call` and tried to evaluate symbols in
+  [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html), which
+  crashed when the model was fit inside a function or with
+  hyperparameters bound to local variables (a very common pattern). Core
+  hyperparameters (`num.trees`, `mtry`, `min.node.size`, `splitrule`,
+  `replace`, `max.depth`) are now read directly from the model. Uncommon
+  arguments still come from the call with a graceful warning fallback if
+  they can’t be resolved.
+- **OOB mode no longer crashes when the training frame has columns
+  beyond the predictors and response.** It now refits via ranger’s `x` /
+  `y` interface and ignores extra columns.
+- **OOB mode now honors the `seed` argument.** Previously it was
+  silently ignored, so OOB importance was non-reproducible across calls.
+  The original `.Random.seed` is restored on exit.
+- **Regression-only guard.** Classification, probability, and survival
+  forests are now rejected with an informative error rather than
+  silently returning meaningless residual differences.
+- **Single-predictor models are rejected early** with a clear message
+  instead of crashing inside ranger.
+- **Factor predictors:** allowed in OOB mode (ranger handles them
+  natively); rejected in split mode with a clear message because
+  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
+  requires a numeric matrix.
+- **x / y interface guard.** Models fit with `ranger(x = X, y = y)` but
+  no `dependent.variable.name` previously silently failed deep inside
+  `train.data[[""]]`. They now error early with a workaround pointer.
+
+### `loco()` caveats added to documentation
+
+- `cf_loco` already noted the issue;
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  docs now also note that a naive Wald-style Z-test on per-observation
+  OOB squared-error differences is **anti-conservative** (Type-I roughly
+  30% at nominal 10% in our checks) because OOB residuals are positively
+  dependent across trees. Consequently we do **not** add an inference
+  mode for `split = FALSE`; users wanting p-values should set
+  `split = TRUE`.
+- Documented finite-sample over-rejection of the split-mode Z and
+  Wilcoxon tests when applied to random forests: in our checks (n = 200,
+  p = 4, 20 reps, x4 noise) the empirical Type-I rate at alpha = 0.10 is
+  roughly 50-75 percent, because random forests can exploit a noise
+  feature for slightly better generalization in finite samples. The
+  tests should be read as exploratory screens rather than confirmatory
+  inference.
+
+### Tests
+
+- New `tests/testthat/test-loco.R` covering: data-frame shape and sort
+  order, seed reproducibility, extra-column handling, factor predictor
+  handling, regression-only guard, single-predictor guard,
+  hyperparameter recovery, x/y interface guard, split-mode column
+  contract, Wilcoxon method, Bonferroni monotonicity, CI-width
+  monotonicity in `alpha`, and `match.arg` / `alpha` input validation.
+
 ## UtopiaPlanitia 0.3.1
 
 - [`autocf()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/autocf.md)

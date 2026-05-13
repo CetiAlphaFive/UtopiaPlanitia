@@ -1,43 +1,104 @@
 # LOCO Variable Importance for Outcome Models
 
-Computes leave-one-covariate-out (LOCO) variable importance for ranger
-random forests. Two modes are available: split-sample LOCO with
-conformal inference (confidence intervals and p-values), or OOB-based
-LOCO (point estimates only).
+Computes leave-one-covariate-out (LOCO) variable importance for `ranger`
+random-forest regression, probability, and classification models. Two
+modes are available:
 
 ## Usage
 
 ``` r
-loco(model, alpha = 0.1, split = TRUE, seed = 1995, verbose = FALSE)
+loco(
+  model,
+  data = NULL,
+  alpha = 0.1,
+  split = TRUE,
+  method = c("z", "wilcox"),
+  loss = c("auto", "abs", "mse", "brier", "zero_one", "log"),
+  groups = NULL,
+  bonf.correct = TRUE,
+  seed = 1995,
+  verbose = FALSE
+)
 ```
 
 ## Arguments
 
 - model:
 
-  A fitted `ranger` object (must have been fit with `keep.inbag = TRUE`
-  if using OOB mode, and the training data must be recoverable from the
-  call).
+  A fitted
+  [`ranger::ranger()`](http://imbs-hl.github.io/ranger/reference/ranger.md)
+  regression, probability, or classification model. Survival forests are
+  rejected.
+
+- data:
+
+  Optional. A data frame containing the variables used to fit `model`.
+  If `NULL` (default), `loco()` tries to recover the training data from
+  `model$call` by evaluating in
+  [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html). Pass
+  `data` explicitly when calling `loco()` from a different scope than
+  the original fit (e.g. inside another function).
 
 - alpha:
 
-  Significance level for conformal inference intervals. Default is `0.1`
-  (90% intervals). Only used when `split = TRUE`.
+  Significance level for split-mode confidence intervals. Default is
+  `0.1` (90% intervals). Only used when `split = TRUE`.
 
 - split:
 
-  Logical. If `TRUE` (default), uses split-sample LOCO via
-  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html).
-  If `FALSE`, uses OOB prediction error differences.
+  Logical. If `TRUE` (default), uses split-sample LOCO. If `FALSE`, uses
+  OOB prediction-error differences (no inference).
+
+- method:
+
+  One of `"z"` (default) or `"wilcox"`. Only used when `split = TRUE`.
+  `"z"` uses a normal-theory Z-test on the mean of loss-residual
+  differences; `"wilcox"` uses a Wilcoxon signed-rank test on the same
+  differences.
+
+- loss:
+
+  One of `"auto"` (default), `"abs"`, `"mse"`, `"brier"`, `"zero_one"`,
+  or `"log"`. Loss function used to define the per-observation residual.
+  `"auto"` resolves at runtime based on `model$treetype`:
+
+  - Regression -\> `"abs"` (absolute deviation, historic conformal-LOCO
+    default).
+
+  - Probability estimation -\> `"brier"` (multi-class Brier score).
+
+  - Classification -\> `"zero_one"` (misclassification).
+
+  Disallowed combinations raise an error. In particular, `"brier"` and
+  `"log"` require a probability forest (refit with
+  `probability = TRUE`).
+
+- groups:
+
+  Optional. Specifies group-LOCO. If `NULL` (default), per-variable LOCO
+  is performed (one row per predictor). If a character vector, treated
+  as a single (unnamed) group dropped jointly. If a named list of
+  character vectors, each element is one group dropped jointly. Groups
+  must not overlap, must contain only known predictor names, must be
+  non-empty, and must leave at least one predictor remaining after the
+  drop.
+
+- bonf.correct:
+
+  Logical. If `TRUE` (default), p-values and confidence intervals are
+  Bonferroni-corrected across all tested variables / groups.
 
 - seed:
 
-  Integer seed for reproducibility. Default is `1995`.
+  Integer seed for reproducibility. Default is `1995`. Honored in both
+  split and OOB modes.
 
 - verbose:
 
   Logical. Print progress from conformal inference? Default is `FALSE`.
-  Only used when `split = TRUE`.
+  Only meaningful when `split = TRUE` with `groups = NULL` on a
+  regression forest with `loss = "abs"` (the path that delegates to
+  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)).
 
 ## Value
 
@@ -45,59 +106,134 @@ A data frame sorted by descending importance with columns:
 
 - variable:
 
-  Covariate name.
+  Covariate name, or group name when `groups` is supplied.
 
 - importance:
 
-  LOCO importance score (midpoint of CI when `split = TRUE`, increase in
-  OOB error when `split = FALSE`).
+  LOCO importance score. Split mode: mean (or Hodges-Lehmann
+  pseudo-median for Wilcoxon) of loss-residual differences
+  `L(reduced) - L(full)`. OOB mode: reduced-model OOB error minus
+  full-model OOB error.
 
-- ci.lower:
+- ci.lower, ci.upper:
 
-  Lower confidence bound (only when `split = TRUE`).
-
-- ci.upper:
-
-  Upper confidence bound (only when `split = TRUE`).
+  Confidence interval bounds (split mode only).
 
 - p.value:
 
-  P-value from conformal Z-test (only when `split = TRUE`).
+  **One-sided** p-value testing H0: importance \\\le\\ 0 vs H1:
+  importance \\\>\\ 0 (split mode only). Bonferroni-corrected when
+  `bonf.correct = TRUE`.
+
+- method:
+
+  `"z"`, `"wilcox"`, or `"oob"`.
+
+- loss:
+
+  Loss function used (`"abs"`, `"mse"`, `"brier"`, `"zero_one"`, or
+  `"log"`).
+
+- members:
+
+  (group mode only) list-column of character vectors naming the members
+  of each group.
 
 ## Details
 
-**Choosing a mode.** The split-sample method (`split = TRUE`) provides
-valid confidence intervals and p-values via conformal inference, but is
-slower because it splits the data internally. The OOB method
-(`split = FALSE`) is faster and suitable for screening or exploratory
-analysis, but provides only point estimates with no formal inference.
+- **Split-sample**
+  ([`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
+  for per-variable LOCO on regression forests with absolute-deviation
+  loss; a custom split loop in all other cases): valid asymptotic
+  confidence intervals and p-values from either a normal-theory Z-test
+  or a Wilcoxon signed-rank test on loss-residual differences. Slower
+  (data is split in half).
 
-**Split-sample mode** requires the `conformalInference` package, which
-is available only from GitHub:
+- **OOB**: refits the original ranger model once per variable (or per
+  group), dropping the relevant predictors each time, and compares OOB
+  prediction error to the full-model baseline. Faster, point estimates
+  only. **No formal inference.** Naive Wald-style tests on
+  per-observation OOB error differences are anti-conservative because
+  OOB residuals are dependent across trees; we therefore do not provide
+  them. For valid p-values use `split = TRUE`.
 
-    devtools::install_github("ryantibs/conformal", subdir = "conformalInference")
+**One-sided p-values.** The split-mode tests are one-sided against the
+null that the covariate / group has no incremental predictive value.
+Small p-values indicate the covariate helps prediction.
 
-**OOB mode** refits the original ranger model once per covariate, each
-time dropping one predictor, and compares OOB prediction error to the
-full-model baseline. The importance score is the increase in OOB error
-when the variable is removed; larger values indicate more important
-variables.
+**Loss / forest-type compatibility.**
+
+- Regression:
+
+  `"abs"` (default) or `"mse"`.
+
+- Probability estimation:
+
+  `"brier"` (default), `"zero_one"` (argmax then 0/1), or `"log"`
+  (negative log-likelihood, clipped at 1e-12).
+
+- Classification:
+
+  `"zero_one"` only. To use Brier or log-loss, refit with
+  `probability = TRUE`.
+
+**Group LOCO.** When `groups` is supplied, importance is computed
+jointly for each group: the reduced model omits all members of the group
+simultaneously. Useful when (a) factor predictors have been
+one-hot-encoded into multiple columns whose individual importances are
+not the quantity of interest, (b) an index or scale is represented by
+several items, or (c) interest is in the contribution of a theoretically
+motivated block. Group names appear in the `variable` column; member
+lists appear in the `members` column.
+
+**Why no OOB inference?** A naive Wald-style Z-test on per-observation
+OOB error differences is anti-conservative: OOB residuals are positively
+dependent across trees because each unit appears out-of-bag for an
+overlapping set of trees. Small simulation checks (n=200, p=4, 20 reps)
+at alpha=0.10 give roughly 30% Type-I error.
+
+**Hyperparameter replay.** Core hyperparameters (`num.trees`, `mtry`,
+`min.node.size`, `splitrule`, `replace`, `max.depth`) are read directly
+from the fitted model object. Less-common arguments (e.g.
+`sample.fraction`, `respect.unordered.factors`) are pulled from the
+original call by evaluating in
+[`parent.frame()`](https://rdrr.io/r/base/sys.parent.html); if any
+cannot be resolved they are silently dropped with a single warning and
+ranger's defaults are used in their place.
+
+**Edge cases.**
+
+- Survival forests are rejected.
+
+- Factor predictors are allowed in OOB mode but rejected in split mode
+  because split-LOCO requires a numeric matrix.
+
+- Single-predictor models are rejected: LOCO requires \\p \ge 2\\.
+
+- Groups that would leave zero remaining predictors are rejected.
 
 ## References
 
 Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., & Wasserman, L.
 (2018). Distribution-Free Predictive Inference for Regression. *Journal
 of the American Statistical Association*, 113(523), 1094–1111.
+[doi:10.1080/01621459.2017.1307116](https://doi.org/10.1080/01621459.2017.1307116)
 
 Rinaldo, A., Wasserman, L., & G'Sell, M. (2019). Bootstrapping and
 Sample Splitting for High-Dimensional, Assumption-Lean Inference.
 *Annals of Statistics*, 47(6), 3438–3469.
+[doi:10.1214/18-AOS1820](https://doi.org/10.1214/18-AOS1820)
+
+Williamson, B. D., Gilbert, P. B., Carone, M., & Simon, N. (2021).
+Nonparametric variable importance assessment based on generalizations of
+R^2. *Journal of the American Statistical Association*, 116(536),
+1574–1587.
+[doi:10.1080/01621459.2020.1812596](https://doi.org/10.1080/01621459.2020.1812596)
 
 ## See also
 
 [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
-for LOCO importance tailored to causal forests (treatment effect
-heterogeneity rather than prediction accuracy).
+for LOCO importance tailored to causal forests.
 
 ## Examples
 
@@ -105,12 +241,23 @@ heterogeneity rather than prediction accuracy).
 # \donttest{
 if (requireNamespace("ranger", quietly = TRUE)) {
   set.seed(1995)
-  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100))
+  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100),
+                    x3 = rnorm(100))
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
   loco(mod, split = FALSE)
+  loco(mod, split = FALSE,
+       groups = list(g1 = c("x1","x2"), g2 = "x3"))
+  set.seed(2026)
+  dat2 <- data.frame(y = factor(sample(0:1, 100, replace = TRUE)),
+                     x1 = rnorm(100), x2 = rnorm(100), x3 = rnorm(100))
+  mod_prob <- ranger::ranger(y ~ ., data = dat2, num.trees = 50,
+                             probability = TRUE)
+  loco(mod_prob, split = FALSE)            # auto -> "brier"
+  loco(mod_prob, split = FALSE, loss = "log")
 }
-#>   variable importance
-#> 1       x2  0.3322422
-#> 2       x1  0.2607941
+#>   variable importance method loss
+#> 1       x2 0.09788476    oob  log
+#> 2       x3 0.07353345    oob  log
+#> 3       x1 0.02890264    oob  log
 # }
 ```

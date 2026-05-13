@@ -39,6 +39,84 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
+<div class="section level3">
+<h3 id="loco-gains-classification-dv-support-and-group-loco-development-version">
+<code>loco()</code> gains classification DV support and group-LOCO<a class="anchor" aria-label="anchor" href="#loco-gains-classification-dv-support-and-group-loco-development-version"></a></h3>
+<ul><li>
+<strong>Classification / probability forests are now first-class.</strong> The <code>treetype</code> guard has been relaxed: regression, probability estimation, and (hard) classification ranger forests are all supported. Survival forests remain rejected.</li>
+<li>
+<strong>New <code>loss</code> argument</strong> (<code>"auto"</code>, <code>"abs"</code>, <code>"mse"</code>, <code>"brier"</code>, <code>"zero_one"</code>, <code>"log"</code>). Defaults to <code>"auto"</code> which resolves to <code>"abs"</code> for regression (back-compat with the historic conformal-LOCO convention), <code>"brier"</code> for probability forests, and <code>"zero_one"</code> for classification forests. Disallowed combinations (e.g. <code>"brier"</code> on a hard-classification forest) raise an informative error pointing the user to refit with <code>probability = TRUE</code>.</li>
+<li>
+<strong>New <code>groups</code> argument</strong> for group-LOCO. Pass <code>NULL</code> (default) for per-variable behavior; pass a character vector for a single unnamed group; pass a named list of character vectors for multiple groups dropped jointly. Validates non-overlap, known names, non-emptiness, and that at least one predictor remains after the drop.</li>
+<li>
+<strong>New <code>members</code> column</strong> appears in the output when <code>groups</code> is supplied; it is a list-column of character vectors naming each group’s members.</li>
+<li>
+<strong>New <code>loss</code> column</strong> is added unconditionally to the output so downstream consumers can tell which residual flavor produced the row.</li>
+<li>
+<strong>Split mode dispatch:</strong> when <code>groups = NULL</code> and the model is a regression forest with <code>loss = "abs"</code>, we still delegate to [conformalInference::loco()] (bit-for-bit back-compat with the prior split-mode results). Every other split-mode configuration (classification, probability, custom loss, or any group LOCO) is handled by a new in-package custom split loop that mirrors conformalInference’s sample-splitting + one-sided Z and Wilcoxon inference but drops <em>sets</em> of columns and computes user-defined per-observation loss residuals.</li>
+</ul><div class="section level4">
+<h4 id="backward-compatibility-for-the-classification--group-features-development-version">Backward compatibility for the classification + group features<a class="anchor" aria-label="anchor" href="#backward-compatibility-for-the-classification--group-features-development-version"></a></h4>
+<p>The default-argument call signature <code>loco(model)</code> is unchanged. Existing per-variable regression callers see the same <code>variable</code>, <code>importance</code>, (<code>ci.lower</code>, <code>ci.upper</code>, <code>p.value</code>,) <code>method</code> columns; the only output diff is the new <code>loss</code> column (always <code>"abs"</code> on existing regression calls).</p>
+</div>
+<div class="section level4">
+<h4 id="small-sim-evidence-classification--group-development-version">Small-sim evidence (classification + group)<a class="anchor" aria-label="anchor" href="#small-sim-evidence-classification--group-development-version"></a></h4>
+<ul><li>Brier-LOCO Type-I rate on classification null variables (n=250, trees=200, 20 reps, alpha=0.10, uncorrected): roughly 10-35%, comparable to and modestly better than the previously-documented regression over-rejection.</li>
+<li>Brier-LOCO power on the true signal in the same DGP: 0.95.</li>
+<li>Group-LOCO sanity: signal-group importance exceeds noise-group importance in 20/20 reps under a regression DGP with three signal and three noise predictors.</li>
+</ul></div>
+<div class="section level4">
+<h4 id="tests-added-development-version">Tests added<a class="anchor" aria-label="anchor" href="#tests-added-development-version"></a></h4>
+<ul><li>
+<code>test-loco.R</code> cases: probability-forest auto-loss (brier), probability-forest with <code>zero_one</code> and <code>log</code> losses, classification-forest auto-loss (zero_one), classification rejects <code>brier</code>/<code>log</code>, regression rejects <code>brier</code>/<code>zero_one</code>/<code>log</code>, probability rejects <code>abs</code>/<code>mse</code>, split-mode classification and probability paths, multi-class probability across all loss choices, MSE vs ABS loss differ, survival-forest rejection.</li>
+<li>Group-LOCO cases: OOB and split output shape, singleton groups in pred-name order equal per-variable LOCO, character vector becomes single group, validation errors (unknown names, overlap, empty group, drop-all, duplicated group names), group with classification forest, group + split + classification.</li>
+</ul></div>
+</div>
+<div class="section level3">
+<h3 id="loco-overhaul-correctness-audit--p-values-development-version">
+<code>loco()</code> overhaul (correctness audit + p-values)<a class="anchor" aria-label="anchor" href="#loco-overhaul-correctness-audit--p-values-development-version"></a></h3>
+<ul><li>
+<strong>New <code>method = c("z", "wilcox")</code> argument</strong> for <code>split = TRUE</code>. Both tests are computed by <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code> already; the Wilcoxon signed-rank variant is more robust to heavy-tailed residual distributions than the default normal-theory Z-test.</li>
+<li>
+<strong>New <code>bonf.correct</code> argument</strong> (default <code>TRUE</code> to match the old hidden behavior) exposes Bonferroni correction explicitly.</li>
+<li>
+<strong>New <code>data</code> argument</strong> lets callers pass the training frame directly. Use this when the model was fit in a scope where <code>model$call$data</code> no longer resolves.</li>
+<li>
+<strong>Output gains a <code>method</code> column</strong> (<code>"z"</code>, <code>"wilcox"</code>, or <code>"oob"</code>) so downstream code can tell which inference path produced the row.</li>
+<li>
+<strong>One-sided p-value semantics documented.</strong> The split-mode p-value tests <code>H0: importance &lt;= 0</code> vs <code>H1: importance &gt; 0</code>. Values near 1 mean “no evidence of importance”, not “evidence of zero importance”.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="loco-bug-fixes-development-version">
+<code>loco()</code> bug fixes<a class="anchor" aria-label="anchor" href="#loco-bug-fixes-development-version"></a></h3>
+<ul><li>
+<strong>Hyperparameters now recovered from the fitted model object.</strong> Previously <code><a href="../reference/loco.html">loco()</a></code> parsed <code>model$call</code> and tried to evaluate symbols in <code><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame()</a></code>, which crashed when the model was fit inside a function or with hyperparameters bound to local variables (a very common pattern). Core hyperparameters (<code>num.trees</code>, <code>mtry</code>, <code>min.node.size</code>, <code>splitrule</code>, <code>replace</code>, <code>max.depth</code>) are now read directly from the model. Uncommon arguments still come from the call with a graceful warning fallback if they can’t be resolved.</li>
+<li>
+<strong>OOB mode no longer crashes when the training frame has columns beyond the predictors and response.</strong> It now refits via ranger’s <code>x</code> / <code>y</code> interface and ignores extra columns.</li>
+<li>
+<strong>OOB mode now honors the <code>seed</code> argument.</strong> Previously it was silently ignored, so OOB importance was non-reproducible across calls. The original <code>.Random.seed</code> is restored on exit.</li>
+<li>
+<strong>Regression-only guard.</strong> Classification, probability, and survival forests are now rejected with an informative error rather than silently returning meaningless residual differences.</li>
+<li>
+<strong>Single-predictor models are rejected early</strong> with a clear message instead of crashing inside ranger.</li>
+<li>
+<strong>Factor predictors:</strong> allowed in OOB mode (ranger handles them natively); rejected in split mode with a clear message because <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code> requires a numeric matrix.</li>
+<li>
+<strong>x / y interface guard.</strong> Models fit with <code>ranger(x = X, y = y)</code> but no <code>dependent.variable.name</code> previously silently failed deep inside <code>train.data[[""]]</code>. They now error early with a workaround pointer.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="loco-caveats-added-to-documentation-development-version">
+<code>loco()</code> caveats added to documentation<a class="anchor" aria-label="anchor" href="#loco-caveats-added-to-documentation-development-version"></a></h3>
+<ul><li>
+<code>cf_loco</code> already noted the issue; <code><a href="../reference/loco.html">loco()</a></code> docs now also note that a naive Wald-style Z-test on per-observation OOB squared-error differences is <strong>anti-conservative</strong> (Type-I roughly 30% at nominal 10% in our checks) because OOB residuals are positively dependent across trees. Consequently we do <strong>not</strong> add an inference mode for <code>split = FALSE</code>; users wanting p-values should set <code>split = TRUE</code>.</li>
+<li>Documented finite-sample over-rejection of the split-mode Z and Wilcoxon tests when applied to random forests: in our checks (n = 200, p = 4, 20 reps, x4 noise) the empirical Type-I rate at alpha = 0.10 is roughly 50-75 percent, because random forests can exploit a noise feature for slightly better generalization in finite samples. The tests should be read as exploratory screens rather than confirmatory inference.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="tests-development-version">Tests<a class="anchor" aria-label="anchor" href="#tests-development-version"></a></h3>
+<ul><li>New <code>tests/testthat/test-loco.R</code> covering: data-frame shape and sort order, seed reproducibility, extra-column handling, factor predictor handling, regression-only guard, single-predictor guard, hyperparameter recovery, x/y interface guard, split-mode column contract, Wilcoxon method, Bonferroni monotonicity, CI-width monotonicity in <code>alpha</code>, and <code>match.arg</code> / <code>alpha</code> input validation.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.3.1" id="utopiaplanitia-031">UtopiaPlanitia 0.3.1<a class="anchor" aria-label="anchor" href="#utopiaplanitia-031"></a></h2>
 <ul><li>
 <code><a href="../reference/autocf.html">autocf()</a></code> gains a <code>"bart"</code> candidate via <code><a href="https://rdrr.io/pkg/dbarts/man/bart.html" class="external-link">dbarts::bart()</a></code>. Default pool is now <code>c("grf", "glmnet", "xgboost", "tabpfn", "bart")</code>. Adapter runs on dbarts defaults with parallel chains (<code>nchain = nthread = dbarts::guessNumCores()</code>) and a deterministic seed; user overrides via the new <code>bart_args</code> argument.</li>
