@@ -1,31 +1,50 @@
 #' LOCO Variable Importance for Outcome Models
 #'
 #' Computes leave-one-covariate-out (LOCO) variable importance for
-#' `ranger` random-forest regression, probability, and classification
-#' models. Two modes are available:
+#' outcome (non-causal) forests. Two backends are supported:
 #'
-#' * **Split-sample** ([conformalInference::loco()] for per-variable
-#'   LOCO on regression forests with absolute-deviation loss; a custom
-#'   split loop in all other cases): valid asymptotic confidence
-#'   intervals and p-values from either a normal-theory Z-test or a
-#'   Wilcoxon signed-rank test on loss-residual differences. Slower
-#'   (data is split in half).
-#' * **OOB**: refits the original ranger model once per variable (or
-#'   per group), dropping the relevant predictors each time, and
-#'   compares OOB prediction error to the full-model baseline. Faster,
-#'   point estimates only. **No formal inference.** Naive Wald-style
-#'   tests on per-observation OOB error differences are
-#'   anti-conservative because OOB residuals are dependent across
-#'   trees; we therefore do not provide them. For valid p-values use
-#'   `split = TRUE`.
+#' * `ranger` regression, probability, and classification forests
+#'   ([ranger::ranger()]).
+#' * `grf` outcome forests: [grf::regression_forest()],
+#'   [grf::boosted_regression_forest()], and
+#'   [grf::probability_forest()]. Causal, survival, quantile,
+#'   instrumental, multi-arm, and `lm_forest` objects are rejected --
+#'   for `grf::causal_forest()` use [cf_loco()].
 #'
-#' @param model A fitted [ranger::ranger()] regression, probability, or
-#'   classification model. Survival forests are rejected.
+#' Two modes are available:
+#'
+#' * **Split-sample**: valid asymptotic confidence intervals and
+#'   p-values from either a normal-theory Z-test or a Wilcoxon
+#'   signed-rank test on loss-residual differences. For ranger
+#'   regression forests with per-variable LOCO and `loss = "abs"`,
+#'   [conformalInference::loco()] is used as a fast path; all other
+#'   ranger split-mode cases and **all grf split-mode cases** go
+#'   through an internal custom split loop. Slower than OOB (data is
+#'   split in half).
+#' * **OOB**: refits the original model once per variable (or per
+#'   group), dropping the relevant predictors each time, and compares
+#'   OOB prediction error to the full-model baseline. Faster, point
+#'   estimates only. **No formal inference.** Naive Wald-style tests
+#'   on per-observation OOB error differences are anti-conservative
+#'   because OOB residuals are dependent across trees; we therefore
+#'   do not provide them. For valid p-values use `split = TRUE`.
+#'
+#' @param model A fitted outcome forest. Supported classes:
+#'   [ranger::ranger()] (regression, probability, or classification),
+#'   [grf::regression_forest()],
+#'   [grf::boosted_regression_forest()], or
+#'   [grf::probability_forest()]. Survival, causal, quantile,
+#'   instrumental, multi-arm, and `lm_forest` objects are rejected.
 #' @param data Optional. A data frame containing the variables used to
-#'   fit `model`. If `NULL` (default), `loco()` tries to recover the
-#'   training data from `model$call` by evaluating in `parent.frame()`.
-#'   Pass `data` explicitly when calling `loco()` from a different scope
-#'   than the original fit (e.g. inside another function).
+#'   fit `model`. Only meaningful for ranger models. If `NULL`
+#'   (default), `loco()` tries to recover the training data from
+#'   `model$call` by evaluating in `parent.frame()`. Pass `data`
+#'   explicitly when calling `loco()` from a different scope than the
+#'   original fit (e.g. inside another function). For grf models the
+#'   training data is read from `model$X.orig` / `model$Y.orig` (or,
+#'   for boosted forests, `model$forests[[1]]$X.orig` /
+#'   `model$forests[[1]]$Y.orig`); any user-supplied `data` is ignored
+#'   with a warning.
 #' @param alpha Significance level for split-mode confidence intervals.
 #'   Default is `0.1` (90% intervals). Only used when `split = TRUE`.
 #' @param split Logical. If `TRUE` (default), uses split-sample LOCO. If
@@ -37,15 +56,15 @@
 #' @param loss One of `"auto"` (default), `"abs"`, `"mse"`, `"brier"`,
 #'   `"zero_one"`, or `"log"`. Loss function used to define the
 #'   per-observation residual. `"auto"` resolves at runtime based on
-#'   `model$treetype`:
-#'   * Regression -> `"abs"` (absolute deviation, historic conformal-LOCO
-#'     default).
-#'   * Probability estimation -> `"brier"` (multi-class Brier score).
-#'   * Classification -> `"zero_one"` (misclassification).
+#'   the forest type:
+#'   * Regression (ranger or grf) -> `"abs"` (absolute deviation,
+#'     historic conformal-LOCO default).
+#'   * Probability estimation (ranger or grf) -> `"brier"` (multi-class
+#'     Brier score).
+#'   * Classification (ranger only) -> `"zero_one"` (misclassification).
 #'
 #'   Disallowed combinations raise an error. In particular, `"brier"`
-#'   and `"log"` require a probability forest (refit with
-#'   `probability = TRUE`).
+#'   and `"log"` require a probability forest.
 #' @param groups Optional. Specifies group-LOCO. If `NULL` (default),
 #'   per-variable LOCO is performed (one row per predictor). If a
 #'   character vector, treated as a single (unnamed) group dropped
@@ -60,8 +79,8 @@
 #'   Honored in both split and OOB modes.
 #' @param verbose Logical. Print progress from conformal inference?
 #'   Default is `FALSE`. Only meaningful when `split = TRUE` with
-#'   `groups = NULL` on a regression forest with `loss = "abs"` (the
-#'   path that delegates to [conformalInference::loco()]).
+#'   `groups = NULL` on a ranger regression forest with `loss = "abs"`
+#'   (the path that delegates to [conformalInference::loco()]).
 #'
 #' @return A data frame sorted by descending importance with columns:
 #'   \describe{
@@ -91,12 +110,13 @@
 #'
 #' **Loss / forest-type compatibility.**
 #' \describe{
-#'   \item{Regression}{`"abs"` (default) or `"mse"`.}
-#'   \item{Probability estimation}{`"brier"` (default), `"zero_one"`
-#'     (argmax then 0/1), or `"log"` (negative log-likelihood, clipped
-#'     at 1e-12).}
-#'   \item{Classification}{`"zero_one"` only. To use Brier or log-loss,
-#'     refit with `probability = TRUE`.}
+#'   \item{Regression (ranger or grf)}{`"abs"` (default) or `"mse"`.}
+#'   \item{Probability estimation (ranger or grf)}{`"brier"` (default),
+#'     `"zero_one"` (argmax then 0/1), or `"log"` (negative
+#'     log-likelihood, clipped at 1e-12).}
+#'   \item{Classification (ranger only)}{`"zero_one"` only. To use
+#'     Brier or log-loss, refit with `probability = TRUE` (ranger) or
+#'     use [grf::probability_forest()].}
 #' }
 #'
 #' **Group LOCO.** When `groups` is supplied, importance is computed
@@ -115,18 +135,35 @@
 #' checks (n=200, p=4, 20 reps) at alpha=0.10 give roughly 30% Type-I
 #' error.
 #'
-#' **Hyperparameter replay.** Core hyperparameters (`num.trees`,
-#' `mtry`, `min.node.size`, `splitrule`, `replace`, `max.depth`) are
-#' read directly from the fitted model object. Less-common arguments
-#' (e.g. `sample.fraction`, `respect.unordered.factors`) are pulled
-#' from the original call by evaluating in `parent.frame()`; if any
-#' cannot be resolved they are silently dropped with a single warning
-#' and ranger's defaults are used in their place.
+#' **Hyperparameter replay (ranger).** Core hyperparameters
+#' (`num.trees`, `mtry`, `min.node.size`, `splitrule`, `replace`,
+#' `max.depth`) are read directly from the fitted model object.
+#' Less-common arguments (e.g. `sample.fraction`,
+#' `respect.unordered.factors`) are pulled from the original call by
+#' evaluating in `parent.frame()`; if any cannot be resolved they are
+#' silently dropped with a single warning and ranger's defaults are
+#' used in their place.
+#'
+#' **Hyperparameter replay (grf).** Replay reads from
+#' `model$tunable.params` plus stored scalars: `num.trees`,
+#' `sample.fraction`, `mtry`, `min.node.size`, `honesty.fraction`,
+#' `honesty.prune.leaves`, `alpha`, `imbalance.penalty`,
+#' `ci.group.size`, `clusters`, and `equalize.cluster.weights`. The
+#' `honesty` flag itself is not stored on a fitted grf forest; refits
+#' use grf's default (`TRUE`). `tune.parameters` is forced to `"none"`
+#' on refit (no re-tuning). For
+#' [grf::boosted_regression_forest()], `boost.steps` is replayed as
+#' `length(model$forests)` and `boost.error.reduction` reverts to
+#' grf's default (`0.97`); exact replay is therefore approximate.
+#' `sample.weights` are not preserved.
 #'
 #' **Edge cases.**
-#' * Survival forests are rejected.
-#' * Factor predictors are allowed in OOB mode but rejected in split
-#'   mode because split-LOCO requires a numeric matrix.
+#' * Survival forests are rejected (both backends).
+#' * Causal / quantile / instrumental / multi-arm / lm_forest
+#'   (grf) are rejected; use [cf_loco()] for `causal_forest`.
+#' * Factor predictors are allowed in ranger OOB mode but rejected in
+#'   split mode because split-LOCO requires a numeric matrix. grf
+#'   forests already require numeric X.
 #' * Single-predictor models are rejected: LOCO requires \eqn{p \ge 2}.
 #' * Groups that would leave zero remaining predictors are rejected.
 #'
@@ -147,7 +184,10 @@
 #' Association*, 116(536), 1574--1587.
 #' \doi{10.1080/01621459.2020.1812596}
 #'
-#' @seealso [cf_loco()] for LOCO importance tailored to causal forests.
+#' @seealso [cf_loco()] for LOCO importance tailored to causal forests;
+#'   [ranger::ranger()], [grf::regression_forest()],
+#'   [grf::boosted_regression_forest()],
+#'   [grf::probability_forest()] for supported model fitters.
 #'
 #' @export
 #' @examples
@@ -168,6 +208,17 @@
 #'   loco(mod_prob, split = FALSE)            # auto -> "brier"
 #'   loco(mod_prob, split = FALSE, loss = "log")
 #' }
+#' if (requireNamespace("grf", quietly = TRUE)) {
+#'   set.seed(1995)
+#'   X <- matrix(rnorm(100 * 3), 100, 3)
+#'   colnames(X) <- c("x1", "x2", "x3")
+#'   Y <- X[, 1] + 0.5 * X[, 2] + rnorm(100, sd = 0.5)
+#'   rf <- grf::regression_forest(X, Y, num.trees = 100)
+#'   loco(rf, split = FALSE)                  # auto -> "abs"
+#'   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
+#'   pf <- grf::probability_forest(X, Yf, num.trees = 100)
+#'   loco(pf, split = FALSE)                  # auto -> "brier"
+#' }
 #' }
 loco <- function(model,
                  data = NULL,
@@ -180,9 +231,9 @@ loco <- function(model,
                  seed = 1995,
                  verbose = FALSE) {
 
-  rlang::check_installed("ranger",
-                         reason = "to fit / refit ranger models in `loco()`.")
-  stopifnot(inherits(model, "ranger"))
+  ## -- backend dispatch --------------------------------------------------
+  backend <- detect_backend(model)
+
   method <- match.arg(method)
   loss   <- match.arg(loss)
   stopifnot(is.logical(split), length(split) == 1L, !is.na(split))
@@ -192,13 +243,21 @@ loco <- function(model,
             alpha > 0, alpha < 1)
   stopifnot(is.numeric(seed), length(seed) == 1L, !is.na(seed))
 
+  if (backend == "ranger") {
+    rlang::check_installed("ranger",
+                           reason = "to fit / refit ranger models in `loco()`.")
+  } else {
+    rlang::check_installed("grf",
+                           reason = "to refit grf forests in `loco()`.")
+  }
+
   ## -- treetype + loss compatibility -------------------------------------
-  tt <- model$treetype
+  tt <- treetype_for_backend(model, backend)
   if (identical(tt, "Survival")) {
     stop("loco() does not support survival forests.", call. = FALSE)
   }
   if (!tt %in% c("Regression", "Probability estimation", "Classification")) {
-    stop("loco(): unrecognized ranger treetype '", tt, "'.", call. = FALSE)
+    stop("loco(): unrecognized treetype '", tt, "'.", call. = FALSE)
   }
 
   if (identical(loss, "auto")) {
@@ -224,49 +283,72 @@ loco <- function(model,
   if (tt == "Classification" && !loss %in% clf_losses) {
     stop("loss = '", loss, "' is not valid for a (hard) classification ",
          "forest. Only 'zero_one' is supported. ",
-         "To use 'brier' or 'log', refit with `probability = TRUE`.",
+         "To use 'brier' or 'log', refit with `probability = TRUE` ",
+         "(ranger) or use grf::probability_forest().",
          call. = FALSE)
   }
 
-  ## -- variable names & sanity check -------------------------------------
-  pred.names <- model$forest$independent.variable.names
-  resp.name  <- model$dependent.variable.name
+  ## -- variable names ----------------------------------------------------
+  pred.names <- pred_names_for(model, backend)
   if (length(pred.names) < 2L) {
     stop("loco() requires at least two predictors; the supplied model has ",
          length(pred.names), ".", call. = FALSE)
   }
-  if (is.null(resp.name) || !nzchar(resp.name)) {
-    stop("Cannot determine the response variable name from `model`. ",
-         "This typically happens when the original model was fit with ",
-         "`ranger(x = X, y = y)` (no formula / no `dependent.variable.name`). ",
-         "Re-fit using the formula interface, or via ",
-         "`ranger(x = X, y = y, dependent.variable.name = \"<name>\")` ",
-         "and ensure a column of that name is present in `data`.",
-         call. = FALSE)
-  }
 
   ## -- recover training data ---------------------------------------------
-  cl <- model$call
-  if (is.null(data)) {
-    train.data <- tryCatch(
-      eval(cl$data, envir = parent.frame()),
-      error = function(e) NULL
-    )
-    if (is.null(train.data)) {
-      stop("Cannot recover training data from `model$call`. ",
-           "Pass the original data frame via the `data` argument, e.g. ",
-           "`loco(model, data = my_training_df)`.",
+  if (backend == "ranger") {
+    resp.name  <- model$dependent.variable.name
+    if (is.null(resp.name) || !nzchar(resp.name)) {
+      stop("Cannot determine the response variable name from `model`. ",
+           "This typically happens when the original model was fit with ",
+           "`ranger(x = X, y = y)` (no formula / no `dependent.variable.name`). ",
+           "Re-fit using the formula interface, or via ",
+           "`ranger(x = X, y = y, dependent.variable.name = \"<name>\")` ",
+           "and ensure a column of that name is present in `data`.",
+           call. = FALSE)
+    }
+    cl <- model$call
+    if (is.null(data)) {
+      train.data <- tryCatch(
+        eval(cl$data, envir = parent.frame()),
+        error = function(e) NULL
+      )
+      if (is.null(train.data)) {
+        stop("Cannot recover training data from `model$call`. ",
+             "Pass the original data frame via the `data` argument, e.g. ",
+             "`loco(model, data = my_training_df)`.",
+             call. = FALSE)
+      }
+    } else {
+      train.data <- as.data.frame(data)
+    }
+    missing.cols <- setdiff(c(pred.names, resp.name), names(train.data))
+    if (length(missing.cols) > 0L) {
+      stop("Supplied `data` is missing required columns: ",
+           paste(missing.cols, collapse = ", "),
+           ". `data` must contain the response and all predictor columns.",
            call. = FALSE)
     }
   } else {
-    train.data <- as.data.frame(data)
-  }
-  missing.cols <- setdiff(c(pred.names, resp.name), names(train.data))
-  if (length(missing.cols) > 0L) {
-    stop("Supplied `data` is missing required columns: ",
-         paste(missing.cols, collapse = ", "),
-         ". `data` must contain the response and all predictor columns.",
-         call. = FALSE)
+    ## grf: read X / Y from the fitted object; warn if user passed data.
+    if (!is.null(data)) {
+      warning(
+        "`data` is ignored for grf models; using model$X.orig / model$Y.orig.",
+        call. = FALSE
+      )
+    }
+    X.grf <- X_orig_for(model, backend)
+    Y.grf <- Y_orig_for(model, backend)
+    if (!is.matrix(X.grf) || !is.numeric(X.grf)) {
+      stop("loco(): grf model's stored X.orig is not a numeric matrix. ",
+           "This should not happen with a normally-fitted grf forest.",
+           call. = FALSE)
+    }
+    resp.name  <- "Y"
+    if (resp.name %in% pred.names) resp.name <- ".Y_loco_internal"
+    train.data <- as.data.frame(X.grf, stringsAsFactors = FALSE)
+    names(train.data) <- pred.names
+    train.data[[resp.name]] <- Y.grf
   }
 
   ## -- validate groups ---------------------------------------------------
@@ -318,60 +400,65 @@ loco <- function(model,
   }
 
   ## -- recover hyperparameters -------------------------------------------
-  hp.args <- list(
-    num.trees      = model$num.trees,
-    mtry           = model$mtry,
-    min.node.size  = model$min.node.size,
-    splitrule      = model$splitrule,
-    replace        = model$replace,
-    max.depth      = model$max.depth,
-    importance     = "none"
-  )
-  hp.args <- hp.args[!vapply(hp.args, is.null, logical(1))]
-  if (tt == "Probability estimation") hp.args$probability <- TRUE
+  if (backend == "ranger") {
+    hp.args <- list(
+      num.trees      = model$num.trees,
+      mtry           = model$mtry,
+      min.node.size  = model$min.node.size,
+      splitrule      = model$splitrule,
+      replace        = model$replace,
+      max.depth      = model$max.depth,
+      importance     = "none"
+    )
+    hp.args <- hp.args[!vapply(hp.args, is.null, logical(1))]
+    if (tt == "Probability estimation") hp.args$probability <- TRUE
 
-  cl.canon <- tryCatch(
-    match.call(definition = ranger::ranger, call = cl),
-    error = function(e) cl
-  )
-  raw.args <- as.list(cl.canon)[-1L]
-  arg.names <- names(raw.args)
-  if (is.null(arg.names)) arg.names <- rep("", length(raw.args))
-  drop <- c(
-    "formula", "data", "x", "y",
-    "dependent.variable.name", "case.weights",
-    "class.weights", "status.variable.name",
-    "num.trees", "mtry", "min.node.size", "splitrule",
-    "replace", "max.depth", "importance",
-    "write.forest", "verbose", "num.threads", "seed",
-    "keep.inbag", "inbag", "holdout", "oob.error",
-    "save.memory", "probability", "quantreg",
-    "node.stats", "local.importance", "classification"
-  )
-  keep.idx <- which(!arg.names %in% drop & arg.names != "")
-  extra.args <- raw.args[keep.idx]
-  caller.env <- parent.frame()
-  if (length(extra.args) > 0L) {
-    extra.eval <- lapply(extra.args, function(a) {
-      tryCatch(list(ok = TRUE,  value = eval(a, envir = caller.env)),
-               error = function(e) list(ok = FALSE, value = NULL,
-                                        msg = conditionMessage(e)))
-    })
-    ok <- vapply(extra.eval, `[[`, logical(1), "ok")
-    if (!all(ok)) {
-      bad <- names(extra.args)[!ok]
-      warning(
-        "loco(): ignoring ranger argument(s) that could not be resolved ",
-        "from the fitted model or the caller environment: ",
-        paste(bad, collapse = ", "),
-        ". The reduced-model refits will use ranger defaults for these. ",
-        "Pass literal values when fitting if this matters.",
-        call. = FALSE
-      )
+    cl <- model$call
+    cl.canon <- tryCatch(
+      match.call(definition = ranger::ranger, call = cl),
+      error = function(e) cl
+    )
+    raw.args <- as.list(cl.canon)[-1L]
+    arg.names <- names(raw.args)
+    if (is.null(arg.names)) arg.names <- rep("", length(raw.args))
+    drop <- c(
+      "formula", "data", "x", "y",
+      "dependent.variable.name", "case.weights",
+      "class.weights", "status.variable.name",
+      "num.trees", "mtry", "min.node.size", "splitrule",
+      "replace", "max.depth", "importance",
+      "write.forest", "verbose", "num.threads", "seed",
+      "keep.inbag", "inbag", "holdout", "oob.error",
+      "save.memory", "probability", "quantreg",
+      "node.stats", "local.importance", "classification"
+    )
+    keep.idx <- which(!arg.names %in% drop & arg.names != "")
+    extra.args <- raw.args[keep.idx]
+    caller.env <- parent.frame()
+    if (length(extra.args) > 0L) {
+      extra.eval <- lapply(extra.args, function(a) {
+        tryCatch(list(ok = TRUE,  value = eval(a, envir = caller.env)),
+                 error = function(e) list(ok = FALSE, value = NULL,
+                                          msg = conditionMessage(e)))
+      })
+      ok <- vapply(extra.eval, `[[`, logical(1), "ok")
+      if (!all(ok)) {
+        bad <- names(extra.args)[!ok]
+        warning(
+          "loco(): ignoring ranger argument(s) that could not be resolved ",
+          "from the fitted model or the caller environment: ",
+          paste(bad, collapse = ", "),
+          ". The reduced-model refits will use ranger defaults for these. ",
+          "Pass literal values when fitting if this matters.",
+          call. = FALSE
+        )
+      }
+      for (nm in names(extra.args)[ok]) {
+        hp.args[[nm]] <- extra.eval[[nm]]$value
+      }
     }
-    for (nm in names(extra.args)[ok]) {
-      hp.args[[nm]] <- extra.eval[[nm]]$value
-    }
+  } else {
+    hp.args <- extract_grf_hp(model, backend)
   }
 
   ## Build the units we iterate over.
@@ -387,103 +474,129 @@ loco <- function(model,
 
   ## -- split mode --------------------------------------------------------
   if (split) {
-    factor.cols <- pred.names[vapply(train.data[, pred.names, drop = FALSE],
-                                     is.factor, logical(1))]
-    if (length(factor.cols) > 0L) {
-      stop("split = TRUE does not support factor predictors (",
-           paste(factor.cols, collapse = ", "),
-           "); split-LOCO requires a numeric matrix. ",
-           "Use split = FALSE, or one-hot-encode factors before fitting.",
-           call. = FALSE)
+    if (backend == "ranger") {
+      factor.cols <- pred.names[vapply(train.data[, pred.names, drop = FALSE],
+                                       is.factor, logical(1))]
+      if (length(factor.cols) > 0L) {
+        stop("split = TRUE does not support factor predictors (",
+             paste(factor.cols, collapse = ", "),
+             "); split-LOCO requires a numeric matrix. ",
+             "Use split = FALSE, or one-hot-encode factors before fitting.",
+             call. = FALSE)
+      }
+      x <- as.matrix(train.data[, pred.names, drop = FALSE])
+      storage.mode(x) <- "double"
+
+      y_train <- train.data[[resp.name]]
+      if (tt %in% c("Probability estimation", "Classification") &&
+          !is.factor(y_train)) {
+        y_train <- as.factor(y_train)
+      }
+      y_levels <- if (is.factor(y_train)) levels(y_train) else NULL
+
+      ## Per-variable, regression, abs loss -> historic conformalInference path.
+      use_conformal <- (!group_mode) && tt == "Regression" && loss == "abs"
+
+      if (use_conformal) {
+        if (!requireNamespace("conformalInference", quietly = TRUE)) {
+          stop("Install conformalInference: ",
+               "devtools::install_github('ryantibs/conformal', ",
+               "subdir = 'conformalInference')",
+               call. = FALSE)
+        }
+        y_for_ci <- as.numeric(train.data[[resp.name]])
+        train.fun <- function(x, y, out = NULL) {
+          args <- hp.args
+          args$x <- x
+          args$y <- y
+          if (!is.null(args$mtry)) args$mtry <- min(as.integer(args$mtry), ncol(x))
+          do.call(ranger::ranger, args)
+        }
+        predict.fun <- function(out, newx) {
+          stats::predict(out, data = as.data.frame(newx))$predictions
+        }
+        active.fun <- function(out) {
+          list(seq_len(length(out$forest$independent.variable.names)))
+        }
+
+        lo <- conformalInference::loco(
+          x, y_for_ci,
+          train.fun    = train.fun,
+          predict.fun  = predict.fun,
+          active.fun   = active.fun,
+          alpha        = alpha,
+          bonf.correct = bonf.correct,
+          seed         = seed,
+          verbose      = verbose
+        )
+
+        inf <- switch(method,
+                      z      = lo$inf.z[[1L]],
+                      wilcox = lo$inf.wilcox[[1L]])
+        vars <- lo$active[[1L]]
+
+        importance <- (inf[, "LowConfPt"] + inf[, "UpConfPt"]) / 2
+
+        out <- data.frame(
+          variable   = pred.names[vars],
+          importance = as.numeric(importance),
+          ci.lower   = as.numeric(inf[, "LowConfPt"]),
+          ci.upper   = as.numeric(inf[, "UpConfPt"]),
+          p.value    = as.numeric(inf[, "P-value"]),
+          method     = method,
+          loss       = loss,
+          row.names  = NULL,
+          stringsAsFactors = FALSE
+        )
+        out <- out[order(-out$importance), , drop = FALSE]
+        row.names(out) <- NULL
+        return(out)
+      }
+
+      ## All other ranger split-mode cases use the custom split loop.
+      return(loco_custom_split(
+        x = x, y_train = y_train, y_levels = y_levels,
+        pred.names = pred.names, targets = targets,
+        target.names = target.names, group_mode = group_mode,
+        hp.args = hp.args, loss = loss, tt = tt,
+        method = method, alpha = alpha, bonf.correct = bonf.correct,
+        seed = seed, backend = backend
+      ))
     }
+
+    ## grf split mode: always use loco_custom_split with grf fit/predict.
     x <- as.matrix(train.data[, pred.names, drop = FALSE])
     storage.mode(x) <- "double"
-
     y_train <- train.data[[resp.name]]
-    if (tt %in% c("Probability estimation", "Classification") &&
-        !is.factor(y_train)) {
+    if (tt == "Probability estimation" && !is.factor(y_train)) {
       y_train <- as.factor(y_train)
     }
     y_levels <- if (is.factor(y_train)) levels(y_train) else NULL
 
-    ## Per-variable, regression, abs loss -> historic conformalInference path.
-    use_conformal <- (!group_mode) && tt == "Regression" && loss == "abs"
-
-    if (use_conformal) {
-      if (!requireNamespace("conformalInference", quietly = TRUE)) {
-        stop("Install conformalInference: ",
-             "devtools::install_github('ryantibs/conformal', ",
-             "subdir = 'conformalInference')",
-             call. = FALSE)
-      }
-      y_for_ci <- as.numeric(train.data[[resp.name]])
-      train.fun <- function(x, y, out = NULL) {
-        args <- hp.args
-        args$x <- x
-        args$y <- y
-        if (!is.null(args$mtry)) args$mtry <- min(as.integer(args$mtry), ncol(x))
-        do.call(ranger::ranger, args)
-      }
-      predict.fun <- function(out, newx) {
-        stats::predict(out, data = as.data.frame(newx))$predictions
-      }
-      active.fun <- function(out) {
-        list(seq_len(length(out$forest$independent.variable.names)))
-      }
-
-      lo <- conformalInference::loco(
-        x, y_for_ci,
-        train.fun    = train.fun,
-        predict.fun  = predict.fun,
-        active.fun   = active.fun,
-        alpha        = alpha,
-        bonf.correct = bonf.correct,
-        seed         = seed,
-        verbose      = verbose
-      )
-
-      inf <- switch(method,
-                    z      = lo$inf.z[[1L]],
-                    wilcox = lo$inf.wilcox[[1L]])
-      vars <- lo$active[[1L]]
-
-      importance <- (inf[, "LowConfPt"] + inf[, "UpConfPt"]) / 2
-
-      out <- data.frame(
-        variable   = pred.names[vars],
-        importance = as.numeric(importance),
-        ci.lower   = as.numeric(inf[, "LowConfPt"]),
-        ci.upper   = as.numeric(inf[, "UpConfPt"]),
-        p.value    = as.numeric(inf[, "P-value"]),
-        method     = method,
-        loss       = loss,
-        row.names  = NULL,
-        stringsAsFactors = FALSE
-      )
-      out <- out[order(-out$importance), , drop = FALSE]
-      row.names(out) <- NULL
-      return(out)
-    }
-
-    ## All other split-mode cases use the custom split loop.
     return(loco_custom_split(
       x = x, y_train = y_train, y_levels = y_levels,
       pred.names = pred.names, targets = targets,
       target.names = target.names, group_mode = group_mode,
       hp.args = hp.args, loss = loss, tt = tt,
       method = method, alpha = alpha, bonf.correct = bonf.correct,
-      seed = seed
+      seed = seed, backend = backend
     ))
   }
 
   ## -- OOB mode ----------------------------------------------------------
   baseline.error <- oob_loss(model, train.data, resp.name, pred.names,
-                             loss = loss, tt = tt)
+                             loss = loss, tt = tt, backend = backend)
   x.full <- train.data[, pred.names, drop = FALSE]
   y.full <- train.data[[resp.name]]
-  if (tt %in% c("Probability estimation", "Classification") &&
-      !is.factor(y.full)) {
-    y.full <- as.factor(y.full)
+  if (backend == "ranger") {
+    if (tt %in% c("Probability estimation", "Classification") &&
+        !is.factor(y.full)) {
+      y.full <- as.factor(y.full)
+    }
+  } else {
+    if (tt == "Probability estimation" && !is.factor(y.full)) {
+      y.full <- as.factor(y.full)
+    }
   }
 
   old.seed <- if (exists(".Random.seed", envir = .GlobalEnv, inherits = FALSE))
@@ -504,15 +617,24 @@ loco <- function(model,
   for (i in seq_len(G)) {
     drop_members <- as.character(targets[[i]])
     keep <- setdiff(pred.names, drop_members)
-    args <- hp.args
-    args$x <- x.full[, keep, drop = FALSE]
-    args$y <- y.full
-    if (!is.null(args$mtry)) {
-      args$mtry <- min(as.integer(args$mtry), length(keep))
+
+    if (backend == "ranger") {
+      args <- hp.args
+      args$x <- x.full[, keep, drop = FALSE]
+      args$y <- y.full
+      if (!is.null(args$mtry)) {
+        args$mtry <- min(as.integer(args$mtry), length(keep))
+      }
+      reduced.model <- do.call(ranger::ranger, args)
+    } else {
+      reduced.model <- grf_refit(backend, hp.args,
+                                 X = as.matrix(x.full[, keep, drop = FALSE]),
+                                 Y = y.full,
+                                 seed = seed + i)
     }
-    reduced.model <- do.call(ranger::ranger, args)
     importance[i] <- oob_loss(reduced.model, train.data, resp.name, keep,
-                              loss = loss, tt = tt) - baseline.error
+                              loss = loss, tt = tt, backend = backend) -
+      baseline.error
   }
 
   out <- data.frame(
@@ -534,11 +656,136 @@ loco <- function(model,
 
 ## --- Internal helpers ---------------------------------------------------
 
-## OOB loss for a fitted ranger model, using model$predictions.
-oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt) {
-  y <- train.data[[resp.name]]
-  preds <- model$predictions
-  this.tt <- model$treetype
+## Detect supported backend or stop with a clear message.
+detect_backend <- function(model) {
+  ## Order matters: boosted_regression_forest does NOT inherit "grf".
+  if (inherits(model, "ranger")) return("ranger")
+  if (inherits(model, "boosted_regression_forest")) return("grf_brf")
+  if (inherits(model, "causal_forest") ||
+      inherits(model, "causal_survival_forest")) {
+    stop("loco() does not support causal forests; use cf_loco() instead.",
+         call. = FALSE)
+  }
+  rejected <- c("survival_forest", "quantile_forest",
+                "instrumental_forest", "multi_arm_causal_forest",
+                "lm_forest")
+  for (cls in rejected) {
+    if (inherits(model, cls)) {
+      stop("loco() does not support grf::", cls, "().",
+           call. = FALSE)
+    }
+  }
+  if (inherits(model, "regression_forest")) return("grf_reg")
+  if (inherits(model, "probability_forest")) return("grf_prob")
+  stop("loco(): unsupported `model` class (", paste(class(model), collapse = "/"),
+       "). Expected a ranger or grf outcome forest.",
+       call. = FALSE)
+}
+
+## Map (model, backend) to a ranger-style treetype string.
+treetype_for_backend <- function(model, backend) {
+  switch(backend,
+         ranger   = model$treetype,
+         grf_reg  = "Regression",
+         grf_brf  = "Regression",
+         grf_prob = "Probability estimation",
+         stop("internal: unknown backend ", backend, call. = FALSE))
+}
+
+## Predictor names for a fitted forest.
+pred_names_for <- function(model, backend) {
+  if (backend == "ranger") {
+    return(model$forest$independent.variable.names)
+  }
+  X <- X_orig_for(model, backend)
+  nm <- colnames(X)
+  if (is.null(nm) || any(!nzchar(nm))) {
+    nm <- paste0("V", seq_len(ncol(X)))
+  }
+  nm
+}
+
+X_orig_for <- function(model, backend) {
+  if (backend == "grf_brf") return(model$forests[[1L]]$X.orig)
+  model$X.orig
+}
+
+Y_orig_for <- function(model, backend) {
+  if (backend == "grf_brf") return(model$forests[[1L]]$Y.orig)
+  model$Y.orig
+}
+
+## Pull replay-able hyperparameters off a fitted grf forest.
+extract_grf_hp <- function(model, backend) {
+  src <- if (backend == "grf_brf") model$forests[[1L]] else model
+  tp  <- src$tunable.params
+  out <- list()
+  ## scalars stored at top level
+  nt <- src[["_num_trees"]]
+  if (!is.null(nt)) out$num.trees <- as.integer(nt)
+  if (!is.null(src$ci.group.size)) out$ci.group.size <- src$ci.group.size
+  if (!is.null(src$equalize.cluster.weights))
+    out$equalize.cluster.weights <- isTRUE(src$equalize.cluster.weights)
+  if (!is.null(src$clusters) && length(src$clusters) > 0L)
+    out$clusters <- src$clusters
+  ## tunable.params (named list)
+  for (k in c("sample.fraction", "mtry", "min.node.size",
+              "honesty.fraction", "honesty.prune.leaves",
+              "alpha", "imbalance.penalty")) {
+    v <- tp[[k]]
+    if (!is.null(v)) out[[k]] <- v
+  }
+  ## boosted: replay boost.steps as length(forests); error.reduction not stored.
+  if (backend == "grf_brf") {
+    out$boost.steps <- length(model$forests)
+  }
+  ## never re-tune on refit
+  out$tune.parameters <- "none"
+  ## suppress threading nondeterminism noise on refit
+  out
+}
+
+## Refit a grf forest with given hp.args on a subset of X.
+## hp.args is filtered to the target fitter's formals to avoid spurious
+## "unused argument" errors when API surfaces differ across grf
+## forest types (e.g. probability_forest has no tune.parameters /
+## boost.steps).
+grf_refit <- function(backend, hp.args, X, Y, seed = NULL) {
+  fitter <- switch(backend,
+                   grf_reg  = grf::regression_forest,
+                   grf_brf  = grf::boosted_regression_forest,
+                   grf_prob = grf::probability_forest,
+                   stop("internal: grf_refit unknown backend ", backend,
+                        call. = FALSE))
+  allowed <- names(formals(fitter))
+  args <- hp.args[intersect(names(hp.args), allowed)]
+  args$X <- X
+  args$Y <- Y
+  if (!is.null(args$mtry)) {
+    args$mtry <- min(as.integer(args$mtry), ncol(X))
+  }
+  if (!is.null(seed) && "seed" %in% allowed) args$seed <- as.integer(seed)
+  do.call(fitter, args)
+}
+
+
+## OOB loss for a fitted forest. For ranger we use model$predictions; for
+## grf we call predict(model)$predictions (OOB for the training data).
+oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
+                     backend = "ranger") {
+
+  if (backend == "ranger") {
+    y     <- train.data[[resp.name]]
+    preds <- model$predictions
+    this.tt <- model$treetype
+  } else {
+    ## resp.name / train.data carry the original data, but for OOB
+    ## predictions of a grf refit we use the model itself.
+    y <- if (backend == "grf_brf") model$forests[[1L]]$Y.orig else model$Y.orig
+    preds <- stats::predict(model)$predictions
+    this.tt <- if (inherits(model, "probability_forest")) "Probability estimation"
+               else "Regression"
+  }
 
   if (this.tt == "Regression") {
     yhat <- as.numeric(preds)
@@ -557,6 +804,10 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt) {
     }
     K <- ncol(P)
     classes <- colnames(P)
+    if (is.null(classes) && backend != "ranger" &&
+        inherits(model, "probability_forest")) {
+      classes <- model$class.names
+    }
     if (!is.factor(y)) y <- factor(y, levels = classes)
     Y_oh <- matrix(0, nrow = nrow(P), ncol = K)
     for (k in seq_len(K)) Y_oh[, k] <- as.integer(y == classes[k])
@@ -593,33 +844,48 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt) {
 }
 
 
-## Custom split-sample LOCO loop used for any non-(regression+abs+per-var)
-## case in split mode. Mirrors conformalInference::loco()'s sample-splitting
-## + one-sided inference logic, generalized to drop SETS of columns and to
-## operate on user-defined per-observation loss residuals.
+## Custom split-sample LOCO loop used for any non-(ranger+regression+abs+per-var)
+## case in split mode, and for ALL grf split-mode cases. Mirrors
+## conformalInference::loco()'s sample-splitting + one-sided inference
+## logic, generalized to drop SETS of columns and to operate on
+## user-defined per-observation loss residuals.
 loco_custom_split <- function(x, y_train, y_levels, pred.names,
                               targets, target.names, group_mode,
                               hp.args, loss, tt,
-                              method, alpha, bonf.correct, seed) {
+                              method, alpha, bonf.correct, seed,
+                              backend = "ranger") {
   n <- nrow(x)
   set.seed(seed)
   i1 <- sample(seq_len(n), floor(n / 2))
   i2 <- setdiff(seq_len(n), i1)
 
   fit_one <- function(keep_cols) {
-    args <- hp.args
-    args$x <- x[i1, keep_cols, drop = FALSE]
-    args$y <- y_train[i1]
-    if (!is.null(args$mtry)) {
-      args$mtry <- min(as.integer(args$mtry), length(keep_cols))
+    if (backend == "ranger") {
+      args <- hp.args
+      args$x <- x[i1, keep_cols, drop = FALSE]
+      args$y <- y_train[i1]
+      if (!is.null(args$mtry)) {
+        args$mtry <- min(as.integer(args$mtry), length(keep_cols))
+      }
+      return(do.call(ranger::ranger, args))
     }
-    do.call(ranger::ranger, args)
+    grf_refit(backend, hp.args,
+              X = x[i1, keep_cols, drop = FALSE],
+              Y = y_train[i1],
+              seed = seed + length(keep_cols))
+  }
+
+  predict_one <- function(fit, keep_cols) {
+    if (backend == "ranger") {
+      x_test <- as.data.frame(x[i2, keep_cols, drop = FALSE])
+      return(stats::predict(fit, data = x_test)$predictions)
+    }
+    ## grf predict returns a list with $predictions
+    stats::predict(fit, newdata = x[i2, keep_cols, drop = FALSE])$predictions
   }
 
   residuals_one <- function(fit, keep_cols) {
-    x_test <- as.data.frame(x[i2, keep_cols, drop = FALSE])
-    pr <- stats::predict(fit, data = x_test)
-    p <- pr$predictions
+    p <- predict_one(fit, keep_cols)
     y_te <- y_train[i2]
 
     if (tt == "Regression") {

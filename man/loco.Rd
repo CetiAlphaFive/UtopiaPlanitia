@@ -18,14 +18,23 @@ loco(
 )
 }
 \arguments{
-\item{model}{A fitted \code{\link[ranger:ranger]{ranger::ranger()}} regression, probability, or
-classification model. Survival forests are rejected.}
+\item{model}{A fitted outcome forest. Supported classes:
+\code{\link[ranger:ranger]{ranger::ranger()}} (regression, probability, or classification),
+\code{\link[grf:regression_forest]{grf::regression_forest()}},
+\code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}}, or
+\code{\link[grf:probability_forest]{grf::probability_forest()}}. Survival, causal, quantile,
+instrumental, multi-arm, and \code{lm_forest} objects are rejected.}
 
 \item{data}{Optional. A data frame containing the variables used to
-fit \code{model}. If \code{NULL} (default), \code{loco()} tries to recover the
-training data from \code{model$call} by evaluating in \code{parent.frame()}.
-Pass \code{data} explicitly when calling \code{loco()} from a different scope
-than the original fit (e.g. inside another function).}
+fit \code{model}. Only meaningful for ranger models. If \code{NULL}
+(default), \code{loco()} tries to recover the training data from
+\code{model$call} by evaluating in \code{parent.frame()}. Pass \code{data}
+explicitly when calling \code{loco()} from a different scope than the
+original fit (e.g. inside another function). For grf models the
+training data is read from \code{model$X.orig} / \code{model$Y.orig} (or,
+for boosted forests, \code{model$forests[[1]]$X.orig} /
+\code{model$forests[[1]]$Y.orig}); any user-supplied \code{data} is ignored
+with a warning.}
 
 \item{alpha}{Significance level for split-mode confidence intervals.
 Default is \code{0.1} (90\% intervals). Only used when \code{split = TRUE}.}
@@ -41,17 +50,17 @@ test on the same differences.}
 \item{loss}{One of \code{"auto"} (default), \code{"abs"}, \code{"mse"}, \code{"brier"},
 \code{"zero_one"}, or \code{"log"}. Loss function used to define the
 per-observation residual. \code{"auto"} resolves at runtime based on
-\code{model$treetype}:
+the forest type:
 \itemize{
-\item Regression -> \code{"abs"} (absolute deviation, historic conformal-LOCO
-default).
-\item Probability estimation -> \code{"brier"} (multi-class Brier score).
-\item Classification -> \code{"zero_one"} (misclassification).
+\item Regression (ranger or grf) -> \code{"abs"} (absolute deviation,
+historic conformal-LOCO default).
+\item Probability estimation (ranger or grf) -> \code{"brier"} (multi-class
+Brier score).
+\item Classification (ranger only) -> \code{"zero_one"} (misclassification).
 }
 
 Disallowed combinations raise an error. In particular, \code{"brier"}
-and \code{"log"} require a probability forest (refit with
-\code{probability = TRUE}).}
+and \code{"log"} require a probability forest.}
 
 \item{groups}{Optional. Specifies group-LOCO. If \code{NULL} (default),
 per-variable LOCO is performed (one row per predictor). If a
@@ -70,8 +79,8 @@ Honored in both split and OOB modes.}
 
 \item{verbose}{Logical. Print progress from conformal inference?
 Default is \code{FALSE}. Only meaningful when \code{split = TRUE} with
-\code{groups = NULL} on a regression forest with \code{loss = "abs"} (the
-path that delegates to \code{\link[conformalInference:loco]{conformalInference::loco()}}).}
+\code{groups = NULL} on a ranger regression forest with \code{loss = "abs"}
+(the path that delegates to \code{\link[conformalInference:loco]{conformalInference::loco()}}).}
 }
 \value{
 A data frame sorted by descending importance with columns:
@@ -97,25 +106,36 @@ vectors naming the members of each group.}
 }
 \description{
 Computes leave-one-covariate-out (LOCO) variable importance for
-\code{ranger} random-forest regression, probability, and classification
-models. Two modes are available:
+outcome (non-causal) forests. Two backends are supported:
 }
 \details{
 \itemize{
-\item \strong{Split-sample} (\code{\link[conformalInference:loco]{conformalInference::loco()}} for per-variable
-LOCO on regression forests with absolute-deviation loss; a custom
-split loop in all other cases): valid asymptotic confidence
-intervals and p-values from either a normal-theory Z-test or a
-Wilcoxon signed-rank test on loss-residual differences. Slower
-(data is split in half).
-\item \strong{OOB}: refits the original ranger model once per variable (or
-per group), dropping the relevant predictors each time, and
-compares OOB prediction error to the full-model baseline. Faster,
-point estimates only. \strong{No formal inference.} Naive Wald-style
-tests on per-observation OOB error differences are
-anti-conservative because OOB residuals are dependent across
-trees; we therefore do not provide them. For valid p-values use
-\code{split = TRUE}.
+\item \code{ranger} regression, probability, and classification forests
+(\code{\link[ranger:ranger]{ranger::ranger()}}).
+\item \code{grf} outcome forests: \code{\link[grf:regression_forest]{grf::regression_forest()}},
+\code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}}, and
+\code{\link[grf:probability_forest]{grf::probability_forest()}}. Causal, survival, quantile,
+instrumental, multi-arm, and \code{lm_forest} objects are rejected --
+for \code{grf::causal_forest()} use \code{\link[=cf_loco]{cf_loco()}}.
+}
+
+Two modes are available:
+\itemize{
+\item \strong{Split-sample}: valid asymptotic confidence intervals and
+p-values from either a normal-theory Z-test or a Wilcoxon
+signed-rank test on loss-residual differences. For ranger
+regression forests with per-variable LOCO and \code{loss = "abs"},
+\code{\link[conformalInference:loco]{conformalInference::loco()}} is used as a fast path; all other
+ranger split-mode cases and \strong{all grf split-mode cases} go
+through an internal custom split loop. Slower than OOB (data is
+split in half).
+\item \strong{OOB}: refits the original model once per variable (or per
+group), dropping the relevant predictors each time, and compares
+OOB prediction error to the full-model baseline. Faster, point
+estimates only. \strong{No formal inference.} Naive Wald-style tests
+on per-observation OOB error differences are anti-conservative
+because OOB residuals are dependent across trees; we therefore
+do not provide them. For valid p-values use \code{split = TRUE}.
 }
 
 \strong{One-sided p-values.} The split-mode tests are one-sided against
@@ -124,12 +144,13 @@ value. Small p-values indicate the covariate helps prediction.
 
 \strong{Loss / forest-type compatibility.}
 \describe{
-\item{Regression}{\code{"abs"} (default) or \code{"mse"}.}
-\item{Probability estimation}{\code{"brier"} (default), \code{"zero_one"}
-(argmax then 0/1), or \code{"log"} (negative log-likelihood, clipped
-at 1e-12).}
-\item{Classification}{\code{"zero_one"} only. To use Brier or log-loss,
-refit with \code{probability = TRUE}.}
+\item{Regression (ranger or grf)}{\code{"abs"} (default) or \code{"mse"}.}
+\item{Probability estimation (ranger or grf)}{\code{"brier"} (default),
+\code{"zero_one"} (argmax then 0/1), or \code{"log"} (negative
+log-likelihood, clipped at 1e-12).}
+\item{Classification (ranger only)}{\code{"zero_one"} only. To use
+Brier or log-loss, refit with \code{probability = TRUE} (ranger) or
+use \code{\link[grf:probability_forest]{grf::probability_forest()}}.}
 }
 
 \strong{Group LOCO.} When \code{groups} is supplied, importance is computed
@@ -148,19 +169,36 @@ appears out-of-bag for an overlapping set of trees. Small simulation
 checks (n=200, p=4, 20 reps) at alpha=0.10 give roughly 30\% Type-I
 error.
 
-\strong{Hyperparameter replay.} Core hyperparameters (\code{num.trees},
-\code{mtry}, \code{min.node.size}, \code{splitrule}, \code{replace}, \code{max.depth}) are
-read directly from the fitted model object. Less-common arguments
-(e.g. \code{sample.fraction}, \code{respect.unordered.factors}) are pulled
-from the original call by evaluating in \code{parent.frame()}; if any
-cannot be resolved they are silently dropped with a single warning
-and ranger's defaults are used in their place.
+\strong{Hyperparameter replay (ranger).} Core hyperparameters
+(\code{num.trees}, \code{mtry}, \code{min.node.size}, \code{splitrule}, \code{replace},
+\code{max.depth}) are read directly from the fitted model object.
+Less-common arguments (e.g. \code{sample.fraction},
+\code{respect.unordered.factors}) are pulled from the original call by
+evaluating in \code{parent.frame()}; if any cannot be resolved they are
+silently dropped with a single warning and ranger's defaults are
+used in their place.
+
+\strong{Hyperparameter replay (grf).} Replay reads from
+\code{model$tunable.params} plus stored scalars: \code{num.trees},
+\code{sample.fraction}, \code{mtry}, \code{min.node.size}, \code{honesty.fraction},
+\code{honesty.prune.leaves}, \code{alpha}, \code{imbalance.penalty},
+\code{ci.group.size}, \code{clusters}, and \code{equalize.cluster.weights}. The
+\code{honesty} flag itself is not stored on a fitted grf forest; refits
+use grf's default (\code{TRUE}). \code{tune.parameters} is forced to \code{"none"}
+on refit (no re-tuning). For
+\code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}}, \code{boost.steps} is replayed as
+\code{length(model$forests)} and \code{boost.error.reduction} reverts to
+grf's default (\code{0.97}); exact replay is therefore approximate.
+\code{sample.weights} are not preserved.
 
 \strong{Edge cases.}
 \itemize{
-\item Survival forests are rejected.
-\item Factor predictors are allowed in OOB mode but rejected in split
-mode because split-LOCO requires a numeric matrix.
+\item Survival forests are rejected (both backends).
+\item Causal / quantile / instrumental / multi-arm / lm_forest
+(grf) are rejected; use \code{\link[=cf_loco]{cf_loco()}} for \code{causal_forest}.
+\item Factor predictors are allowed in ranger OOB mode but rejected in
+split mode because split-LOCO requires a numeric matrix. grf
+forests already require numeric X.
 \item Single-predictor models are rejected: LOCO requires \eqn{p \ge 2}.
 \item Groups that would leave zero remaining predictors are rejected.
 }
@@ -183,6 +221,17 @@ if (requireNamespace("ranger", quietly = TRUE)) {
   loco(mod_prob, split = FALSE)            # auto -> "brier"
   loco(mod_prob, split = FALSE, loss = "log")
 }
+if (requireNamespace("grf", quietly = TRUE)) {
+  set.seed(1995)
+  X <- matrix(rnorm(100 * 3), 100, 3)
+  colnames(X) <- c("x1", "x2", "x3")
+  Y <- X[, 1] + 0.5 * X[, 2] + rnorm(100, sd = 0.5)
+  rf <- grf::regression_forest(X, Y, num.trees = 100)
+  loco(rf, split = FALSE)                  # auto -> "abs"
+  Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
+  pf <- grf::probability_forest(X, Yf, num.trees = 100)
+  loco(pf, split = FALSE)                  # auto -> "brier"
+}
 }
 }
 \references{
@@ -203,5 +252,8 @@ Association}, 116(536), 1574--1587.
 \doi{10.1080/01621459.2020.1812596}
 }
 \seealso{
-\code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests.
+\code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests;
+\code{\link[ranger:ranger]{ranger::ranger()}}, \code{\link[grf:regression_forest]{grf::regression_forest()}},
+\code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}},
+\code{\link[grf:probability_forest]{grf::probability_forest()}} for supported model fitters.
 }

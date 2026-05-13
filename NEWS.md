@@ -1,5 +1,30 @@
 # UtopiaPlanitia (development version)
 
+## `loco()` gains grf backend support
+
+* **`loco()` now accepts `grf` outcome forests** in addition to
+  `ranger`. Supported classes: `grf::regression_forest()`,
+  `grf::boosted_regression_forest()`, and
+  `grf::probability_forest()`. Causal, survival, quantile,
+  instrumental, multi-arm, and `lm_forest` objects are rejected
+  with informative error messages; for `causal_forest()` the error
+  points users to `cf_loco()`.
+* Backend is **auto-detected from the model class** — there is no
+  new argument and no behavior change for existing ranger users.
+* Hyperparameters are replayed off the fitted grf object
+  (`tunable.params` plus `num.trees`, `ci.group.size`, `clusters`,
+  `equalize.cluster.weights`). For
+  `grf::boosted_regression_forest()`, `boost.steps` is replayed as
+  `length(model$forests)`; `boost.error.reduction` reverts to grf's
+  default. `sample.weights` and `honesty` flags are not preserved.
+* `data = ...` is ignored for grf models with a one-shot warning;
+  grf forests store their training data internally.
+* Split-mode for grf models always uses the internal custom split
+  loop (the `conformalInference::loco()` fast path remains
+  ranger-only).
+* New tests in `tests/testthat/test-loco-grf.R`.
+
+
 ## `loco()` gains classification DV support and group-LOCO
 
 * **Classification / probability forests are now first-class.** The
