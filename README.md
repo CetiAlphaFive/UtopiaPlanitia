@@ -10,11 +10,9 @@
 [![Codecov](https://codecov.io/gh/CetiAlphaFive/UtopiaPlanitia/graph/badge.svg)](https://codecov.io/gh/CetiAlphaFive/UtopiaPlanitia)
 [![lint](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/lint.yaml/badge.svg)](https://github.com/CetiAlphaFive/UtopiaPlanitia/actions/workflows/lint.yaml)
 
-This package contains various functions that are under construction. *Use at your own risk.* 
+This package contains a wide variety of tests and statistics for (causal) machine learning models in R. Most of the functions relate to heterogeneous treatment effect analysis, including variable importance, heterogeneity tests, and visualization tools for causal forests built on the [grf](https://grf-labs.github.io/grf/) package. 
 
-These include a variety of tests and statistics for heterogeneous treatment effects such as variable importance, heterogeneity tests, and visualization tools for causal forests built on the [grf](https://grf-labs.github.io/grf/) package. 
-
-## Functions 
+## Main Functions 
 
 - **LOCO variable importance** for causal forests (`cf_loco()`) and ranger models (`loco()`)
 - **Omnibus heterogeneity (HTE) testing** combining calibration, high/low CATE, and RATE tests (`omni_hetero()`)
