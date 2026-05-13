@@ -41,6 +41,18 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
 <div class="section level3">
+<h3 id="loco-gains-grf-backend-support-development-version">
+<code>loco()</code> gains grf backend support<a class="anchor" aria-label="anchor" href="#loco-gains-grf-backend-support-development-version"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/loco.html">loco()</a></code> now accepts <code>grf</code> outcome forests</strong> in addition to <code>ranger</code>. Supported classes: <code><a href="https://rdrr.io/pkg/grf/man/regression_forest.html" class="external-link">grf::regression_forest()</a></code>, <code><a href="https://rdrr.io/pkg/grf/man/boosted_regression_forest.html" class="external-link">grf::boosted_regression_forest()</a></code>, and <code><a href="https://rdrr.io/pkg/grf/man/probability_forest.html" class="external-link">grf::probability_forest()</a></code>. Causal, survival, quantile, instrumental, multi-arm, and <code>lm_forest</code> objects are rejected with informative error messages; for <code><a href="https://rdrr.io/pkg/grf/man/causal_forest.html" class="external-link">causal_forest()</a></code> the error points users to <code><a href="../reference/cf_loco.html">cf_loco()</a></code>.</li>
+<li>Backend is <strong>auto-detected from the model class</strong> — there is no new argument and no behavior change for existing ranger users.</li>
+<li>Hyperparameters are replayed off the fitted grf object (<code>tunable.params</code> plus <code>num.trees</code>, <code>ci.group.size</code>, <code>clusters</code>, <code>equalize.cluster.weights</code>). For <code><a href="https://rdrr.io/pkg/grf/man/boosted_regression_forest.html" class="external-link">grf::boosted_regression_forest()</a></code>, <code>boost.steps</code> is replayed as <code>length(model$forests)</code>; <code>boost.error.reduction</code> reverts to grf’s default. <code>sample.weights</code> and <code>honesty</code> flags are not preserved.</li>
+<li>
+<code>data = ...</code> is ignored for grf models with a one-shot warning; grf forests store their training data internally.</li>
+<li>Split-mode for grf models always uses the internal custom split loop (the <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code> fast path remains ranger-only).</li>
+<li>New tests in <code>tests/testthat/test-loco-grf.R</code>.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="loco-gains-classification-dv-support-and-group-loco-development-version">
 <code>loco()</code> gains classification DV support and group-LOCO<a class="anchor" aria-label="anchor" href="#loco-gains-classification-dv-support-and-group-loco-development-version"></a></h3>
 <ul><li>

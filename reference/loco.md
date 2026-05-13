@@ -1,8 +1,7 @@
 # LOCO Variable Importance for Outcome Models
 
-Computes leave-one-covariate-out (LOCO) variable importance for `ranger`
-random-forest regression, probability, and classification models. Two
-modes are available:
+Computes leave-one-covariate-out (LOCO) variable importance for outcome
+(non-causal) forests. Two backends are supported:
 
 ## Usage
 
@@ -25,19 +24,28 @@ loco(
 
 - model:
 
-  A fitted
+  A fitted outcome forest. Supported classes:
   [`ranger::ranger()`](http://imbs-hl.github.io/ranger/reference/ranger.md)
-  regression, probability, or classification model. Survival forests are
-  rejected.
+  (regression, probability, or classification),
+  [`grf::regression_forest()`](https://rdrr.io/pkg/grf/man/regression_forest.html),
+  [`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
+  or
+  [`grf::probability_forest()`](https://rdrr.io/pkg/grf/man/probability_forest.html).
+  Survival, causal, quantile, instrumental, multi-arm, and `lm_forest`
+  objects are rejected.
 
 - data:
 
   Optional. A data frame containing the variables used to fit `model`.
-  If `NULL` (default), `loco()` tries to recover the training data from
-  `model$call` by evaluating in
+  Only meaningful for ranger models. If `NULL` (default), `loco()` tries
+  to recover the training data from `model$call` by evaluating in
   [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html). Pass
   `data` explicitly when calling `loco()` from a different scope than
-  the original fit (e.g. inside another function).
+  the original fit (e.g. inside another function). For grf models the
+  training data is read from `model$X.orig` / `model$Y.orig` (or, for
+  boosted forests, `model$forests[[1]]$X.orig` /
+  `model$forests[[1]]$Y.orig`); any user-supplied `data` is ignored with
+  a warning.
 
 - alpha:
 
@@ -60,18 +68,18 @@ loco(
 
   One of `"auto"` (default), `"abs"`, `"mse"`, `"brier"`, `"zero_one"`,
   or `"log"`. Loss function used to define the per-observation residual.
-  `"auto"` resolves at runtime based on `model$treetype`:
+  `"auto"` resolves at runtime based on the forest type:
 
-  - Regression -\> `"abs"` (absolute deviation, historic conformal-LOCO
-    default).
+  - Regression (ranger or grf) -\> `"abs"` (absolute deviation, historic
+    conformal-LOCO default).
 
-  - Probability estimation -\> `"brier"` (multi-class Brier score).
+  - Probability estimation (ranger or grf) -\> `"brier"` (multi-class
+    Brier score).
 
-  - Classification -\> `"zero_one"` (misclassification).
+  - Classification (ranger only) -\> `"zero_one"` (misclassification).
 
   Disallowed combinations raise an error. In particular, `"brier"` and
-  `"log"` require a probability forest (refit with
-  `probability = TRUE`).
+  `"log"` require a probability forest.
 
 - groups:
 
@@ -96,7 +104,7 @@ loco(
 - verbose:
 
   Logical. Print progress from conformal inference? Default is `FALSE`.
-  Only meaningful when `split = TRUE` with `groups = NULL` on a
+  Only meaningful when `split = TRUE` with `groups = NULL` on a ranger
   regression forest with `loss = "abs"` (the path that delegates to
   [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)).
 
@@ -141,16 +149,33 @@ A data frame sorted by descending importance with columns:
 
 ## Details
 
-- **Split-sample**
-  ([`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
-  for per-variable LOCO on regression forests with absolute-deviation
-  loss; a custom split loop in all other cases): valid asymptotic
-  confidence intervals and p-values from either a normal-theory Z-test
-  or a Wilcoxon signed-rank test on loss-residual differences. Slower
-  (data is split in half).
+- `ranger` regression, probability, and classification forests
+  ([`ranger::ranger()`](http://imbs-hl.github.io/ranger/reference/ranger.md)).
 
-- **OOB**: refits the original ranger model once per variable (or per
-  group), dropping the relevant predictors each time, and compares OOB
+- `grf` outcome forests:
+  [`grf::regression_forest()`](https://rdrr.io/pkg/grf/man/regression_forest.html),
+  [`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
+  and
+  [`grf::probability_forest()`](https://rdrr.io/pkg/grf/man/probability_forest.html).
+  Causal, survival, quantile, instrumental, multi-arm, and `lm_forest`
+  objects are rejected – for
+  [`grf::causal_forest()`](https://rdrr.io/pkg/grf/man/causal_forest.html)
+  use
+  [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md).
+
+Two modes are available:
+
+- **Split-sample**: valid asymptotic confidence intervals and p-values
+  from either a normal-theory Z-test or a Wilcoxon signed-rank test on
+  loss-residual differences. For ranger regression forests with
+  per-variable LOCO and `loss = "abs"`,
+  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
+  is used as a fast path; all other ranger split-mode cases and **all
+  grf split-mode cases** go through an internal custom split loop.
+  Slower than OOB (data is split in half).
+
+- **OOB**: refits the original model once per variable (or per group),
+  dropping the relevant predictors each time, and compares OOB
   prediction error to the full-model baseline. Faster, point estimates
   only. **No formal inference.** Naive Wald-style tests on
   per-observation OOB error differences are anti-conservative because
@@ -163,19 +188,20 @@ Small p-values indicate the covariate helps prediction.
 
 **Loss / forest-type compatibility.**
 
-- Regression:
+- Regression (ranger or grf):
 
   `"abs"` (default) or `"mse"`.
 
-- Probability estimation:
+- Probability estimation (ranger or grf):
 
   `"brier"` (default), `"zero_one"` (argmax then 0/1), or `"log"`
   (negative log-likelihood, clipped at 1e-12).
 
-- Classification:
+- Classification (ranger only):
 
   `"zero_one"` only. To use Brier or log-loss, refit with
-  `probability = TRUE`.
+  `probability = TRUE` (ranger) or use
+  [`grf::probability_forest()`](https://rdrr.io/pkg/grf/man/probability_forest.html).
 
 **Group LOCO.** When `groups` is supplied, importance is computed
 jointly for each group: the reduced model omits all members of the group
@@ -192,21 +218,39 @@ dependent across trees because each unit appears out-of-bag for an
 overlapping set of trees. Small simulation checks (n=200, p=4, 20 reps)
 at alpha=0.10 give roughly 30% Type-I error.
 
-**Hyperparameter replay.** Core hyperparameters (`num.trees`, `mtry`,
-`min.node.size`, `splitrule`, `replace`, `max.depth`) are read directly
-from the fitted model object. Less-common arguments (e.g.
+**Hyperparameter replay (ranger).** Core hyperparameters (`num.trees`,
+`mtry`, `min.node.size`, `splitrule`, `replace`, `max.depth`) are read
+directly from the fitted model object. Less-common arguments (e.g.
 `sample.fraction`, `respect.unordered.factors`) are pulled from the
 original call by evaluating in
 [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html); if any
 cannot be resolved they are silently dropped with a single warning and
 ranger's defaults are used in their place.
 
+**Hyperparameter replay (grf).** Replay reads from
+`model$tunable.params` plus stored scalars: `num.trees`,
+`sample.fraction`, `mtry`, `min.node.size`, `honesty.fraction`,
+`honesty.prune.leaves`, `alpha`, `imbalance.penalty`, `ci.group.size`,
+`clusters`, and `equalize.cluster.weights`. The `honesty` flag itself is
+not stored on a fitted grf forest; refits use grf's default (`TRUE`).
+`tune.parameters` is forced to `"none"` on refit (no re-tuning). For
+[`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
+`boost.steps` is replayed as `length(model$forests)` and
+`boost.error.reduction` reverts to grf's default (`0.97`); exact replay
+is therefore approximate. `sample.weights` are not preserved.
+
 **Edge cases.**
 
-- Survival forests are rejected.
+- Survival forests are rejected (both backends).
 
-- Factor predictors are allowed in OOB mode but rejected in split mode
-  because split-LOCO requires a numeric matrix.
+- Causal / quantile / instrumental / multi-arm / lm_forest (grf) are
+  rejected; use
+  [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
+  for `causal_forest`.
+
+- Factor predictors are allowed in ranger OOB mode but rejected in split
+  mode because split-LOCO requires a numeric matrix. grf forests already
+  require numeric X.
 
 - Single-predictor models are rejected: LOCO requires \\p \ge 2\\.
 
@@ -233,7 +277,12 @@ R^2. *Journal of the American Statistical Association*, 116(536),
 ## See also
 
 [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
-for LOCO importance tailored to causal forests.
+for LOCO importance tailored to causal forests;
+[`ranger::ranger()`](http://imbs-hl.github.io/ranger/reference/ranger.md),
+[`grf::regression_forest()`](https://rdrr.io/pkg/grf/man/regression_forest.html),
+[`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
+[`grf::probability_forest()`](https://rdrr.io/pkg/grf/man/probability_forest.html)
+for supported model fitters.
 
 ## Examples
 
@@ -259,5 +308,20 @@ if (requireNamespace("ranger", quietly = TRUE)) {
 #> 1       x2 0.09788476    oob  log
 #> 2       x3 0.07353345    oob  log
 #> 3       x1 0.02890264    oob  log
+if (requireNamespace("grf", quietly = TRUE)) {
+  set.seed(1995)
+  X <- matrix(rnorm(100 * 3), 100, 3)
+  colnames(X) <- c("x1", "x2", "x3")
+  Y <- X[, 1] + 0.5 * X[, 2] + rnorm(100, sd = 0.5)
+  rf <- grf::regression_forest(X, Y, num.trees = 100)
+  loco(rf, split = FALSE)                  # auto -> "abs"
+  Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
+  pf <- grf::probability_forest(X, Yf, num.trees = 100)
+  loco(pf, split = FALSE)                  # auto -> "brier"
+}
+#>   variable  importance method  loss
+#> 1       x1 0.063156781    oob brier
+#> 2       x2 0.005360043    oob brier
+#> 3       x3 0.005281682    oob brier
 # }
 ```

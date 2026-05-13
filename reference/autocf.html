@@ -156,7 +156,7 @@ uses mlr3's default xgboost hyperparameters. Default <code>10L</code>.</p></dd>
 <dt id="arg-tabpfn-args-glmnet-args-xgboost-args-bart-args">tabpfn_args, glmnet_args, xgboost_args, bart_args<a class="anchor" aria-label="anchor" href="#arg-tabpfn-args-glmnet-args-xgboost-args-bart-args"></a></dt>
 <dd><p>Optional named
 lists of per-candidate extra arguments. <code>tabpfn_args</code> is forwarded
-to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
+to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
 <code>xgboost_args</code> is forwarded to the mlr3 <code>xgboost</code> learner's
 <code>param_set$values</code> (use to set, e.g., <code>nthread = 4</code> for multi-core
 CPU or <code>device = "cuda"</code> to enable GPU on systems with a CUDA

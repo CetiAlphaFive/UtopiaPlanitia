@@ -2,6 +2,37 @@
 
 ## UtopiaPlanitia (development version)
 
+### `loco()` gains grf backend support
+
+- **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  now accepts `grf` outcome forests** in addition to `ranger`. Supported
+  classes:
+  [`grf::regression_forest()`](https://rdrr.io/pkg/grf/man/regression_forest.html),
+  [`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
+  and
+  [`grf::probability_forest()`](https://rdrr.io/pkg/grf/man/probability_forest.html).
+  Causal, survival, quantile, instrumental, multi-arm, and `lm_forest`
+  objects are rejected with informative error messages; for
+  [`causal_forest()`](https://rdrr.io/pkg/grf/man/causal_forest.html)
+  the error points users to
+  [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md).
+- Backend is **auto-detected from the model class** — there is no new
+  argument and no behavior change for existing ranger users.
+- Hyperparameters are replayed off the fitted grf object
+  (`tunable.params` plus `num.trees`, `ci.group.size`, `clusters`,
+  `equalize.cluster.weights`). For
+  [`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
+  `boost.steps` is replayed as `length(model$forests)`;
+  `boost.error.reduction` reverts to grf’s default. `sample.weights` and
+  `honesty` flags are not preserved.
+- `data = ...` is ignored for grf models with a one-shot warning; grf
+  forests store their training data internally.
+- Split-mode for grf models always uses the internal custom split loop
+  (the
+  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
+  fast path remains ranger-only).
+- New tests in `tests/testthat/test-loco-grf.R`.
+
 ### `loco()` gains classification DV support and group-LOCO
 
 - **Classification / probability forests are now first-class.** The
