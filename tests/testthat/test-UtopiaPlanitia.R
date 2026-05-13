@@ -247,7 +247,7 @@ test_that("loco OOB mode returns correct structure", {
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
   result <- loco(mod, split = FALSE)
   expect_s3_class(result, "data.frame")
-  expect_named(result, c("variable", "importance"))
+  expect_named(result, c("variable", "importance", "method", "loss"))
   expect_equal(nrow(result), 3)
 })
 

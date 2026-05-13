@@ -4,80 +4,204 @@
 \alias{loco}
 \title{LOCO Variable Importance for Outcome Models}
 \usage{
-loco(model, alpha = 0.1, split = TRUE, seed = 1995, verbose = FALSE)
+loco(
+  model,
+  data = NULL,
+  alpha = 0.1,
+  split = TRUE,
+  method = c("z", "wilcox"),
+  loss = c("auto", "abs", "mse", "brier", "zero_one", "log"),
+  groups = NULL,
+  bonf.correct = TRUE,
+  seed = 1995,
+  verbose = FALSE
+)
 }
 \arguments{
-\item{model}{A fitted \code{ranger} object (must have been fit with \code{keep.inbag = TRUE}
-if using OOB mode, and the training data must be recoverable from the call).}
+\item{model}{A fitted \code{\link[ranger:ranger]{ranger::ranger()}} regression, probability, or
+classification model. Survival forests are rejected.}
 
-\item{alpha}{Significance level for conformal inference intervals. Default is
-\code{0.1} (90\% intervals). Only used when \code{split = TRUE}.}
+\item{data}{Optional. A data frame containing the variables used to
+fit \code{model}. If \code{NULL} (default), \code{loco()} tries to recover the
+training data from \code{model$call} by evaluating in \code{parent.frame()}.
+Pass \code{data} explicitly when calling \code{loco()} from a different scope
+than the original fit (e.g. inside another function).}
 
-\item{split}{Logical. If \code{TRUE} (default), uses split-sample LOCO via
-\code{\link[conformalInference:loco]{conformalInference::loco()}}. If \code{FALSE}, uses OOB prediction error
-differences.}
+\item{alpha}{Significance level for split-mode confidence intervals.
+Default is \code{0.1} (90\% intervals). Only used when \code{split = TRUE}.}
 
-\item{seed}{Integer seed for reproducibility. Default is \code{1995}.}
+\item{split}{Logical. If \code{TRUE} (default), uses split-sample LOCO. If
+\code{FALSE}, uses OOB prediction-error differences (no inference).}
 
-\item{verbose}{Logical. Print progress from conformal inference? Default is
-\code{FALSE}. Only used when \code{split = TRUE}.}
+\item{method}{One of \code{"z"} (default) or \code{"wilcox"}. Only used when
+\code{split = TRUE}. \code{"z"} uses a normal-theory Z-test on the mean of
+loss-residual differences; \code{"wilcox"} uses a Wilcoxon signed-rank
+test on the same differences.}
+
+\item{loss}{One of \code{"auto"} (default), \code{"abs"}, \code{"mse"}, \code{"brier"},
+\code{"zero_one"}, or \code{"log"}. Loss function used to define the
+per-observation residual. \code{"auto"} resolves at runtime based on
+\code{model$treetype}:
+\itemize{
+\item Regression -> \code{"abs"} (absolute deviation, historic conformal-LOCO
+default).
+\item Probability estimation -> \code{"brier"} (multi-class Brier score).
+\item Classification -> \code{"zero_one"} (misclassification).
+}
+
+Disallowed combinations raise an error. In particular, \code{"brier"}
+and \code{"log"} require a probability forest (refit with
+\code{probability = TRUE}).}
+
+\item{groups}{Optional. Specifies group-LOCO. If \code{NULL} (default),
+per-variable LOCO is performed (one row per predictor). If a
+character vector, treated as a single (unnamed) group dropped
+jointly. If a named list of character vectors, each element is
+one group dropped jointly. Groups must not overlap, must contain
+only known predictor names, must be non-empty, and must leave at
+least one predictor remaining after the drop.}
+
+\item{bonf.correct}{Logical. If \code{TRUE} (default), p-values and
+confidence intervals are Bonferroni-corrected across all tested
+variables / groups.}
+
+\item{seed}{Integer seed for reproducibility. Default is \code{1995}.
+Honored in both split and OOB modes.}
+
+\item{verbose}{Logical. Print progress from conformal inference?
+Default is \code{FALSE}. Only meaningful when \code{split = TRUE} with
+\code{groups = NULL} on a regression forest with \code{loss = "abs"} (the
+path that delegates to \code{\link[conformalInference:loco]{conformalInference::loco()}}).}
 }
 \value{
 A data frame sorted by descending importance with columns:
 \describe{
-\item{variable}{Covariate name.}
-\item{importance}{LOCO importance score (midpoint of CI when \code{split = TRUE},
-increase in OOB error when \code{split = FALSE}).}
-\item{ci.lower}{Lower confidence bound (only when \code{split = TRUE}).}
-\item{ci.upper}{Upper confidence bound (only when \code{split = TRUE}).}
-\item{p.value}{P-value from conformal Z-test (only when \code{split = TRUE}).}
+\item{variable}{Covariate name, or group name when \code{groups} is
+supplied.}
+\item{importance}{LOCO importance score. Split mode: mean (or
+Hodges-Lehmann pseudo-median for Wilcoxon) of loss-residual
+differences \code{L(reduced) - L(full)}. OOB mode: reduced-model
+OOB error minus full-model OOB error.}
+\item{ci.lower, ci.upper}{Confidence interval bounds (split
+mode only).}
+\item{p.value}{\strong{One-sided} p-value testing
+H0: importance \eqn{\le} 0 vs H1: importance \eqn{>} 0
+(split mode only). Bonferroni-corrected when
+\code{bonf.correct = TRUE}.}
+\item{method}{\code{"z"}, \code{"wilcox"}, or \code{"oob"}.}
+\item{loss}{Loss function used (\code{"abs"}, \code{"mse"}, \code{"brier"},
+\code{"zero_one"}, or \code{"log"}).}
+\item{members}{(group mode only) list-column of character
+vectors naming the members of each group.}
 }
 }
 \description{
-Computes leave-one-covariate-out (LOCO) variable importance for ranger
-random forests. Two modes are available: split-sample LOCO with conformal
-inference (confidence intervals and p-values), or OOB-based LOCO (point
-estimates only).
+Computes leave-one-covariate-out (LOCO) variable importance for
+\code{ranger} random-forest regression, probability, and classification
+models. Two modes are available:
 }
 \details{
-\strong{Choosing a mode.} The split-sample method (\code{split = TRUE}) provides
-valid confidence intervals and p-values via conformal inference, but is
-slower because it splits the data internally. The OOB method
-(\code{split = FALSE}) is faster and suitable for screening or exploratory
-analysis, but provides only point estimates with no formal inference.
+\itemize{
+\item \strong{Split-sample} (\code{\link[conformalInference:loco]{conformalInference::loco()}} for per-variable
+LOCO on regression forests with absolute-deviation loss; a custom
+split loop in all other cases): valid asymptotic confidence
+intervals and p-values from either a normal-theory Z-test or a
+Wilcoxon signed-rank test on loss-residual differences. Slower
+(data is split in half).
+\item \strong{OOB}: refits the original ranger model once per variable (or
+per group), dropping the relevant predictors each time, and
+compares OOB prediction error to the full-model baseline. Faster,
+point estimates only. \strong{No formal inference.} Naive Wald-style
+tests on per-observation OOB error differences are
+anti-conservative because OOB residuals are dependent across
+trees; we therefore do not provide them. For valid p-values use
+\code{split = TRUE}.
+}
 
-\strong{Split-sample mode} requires the \code{conformalInference} package, which is
-available only from GitHub:
+\strong{One-sided p-values.} The split-mode tests are one-sided against
+the null that the covariate / group has no incremental predictive
+value. Small p-values indicate the covariate helps prediction.
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{devtools::install_github("ryantibs/conformal", subdir = "conformalInference")
-}\if{html}{\out{</div>}}
+\strong{Loss / forest-type compatibility.}
+\describe{
+\item{Regression}{\code{"abs"} (default) or \code{"mse"}.}
+\item{Probability estimation}{\code{"brier"} (default), \code{"zero_one"}
+(argmax then 0/1), or \code{"log"} (negative log-likelihood, clipped
+at 1e-12).}
+\item{Classification}{\code{"zero_one"} only. To use Brier or log-loss,
+refit with \code{probability = TRUE}.}
+}
 
-\strong{OOB mode} refits the original ranger model once per covariate, each
-time dropping one predictor, and compares OOB prediction error to the
-full-model baseline. The importance score is the increase in OOB error
-when the variable is removed; larger values indicate more important
-variables.
+\strong{Group LOCO.} When \code{groups} is supplied, importance is computed
+jointly for each group: the reduced model omits all members of the
+group simultaneously. Useful when (a) factor predictors have been
+one-hot-encoded into multiple columns whose individual importances
+are not the quantity of interest, (b) an index or scale is
+represented by several items, or (c) interest is in the contribution
+of a theoretically motivated block. Group names appear in the
+\code{variable} column; member lists appear in the \code{members} column.
+
+\strong{Why no OOB inference?} A naive Wald-style Z-test on
+per-observation OOB error differences is anti-conservative: OOB
+residuals are positively dependent across trees because each unit
+appears out-of-bag for an overlapping set of trees. Small simulation
+checks (n=200, p=4, 20 reps) at alpha=0.10 give roughly 30\% Type-I
+error.
+
+\strong{Hyperparameter replay.} Core hyperparameters (\code{num.trees},
+\code{mtry}, \code{min.node.size}, \code{splitrule}, \code{replace}, \code{max.depth}) are
+read directly from the fitted model object. Less-common arguments
+(e.g. \code{sample.fraction}, \code{respect.unordered.factors}) are pulled
+from the original call by evaluating in \code{parent.frame()}; if any
+cannot be resolved they are silently dropped with a single warning
+and ranger's defaults are used in their place.
+
+\strong{Edge cases.}
+\itemize{
+\item Survival forests are rejected.
+\item Factor predictors are allowed in OOB mode but rejected in split
+mode because split-LOCO requires a numeric matrix.
+\item Single-predictor models are rejected: LOCO requires \eqn{p \ge 2}.
+\item Groups that would leave zero remaining predictors are rejected.
+}
 }
 \examples{
 \donttest{
 if (requireNamespace("ranger", quietly = TRUE)) {
   set.seed(1995)
-  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100))
+  dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100),
+                    x3 = rnorm(100))
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
   loco(mod, split = FALSE)
+  loco(mod, split = FALSE,
+       groups = list(g1 = c("x1","x2"), g2 = "x3"))
+  set.seed(2026)
+  dat2 <- data.frame(y = factor(sample(0:1, 100, replace = TRUE)),
+                     x1 = rnorm(100), x2 = rnorm(100), x3 = rnorm(100))
+  mod_prob <- ranger::ranger(y ~ ., data = dat2, num.trees = 50,
+                             probability = TRUE)
+  loco(mod_prob, split = FALSE)            # auto -> "brier"
+  loco(mod_prob, split = FALSE, loss = "log")
 }
 }
 }
 \references{
-Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., & Wasserman, L. (2018).
-Distribution-Free Predictive Inference for Regression.
-\emph{Journal of the American Statistical Association}, 113(523), 1094--1111.
+Lei, J., G'Sell, M., Rinaldo, A., Tibshirani, R. J., & Wasserman, L.
+(2018). Distribution-Free Predictive Inference for Regression.
+\emph{Journal of the American Statistical Association}, 113(523),
+1094--1111. \doi{10.1080/01621459.2017.1307116}
 
 Rinaldo, A., Wasserman, L., & G'Sell, M. (2019). Bootstrapping and
 Sample Splitting for High-Dimensional, Assumption-Lean Inference.
 \emph{Annals of Statistics}, 47(6), 3438--3469.
+\doi{10.1214/18-AOS1820}
+
+Williamson, B. D., Gilbert, P. B., Carone, M., & Simon, N. (2021).
+Nonparametric variable importance assessment based on
+generalizations of R^2. \emph{Journal of the American Statistical
+Association}, 116(536), 1574--1587.
+\doi{10.1080/01621459.2020.1812596}
 }
 \seealso{
-\code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests
-(treatment effect heterogeneity rather than prediction accuracy).
+\code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests.
 }
