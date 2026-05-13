@@ -52,7 +52,7 @@ the Robinson-residualisation nuisances are swapped."></head><body>
     <div class="ref-description section level2">
     <p>Refits a <code><a href="https://rdrr.io/pkg/grf/man/causal_forest.html" class="external-link">grf::causal_forest()</a></code> after replacing the conditional outcome
 <code>m(x) = E[Y | X = x]</code> and propensity <code>e(x) = E[W | X = x]</code> with
-cross-fitted predictions from <code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code> (penalized
+cross-fitted predictions from <code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code> (penalized
 elastic-net regression / classification, optionally relaxed). The CATE
 estimator and identification assumptions of <code>grf</code> are unchanged — only
 the Robinson-residualisation nuisances are swapped.</p>
@@ -146,7 +146,7 @@ coefficients are biased by the lasso shrinkage.</p></dd>
 
 <dt id="arg-glmnet-args">glmnet_args<a class="anchor" aria-label="anchor" href="#arg-glmnet-args"></a></dt>
 <dd><p>Named list of additional arguments forwarded to
-<code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code> (e.g. <code>list(nfolds = 5L, nlambda = 50L)</code>).
+<code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code> (e.g. <code>list(nfolds = 5L, nlambda = 50L)</code>).
 Note: <code>nfolds</code>/<code>foldid</code> supplied here are overridden by the
 internal shared <code>foldid</code> used for alpha tuning.</p></dd>
 
