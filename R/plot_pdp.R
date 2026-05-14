@@ -125,6 +125,16 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 
 # -- internal helpers (not exported) ------------------------------------------
 
+#' Extract a single column as a vector, regardless of whether `X` is a
+#' matrix, base data.frame, or tibble. Tibbles ignore `drop = TRUE`, so
+#' `X[, v]` would otherwise return a 1-column tibble and break downstream
+#' `data.frame()` construction.
+#' @keywords internal
+#' @noRd
+.col_vec <- function(X, v) {
+  if (is.data.frame(X)) X[[v]] else X[, v]
+}
+
 #' @keywords internal
 #' @noRd
 .compute_pd <- function(c.forest, vars, grid, X.sub, num.threads = NULL) {
@@ -170,7 +180,7 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
                            color.var = NULL, color.cat = NULL,
                            color.lab = NULL, xlab = NULL,
                            num.threads = NULL) {
-  rng <- range(X.sub[, x_var], na.rm = TRUE)
+  rng <- range(.col_vec(X.sub, x_var), na.rm = TRUE)
   x.vals <- seq(rng[1], rng[2], length.out = grid_size)
   grid <- data.frame(x.vals)
   names(grid) <- x_var
@@ -179,11 +189,12 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 
   # -- grouped PDP (early return) ---------------------------------------------
   if (!is.null(color.var)) {
-    group.vals <- sort(unique(X.sub[, color.var]))
+    color.col <- .col_vec(X.sub, color.var)
+    group.vals <- sort(unique(color.col))
     if (is.null(color.cat)) color.cat <- as.character(group.vals)
 
     pd.list <- lapply(seq_along(group.vals), function(i) {
-      X.g <- X.sub[X.sub[, color.var] == group.vals[i], , drop = FALSE]
+      X.g <- X.sub[color.col == group.vals[i] & !is.na(color.col), , drop = FALSE]
       data.frame(x = x.vals,
                  y = .compute_pd(c.forest, x_var, grid, X.g, num.threads),
                  group = color.cat[i])
@@ -192,9 +203,9 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
     pd.df$group <- factor(pd.df$group, levels = color.cat)
 
     # Scatter data with group labels
-    orig.groups <- c.forest$X.orig[, color.var]
+    orig.groups <- .col_vec(c.forest$X.orig, color.var)
     raw.df <- data.frame(
-      x = c.forest$X.orig[, x_var],
+      x = .col_vec(c.forest$X.orig, x_var),
       y = as.numeric(c.forest$predictions),
       group = factor(color.cat[match(orig.groups, group.vals)],
                      levels = color.cat)
@@ -241,7 +252,7 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 
   # Base plot on real X.orig so ggMarginal histograms reflect true distributions
   raw.df <- data.frame(
-    x = c.forest$X.orig[, x_var],
+    x = .col_vec(c.forest$X.orig, x_var),
     y = as.numeric(c.forest$predictions)
   )
 
@@ -295,8 +306,8 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 .plot_pdp_2way <- function(c.forest, x_var, y_var, X.sub, grid_size,
                            trim, x.limits, y.limits,
                            num.threads = NULL) {
-  x.rng <- range(X.sub[, x_var], na.rm = TRUE)
-  y.rng <- range(X.sub[, y_var], na.rm = TRUE)
+  x.rng <- range(.col_vec(X.sub, x_var), na.rm = TRUE)
+  y.rng <- range(.col_vec(X.sub, y_var), na.rm = TRUE)
   x.vals <- seq(x.rng[1], x.rng[2], length.out = grid_size)
   y.vals <- seq(y.rng[1], y.rng[2], length.out = grid_size)
   grid <- expand.grid(x.vals, y.vals)
@@ -304,7 +315,8 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 
   # Pre-filter grid to convex hull before predict (main speedup)
   if (trim) {
-    train.xy <- cbind(c.forest$X.orig[, x_var], c.forest$X.orig[, y_var])
+    train.xy <- cbind(.col_vec(c.forest$X.orig, x_var),
+                      .col_vec(c.forest$X.orig, y_var))
     train.xy <- train.xy[stats::complete.cases(train.xy), , drop = FALSE]
     hull.idx <- grDevices::chull(train.xy)
     hull.idx <- c(hull.idx, hull.idx[1L])
@@ -337,8 +349,8 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 
   # Base plot on real X.orig so ggMarginal histograms reflect true distributions
   raw.df <- data.frame(
-    x = c.forest$X.orig[, x_var],
-    y = c.forest$X.orig[, y_var]
+    x = .col_vec(c.forest$X.orig, x_var),
+    y = .col_vec(c.forest$X.orig, y_var)
   )
 
   p <- ggplot2::ggplot(raw.df, ggplot2::aes(x = .data[["x"]], y = .data[["y"]])) +
