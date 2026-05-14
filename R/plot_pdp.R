@@ -170,8 +170,8 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
                            color.var = NULL, color.cat = NULL,
                            color.lab = NULL, xlab = NULL,
                            num.threads = NULL) {
-  x.vals <- seq(min(X.sub[, x_var]), max(X.sub[, x_var]),
-                length.out = grid_size)
+  rng <- range(X.sub[, x_var], na.rm = TRUE)
+  x.vals <- seq(rng[1], rng[2], length.out = grid_size)
   grid <- data.frame(x.vals)
   names(grid) <- x_var
 
@@ -295,16 +295,17 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
 .plot_pdp_2way <- function(c.forest, x_var, y_var, X.sub, grid_size,
                            trim, x.limits, y.limits,
                            num.threads = NULL) {
-  x.vals <- seq(min(X.sub[, x_var]), max(X.sub[, x_var]),
-                length.out = grid_size)
-  y.vals <- seq(min(X.sub[, y_var]), max(X.sub[, y_var]),
-                length.out = grid_size)
+  x.rng <- range(X.sub[, x_var], na.rm = TRUE)
+  y.rng <- range(X.sub[, y_var], na.rm = TRUE)
+  x.vals <- seq(x.rng[1], x.rng[2], length.out = grid_size)
+  y.vals <- seq(y.rng[1], y.rng[2], length.out = grid_size)
   grid <- expand.grid(x.vals, y.vals)
   names(grid) <- c(x_var, y_var)
 
   # Pre-filter grid to convex hull before predict (main speedup)
   if (trim) {
     train.xy <- cbind(c.forest$X.orig[, x_var], c.forest$X.orig[, y_var])
+    train.xy <- train.xy[stats::complete.cases(train.xy), , drop = FALSE]
     hull.idx <- grDevices::chull(train.xy)
     hull.idx <- c(hull.idx, hull.idx[1L])
     hull.poly <- train.xy[hull.idx, ]
