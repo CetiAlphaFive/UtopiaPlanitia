@@ -249,3 +249,32 @@ test_that("loco() rejects unsupported model classes (e.g. lm)", {
   fit <- lm(mpg ~ wt + hp, data = mtcars)
   expect_error(loco(fit), "unsupported")
 })
+
+test_that("loco() works on grf forests fit with a data frame", {
+  skip_if_no_grf()
+  set.seed(1)
+  n <- 120
+  Xdf <- data.frame(x1 = rnorm(n), x2 = rnorm(n), x3 = rnorm(n))
+  Y   <- Xdf$x1 + 0.5 * Xdf$x2 + rnorm(n, sd = 0.5)
+  rf  <- grf::regression_forest(Xdf, Y, num.trees = 100)
+
+  expect_s3_class(rf$X.orig, "data.frame")
+
+  out_oob <- loco(rf, split = FALSE)
+  expect_s3_class(out_oob, "data.frame")
+  expect_setequal(out_oob$variable, names(Xdf))
+
+  out_split <- loco(rf, split = TRUE)
+  expect_s3_class(out_split, "data.frame")
+  expect_setequal(out_split$variable, names(Xdf))
+})
+
+test_that("loco() errors clearly when grf X.orig has non-numeric columns", {
+  skip_if_no_grf()
+  obj <- make_grf_reg(n = 80, trees = 50)
+  # Inject a non-numeric column to simulate a malformed X.orig.
+  rf <- obj$mod
+  rf$X.orig <- as.data.frame(rf$X.orig)
+  rf$X.orig$bad <- letters[seq_len(nrow(rf$X.orig))]
+  expect_error(loco(rf, split = FALSE), "non-numeric column")
+})

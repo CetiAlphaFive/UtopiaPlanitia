@@ -339,9 +339,18 @@ loco <- function(model,
     }
     X.grf <- X_orig_for(model, backend)
     Y.grf <- Y_orig_for(model, backend)
-    if (!is.matrix(X.grf) || !is.numeric(X.grf)) {
-      stop("loco(): grf model's stored X.orig is not a numeric matrix. ",
-           "This should not happen with a normally-fitted grf forest.",
+    if (is.data.frame(X.grf)) {
+      non_num <- !vapply(X.grf, is.numeric, logical(1))
+      if (any(non_num)) {
+        stop("loco(): grf model's X.orig has non-numeric column(s): ",
+             paste(names(X.grf)[non_num], collapse = ", "),
+             ". grf does not support non-numeric features; one-hot-encode ",
+             "or numerically code these before fitting.",
+             call. = FALSE)
+      }
+    } else if (!is.matrix(X.grf) || !is.numeric(X.grf)) {
+      stop("loco(): grf model's stored X.orig is not a numeric matrix or ",
+           "data frame. This should not happen with a normally-fitted grf forest.",
            call. = FALSE)
     }
     resp.name  <- "Y"
