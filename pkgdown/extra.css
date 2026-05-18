@@ -1,3 +1,11 @@
 .github-only {
   display: none;
 }
+
+/* Pin README hex sticker to 139px tall, override Bootstrap 5 responsive img rules */
+.page-header h1 img,
+h1 img[alt$="hex sticker"] {
+  height: 139px !important;
+  width: auto !important;
+  max-width: none !important;
+}
