@@ -1,6 +1,5 @@
 <div class="github-only">
 
-![Utopia Planitia on Mars](https://raw.githubusercontent.com/CetiAlphaFive/UtopiaPlanitia/main/Utopia_Planitia_on_Mars_pillars.jpg)
 
 </div>
 
