@@ -14,7 +14,12 @@
 #'   hyperparameters for the refit.
 #' @param X,Y,W Optional overrides for the design matrix, outcome vector,
 #'   and treatment vector. If `NULL` (default) they are recovered from
-#'   `c.forest`.
+#'   `c.forest`. NAs in `X` are tolerated: `grf`, `xgboost`, `bart`, and
+#'   `tabpfn` handle missingness natively; the `glmnet` candidate auto-
+#'   imputes via `glmnet::makeX(na.impute = TRUE)` (mean for numeric
+#'   columns, mode for factors), fit per training fold and applied to
+#'   the held-out fold to avoid leakage. NAs in `Y` or `W` are not
+#'   allowed.
 #' @param K Integer >= 2. Number of cross-fit folds shared across all
 #'   candidates. Default `5`.
 #' @param seed Integer seed for fold assignment, per-candidate RNG, and
@@ -97,16 +102,13 @@
 #' table, and only swaps in a competitor if it beats the grf baseline by
 #' a margin you choose.
 #'
-#' **Apples-to-apples grf baseline.** The "grf"
-#' candidate in the pool is **not** scored using `c.forest$Y.hat` /
-#' `W.hat`, because those come from grf's internal honest-split
-#' subsampling protocol --- not strict K-fold cross-fitting --- and would
-#' be unfair to compare against true K-fold OOF predictions from the
-#' other candidates. Instead, `autocf()` re-trains a
-#' `grf::regression_forest` on each held-out fold's training set and
-#' predicts on the held-out fold, producing strict K-fold OOF
-#' predictions for the "grf" candidate identically to every other
-#' candidate.
+#' **grf baseline scored out-of-bag.** The "grf" candidate is scored on
+#' the fitted forest's own out-of-bag honest nuisances
+#' (`c.forest$Y.hat` / `c.forest$W.hat`) --- the predictions you actually
+#' keep --- rather than refit per fold. Every other candidate is still
+#' scored on strict K-fold OOF predictions. Per-fold weighted MSE for the
+#' grf baseline is computed by binning its OOB residuals into the same K
+#' folds, so the 1-SE comparison machinery is unchanged.
 #'
 #' **1-SE rule for the swap.** With finite-sample CV
 #' noise any non-trivial candidate will produce some random improvement
@@ -220,10 +222,6 @@ autocf <- function(c.forest,
          "Pass them explicitly via the X, Y, W arguments.", call. = FALSE)
   }
   X <- as.matrix(X)
-  if (anyNA(X)) {
-    stop("`X` contains NAs. autocf() does not support missing covariates.",
-         call. = FALSE)
-  }
   # Normalize colnames so train_df = data.frame(X_train, .y) and
   # test_df = as.data.frame(X_test) carry identical column names. Without
   # this, base R names data.frame(matrix-without-colnames) as X1..Xp but
@@ -288,6 +286,12 @@ autocf <- function(c.forest,
     stop("After dependency filtering, no usable candidates remain (need ",
          "at least the 'grf' baseline).", call. = FALSE)
   }
+  if ("glmnet" %in% pool_run && anyNA(X)) {
+    message("autocf: `X` contains NAs. The glmnet candidate auto-imputes ",
+            "via glmnet::makeX(na.impute = TRUE) (mean for numeric, mode ",
+            "for factors), fit per training fold and applied to the ",
+            "held-out fold. All other candidates receive `X` unchanged.")
+  }
 
   # ---- 5. force sequential future plan for reproducibility ----------------
   if (requireNamespace("future", quietly = TRUE)) {
@@ -316,7 +320,9 @@ autocf <- function(c.forest,
         xgboost_args = xgboost_args,
         bart_args   = bart_args,
         term_evals  = term_evals,
-        verbose     = verbose
+        verbose     = verbose,
+        grf_yhat    = c.forest$Y.hat,
+        grf_what    = c.forest$W.hat
       ),
       error = function(e) {
         warning("autocf: candidate '", cand, "' failed (",
@@ -613,11 +619,14 @@ autocf <- function(c.forest,
 #' @keywords internal
 #' @noRd
 #' @description
-#' Run K-fold cross-fit for a single candidate. Returns OOF Y.hat, W.hat
-#' and per-fold weighted MSE for both nuisance roles.
+#' Run K-fold cross-fit for a single candidate. Returns Y.hat, W.hat and
+#' per-fold weighted MSE for both nuisance roles. The "grf" candidate is
+#' scored on the fitted forest's OOB nuisances (grf_yhat / grf_what);
+#' every other candidate is scored on strict K-fold OOF predictions.
 .autocf_run_candidate <- function(cand, X, Y, W, fold, K, w_type, sw, seed,
                                   tabpfn_args, glmnet_args, xgboost_args,
-                                  bart_args, term_evals, verbose) {
+                                  bart_args, term_evals, verbose,
+                                  grf_yhat = NULL, grf_what = NULL) {
   n <- length(Y)
   Y.hat <- numeric(n)
   W.hat <- numeric(n)
@@ -641,36 +650,51 @@ autocf <- function(c.forest,
     as.numeric(W)
   }
 
+  # The grf baseline is scored on its own out-of-bag honest nuisances
+  # (from the full fitted forest) rather than refit per fold; every other
+  # candidate is scored on strict K-fold OOF predictions.
+  is_grf <- identical(cand, "grf")
+  if (is_grf) {
+    if (is.null(grf_yhat) || is.null(grf_what)) {
+      stop("autocf(): grf OOB nuisances missing; cannot score baseline.",
+           call. = FALSE)
+    }
+    Y.hat <- as.numeric(grf_yhat)
+    W.hat <- as.numeric(grf_what)
+  }
+
   for (k in seq_len(K)) {
     test  <- which(fold == k)
     train <- which(fold != k)
     weights_train <- if (!is.null(sw)) sw[train] else NULL
     if (verbose) message("[autocf:", cand, "] fold ", k, "/", K)
 
-    Y.hat[test] <- fit_fn(
-      X_train = X[train, , drop = FALSE], y_train = Y[train],
-      X_test  = X[test,  , drop = FALSE],
-      family  = "gaussian",
-      weights = weights_train,
-      tabpfn_args = tabpfn_args,
-      glmnet_args = glmnet_args,
-      xgboost_args = xgboost_args,
-      bart_args   = bart_args,
-      term_evals  = term_evals,
-      seed = seed + k
-    )
-    W.hat[test] <- fit_fn(
-      X_train = X[train, , drop = FALSE], y_train = W[train],
-      X_test  = X[test,  , drop = FALSE],
-      family  = if (w_type == "binary") "binomial" else "gaussian",
-      weights = weights_train,
-      tabpfn_args = tabpfn_args,
-      glmnet_args = glmnet_args,
-      xgboost_args = xgboost_args,
-      bart_args   = bart_args,
-      term_evals  = term_evals,
-      seed = seed + K + k
-    )
+    if (!is_grf) {
+      Y.hat[test] <- fit_fn(
+        X_train = X[train, , drop = FALSE], y_train = Y[train],
+        X_test  = X[test,  , drop = FALSE],
+        family  = "gaussian",
+        weights = weights_train,
+        tabpfn_args = tabpfn_args,
+        glmnet_args = glmnet_args,
+        xgboost_args = xgboost_args,
+        bart_args   = bart_args,
+        term_evals  = term_evals,
+        seed = seed + k
+      )
+      W.hat[test] <- fit_fn(
+        X_train = X[train, , drop = FALSE], y_train = W[train],
+        X_test  = X[test,  , drop = FALSE],
+        family  = if (w_type == "binary") "binomial" else "gaussian",
+        weights = weights_train,
+        tabpfn_args = tabpfn_args,
+        glmnet_args = glmnet_args,
+        xgboost_args = xgboost_args,
+        bart_args   = bart_args,
+        term_evals  = term_evals,
+        seed = seed + K + k
+      )
+    }
 
     w_test <- if (!is.null(sw)) sw[test] else rep(1, length(test))
     y_fold_loss[k] <- stats::weighted.mean((Y[test] - Y.hat[test])^2, w_test)
@@ -787,6 +811,13 @@ autocf <- function(c.forest,
 .autocf_fp_glmnet <- function(X_train, y_train, X_test, family,
                               weights = NULL, glmnet_args = list(),
                               seed = 1L, ...) {
+  if (anyNA(X_train) || anyNA(X_test)) {
+    imp <- glmnet::makeX(as.data.frame(X_train),
+                         as.data.frame(X_test),
+                         na.impute = TRUE)
+    X_train <- imp$x
+    X_test  <- imp$xtest
+  }
   if (family == "binomial") {
     if (is.factor(y_train))   y_train <- as.integer(y_train) - 1L
     else if (is.logical(y_train)) y_train <- as.integer(y_train)

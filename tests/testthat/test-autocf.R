@@ -83,15 +83,34 @@ test_that("autocf rejects non-integer K", {
   expect_error(autocf(cf, K = 1, pool = "grf"),   "integer")
 })
 
-test_that("autocf errors on NA in X / Y / W", {
+test_that("autocf errors on NA in Y / W but tolerates NA in X", {
   cf <- make_small_cf(n = 40, w_kind = "binary")
   X  <- cf$X.orig; Y <- cf$Y.orig; W <- cf$W.orig
   X_na <- X; X_na[1, 1] <- NA_real_
-  expect_error(autocf(cf, X = X_na, Y = Y, W = W, pool = "grf"), "NA")
+  # NA in X is tolerated by NA-safe candidates (e.g. grf via MIA)
+  expect_no_error(
+    suppressMessages(autocf(cf, X = X_na, Y = Y, W = W, pool = "grf",
+                            K = 3L, term_evals = 0L))
+  )
   Y_na <- Y; Y_na[1] <- NA_real_
   expect_error(autocf(cf, X = X, Y = Y_na, W = W, pool = "grf"), "NA")
   W_na <- W; W_na[1] <- NA
   expect_error(autocf(cf, X = X, Y = Y, W = W_na, pool = "grf"), "NA")
+})
+
+test_that("autocf glmnet candidate auto-imputes NAs in X via makeX", {
+  skip_if_not_installed("glmnet")
+  cf <- make_small_cf(n = 80, w_kind = "binary")
+  X  <- cf$X.orig; Y <- cf$Y.orig; W <- cf$W.orig
+  X_na <- X
+  X_na[cbind(c(1, 5, 9, 13), c(1, 2, 1, 2))] <- NA_real_
+  expect_message(
+    out <- autocf(cf, X = X_na, Y = Y, W = W,
+                  pool = c("grf", "glmnet"),
+                  K = 3L, term_evals = 0L),
+    "glmnet.*makeX"
+  )
+  expect_s3_class(out, "causal_forest")
 })
 
 # --- .autocf_w_type / .autocf_make_folds / .autocf_clip_propensity --------

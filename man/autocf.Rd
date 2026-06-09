@@ -32,7 +32,12 @@ hyperparameters for the refit.}
 
 \item{X, Y, W}{Optional overrides for the design matrix, outcome vector,
 and treatment vector. If \code{NULL} (default) they are recovered from
-\code{c.forest}.}
+\code{c.forest}. NAs in \code{X} are tolerated: \code{grf}, \code{xgboost}, \code{bart}, and
+\code{tabpfn} handle missingness natively; the \code{glmnet} candidate auto-
+imputes via \code{glmnet::makeX(na.impute = TRUE)} (mean for numeric
+columns, mode for factors), fit per training fold and applied to
+the held-out fold to avoid leakage. NAs in \code{Y} or \code{W} are not
+allowed.}
 
 \item{K}{Integer >= 2. Number of cross-fit folds shared across all
 candidates. Default \code{5}.}
@@ -135,16 +140,13 @@ W, which is identical to MSE on 0/1 outcomes), reports the comparison
 table, and only swaps in a competitor if it beats the grf baseline by
 a margin you choose.
 
-\strong{Apples-to-apples grf baseline.} The "grf"
-candidate in the pool is \strong{not} scored using \code{c.forest$Y.hat} /
-\code{W.hat}, because those come from grf's internal honest-split
-subsampling protocol --- not strict K-fold cross-fitting --- and would
-be unfair to compare against true K-fold OOF predictions from the
-other candidates. Instead, \code{autocf()} re-trains a
-\code{grf::regression_forest} on each held-out fold's training set and
-predicts on the held-out fold, producing strict K-fold OOF
-predictions for the "grf" candidate identically to every other
-candidate.
+\strong{grf baseline scored out-of-bag.} The "grf" candidate is scored on
+the fitted forest's own out-of-bag honest nuisances
+(\code{c.forest$Y.hat} / \code{c.forest$W.hat}) --- the predictions you actually
+keep --- rather than refit per fold. Every other candidate is still
+scored on strict K-fold OOF predictions. Per-fold weighted MSE for the
+grf baseline is computed by binning its OOB residuals into the same K
+folds, so the 1-SE comparison machinery is unchanged.
 
 \strong{1-SE rule for the swap.} With finite-sample CV
 noise any non-trivial candidate will produce some random improvement
