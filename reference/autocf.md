@@ -47,11 +47,17 @@ autocf(
 
   Optional overrides for the design matrix, outcome vector, and
   treatment vector. If `NULL` (default) they are recovered from
-  `c.forest`. NAs in `X` are tolerated: `grf`, `xgboost`, `bart`, and
-  `tabpfn` handle missingness natively; the `glmnet` candidate auto-
-  imputes via `glmnet::makeX(na.impute = TRUE)` (mean for numeric
-  columns, mode for factors), fit per training fold and applied to the
-  held-out fold to avoid leakage. NAs in `Y` or `W` are not allowed.
+  `c.forest`. `X` must be **fully numeric**: the grf baseline (always
+  present) and the final
+  [`grf::causal_forest()`](https://rdrr.io/pkg/grf/man/causal_forest.html)
+  refit both require a numeric design matrix, so factor/character
+  columns are rejected — encode them (e.g. one-hot via
+  [`model.matrix()`](https://rdrr.io/r/stats/model.matrix.html)) before
+  fitting. NAs in `X` are tolerated: `grf`, `xgboost`, `bart`, and
+  `tabpfn` handle missingness natively; the `glmnet` candidate
+  auto-imputes via `glmnet::makeX(na.impute = TRUE)` (mean imputation),
+  fit per training fold and applied to the held-out fold to avoid
+  leakage. NAs in `Y` or `W` are not allowed.
 
 - K:
 
@@ -117,7 +123,7 @@ autocf(
   is forwarded to
   [`tabpfn::tab_pfn()`](https://tabpfn.tidymodels.org/reference/tab_pfn.html);
   `glmnet_args` to
-  [`glmnet::cv.glmnet()`](https://rdrr.io/pkg/glmnet/man/cv.glmnet.html);
+  [`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html);
   `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
   `param_set$values` (use to set, e.g., `nthread = 4` for multi-core CPU
   or `device = "cuda"` to enable GPU on systems with a CUDA xgboost

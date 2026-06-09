@@ -98,12 +98,15 @@ hyperparameters for the refit.</p></dd>
 <dt id="arg-x-y-w">X, Y, W<a class="anchor" aria-label="anchor" href="#arg-x-y-w"></a></dt>
 <dd><p>Optional overrides for the design matrix, outcome vector,
 and treatment vector. If <code>NULL</code> (default) they are recovered from
-<code>c.forest</code>. NAs in <code>X</code> are tolerated: <code>grf</code>, <code>xgboost</code>, <code>bart</code>, and
-<code>tabpfn</code> handle missingness natively; the <code>glmnet</code> candidate auto-
-imputes via <code>glmnet::makeX(na.impute = TRUE)</code> (mean for numeric
-columns, mode for factors), fit per training fold and applied to
-the held-out fold to avoid leakage. NAs in <code>Y</code> or <code>W</code> are not
-allowed.</p></dd>
+<code>c.forest</code>. <code>X</code> must be <strong>fully numeric</strong>: the grf baseline (always
+present) and the final <code><a href="https://rdrr.io/pkg/grf/man/causal_forest.html" class="external-link">grf::causal_forest()</a></code> refit both require a
+numeric design matrix, so factor/character columns are rejected —
+encode them (e.g. one-hot via <code><a href="https://rdrr.io/r/stats/model.matrix.html" class="external-link">model.matrix()</a></code>) before fitting.
+NAs in <code>X</code> are tolerated: <code>grf</code>, <code>xgboost</code>, <code>bart</code>, and <code>tabpfn</code>
+handle missingness natively; the <code>glmnet</code> candidate auto-imputes via
+<code>glmnet::makeX(na.impute = TRUE)</code> (mean imputation), fit per training
+fold and applied to the held-out fold to avoid leakage. NAs in <code>Y</code>
+or <code>W</code> are not allowed.</p></dd>
 
 
 <dt id="arg-k">K<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
@@ -161,7 +164,7 @@ uses mlr3's default xgboost hyperparameters. Default <code>10L</code>.</p></dd>
 <dt id="arg-tabpfn-args-glmnet-args-xgboost-args-bart-args">tabpfn_args, glmnet_args, xgboost_args, bart_args<a class="anchor" aria-label="anchor" href="#arg-tabpfn-args-glmnet-args-xgboost-args-bart-args"></a></dt>
 <dd><p>Optional named
 lists of per-candidate extra arguments. <code>tabpfn_args</code> is forwarded
-to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
+to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
 <code>xgboost_args</code> is forwarded to the mlr3 <code>xgboost</code> learner's
 <code>param_set$values</code> (use to set, e.g., <code>nthread = 4</code> for multi-core
 CPU or <code>device = "cuda"</code> to enable GPU on systems with a CUDA
