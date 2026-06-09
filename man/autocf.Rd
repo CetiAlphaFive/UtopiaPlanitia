@@ -32,12 +32,15 @@ hyperparameters for the refit.}
 
 \item{X, Y, W}{Optional overrides for the design matrix, outcome vector,
 and treatment vector. If \code{NULL} (default) they are recovered from
-\code{c.forest}. NAs in \code{X} are tolerated: \code{grf}, \code{xgboost}, \code{bart}, and
-\code{tabpfn} handle missingness natively; the \code{glmnet} candidate auto-
-imputes via \code{glmnet::makeX(na.impute = TRUE)} (mean for numeric
-columns, mode for factors), fit per training fold and applied to
-the held-out fold to avoid leakage. NAs in \code{Y} or \code{W} are not
-allowed.}
+\code{c.forest}. \code{X} must be \strong{fully numeric}: the grf baseline (always
+present) and the final \code{grf::causal_forest()} refit both require a
+numeric design matrix, so factor/character columns are rejected ---
+encode them (e.g. one-hot via \code{model.matrix()}) before fitting.
+NAs in \code{X} are tolerated: \code{grf}, \code{xgboost}, \code{bart}, and \code{tabpfn}
+handle missingness natively; the \code{glmnet} candidate auto-imputes via
+\code{glmnet::makeX(na.impute = TRUE)} (mean imputation), fit per training
+fold and applied to the held-out fold to avoid leakage. NAs in \code{Y}
+or \code{W} are not allowed.}
 
 \item{K}{Integer >= 2. Number of cross-fit folds shared across all
 candidates. Default \code{5}.}

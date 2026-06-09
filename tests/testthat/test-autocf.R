@@ -98,6 +98,26 @@ test_that("autocf errors on NA in Y / W but tolerates NA in X", {
   expect_error(autocf(cf, X = X, Y = Y, W = W_na, pool = "grf"), "NA")
 })
 
+test_that("autocf rejects non-numeric (factor/character) columns in X", {
+  cf <- make_small_cf(n = 40, w_kind = "binary")
+  X  <- cf$X.orig; Y <- cf$Y.orig; W <- cf$W.orig
+  # grf requires a numeric design matrix; factor columns must be rejected
+  # up front with an explicit message rather than silently coerced.
+  Xdf <- as.data.frame(X)
+  Xdf$grp <- factor(rep(c("a", "b"), length.out = nrow(Xdf)))
+  expect_error(
+    autocf(cf, X = Xdf, Y = Y, W = W, pool = "grf"),
+    "fully numeric|numeric design matrix"
+  )
+  # character columns likewise
+  Xdf2 <- as.data.frame(X)
+  Xdf2$lab <- rep(c("x", "y"), length.out = nrow(Xdf2))
+  expect_error(
+    autocf(cf, X = Xdf2, Y = Y, W = W, pool = "grf"),
+    "fully numeric|numeric design matrix"
+  )
+})
+
 test_that("autocf glmnet candidate auto-imputes NAs in X via makeX", {
   skip_if_not_installed("glmnet")
   cf <- make_small_cf(n = 80, w_kind = "binary")

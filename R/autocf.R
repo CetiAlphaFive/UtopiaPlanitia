@@ -14,12 +14,15 @@
 #'   hyperparameters for the refit.
 #' @param X,Y,W Optional overrides for the design matrix, outcome vector,
 #'   and treatment vector. If `NULL` (default) they are recovered from
-#'   `c.forest`. NAs in `X` are tolerated: `grf`, `xgboost`, `bart`, and
-#'   `tabpfn` handle missingness natively; the `glmnet` candidate auto-
-#'   imputes via `glmnet::makeX(na.impute = TRUE)` (mean for numeric
-#'   columns, mode for factors), fit per training fold and applied to
-#'   the held-out fold to avoid leakage. NAs in `Y` or `W` are not
-#'   allowed.
+#'   `c.forest`. `X` must be **fully numeric**: the grf baseline (always
+#'   present) and the final `grf::causal_forest()` refit both require a
+#'   numeric design matrix, so factor/character columns are rejected ---
+#'   encode them (e.g. one-hot via `model.matrix()`) before fitting.
+#'   NAs in `X` are tolerated: `grf`, `xgboost`, `bart`, and `tabpfn`
+#'   handle missingness natively; the `glmnet` candidate auto-imputes via
+#'   `glmnet::makeX(na.impute = TRUE)` (mean imputation), fit per training
+#'   fold and applied to the held-out fold to avoid leakage. NAs in `Y`
+#'   or `W` are not allowed.
 #' @param K Integer >= 2. Number of cross-fit folds shared across all
 #'   candidates. Default `5`.
 #' @param seed Integer seed for fold assignment, per-candidate RNG, and
@@ -221,6 +224,23 @@ autocf <- function(c.forest,
     stop("Could not recover X, Y, W from `c.forest`. ",
          "Pass them explicitly via the X, Y, W arguments.", call. = FALSE)
   }
+  # grf --- the mandatory baseline and the final causal_forest estimator
+  # --- requires a fully numeric design matrix. The competing candidates
+  # (glmnet/xgboost/bart/tabpfn) could in principle ingest factors, but
+  # autocf() cannot, because every run is anchored on grf. Reject
+  # non-numeric columns up front with an explicit message instead of
+  # letting as.matrix() silently coerce to a character matrix.
+  if (is.data.frame(X)) {
+    nonnum <- names(X)[!vapply(X, is.numeric, logical(1L))]
+    if (length(nonnum) > 0L) {
+      stop("`X` must be fully numeric; grf requires a numeric design ",
+           "matrix. Non-numeric column(s): ",
+           paste(nonnum, collapse = ", "),
+           ". Encode factor/character variables (e.g. one-hot via ",
+           "model.matrix()) before fitting the causal forest.",
+           call. = FALSE)
+    }
+  }
   X <- as.matrix(X)
   # Normalize colnames so train_df = data.frame(X_train, .y) and
   # test_df = as.data.frame(X_test) carry identical column names. Without
@@ -232,7 +252,9 @@ autocf <- function(c.forest,
     colnames(X) <- paste0("V", seq_len(ncol(X)))
   }
   if (!is.numeric(X)) {
-    stop("`X` must be a numeric matrix or coercible to one.", call. = FALSE)
+    stop("`X` must be a numeric matrix; grf requires numeric columns. ",
+         "Encode any factor/character variables (e.g. one-hot via ",
+         "model.matrix()) before fitting.", call. = FALSE)
   }
   if (anyNA(Y)) stop("`Y` contains NAs.", call. = FALSE)
   if (anyNA(W)) stop("`W` contains NAs.", call. = FALSE)
@@ -288,9 +310,9 @@ autocf <- function(c.forest,
   }
   if ("glmnet" %in% pool_run && anyNA(X)) {
     message("autocf: `X` contains NAs. The glmnet candidate auto-imputes ",
-            "via glmnet::makeX(na.impute = TRUE) (mean for numeric, mode ",
-            "for factors), fit per training fold and applied to the ",
-            "held-out fold. All other candidates receive `X` unchanged.")
+            "via glmnet::makeX(na.impute = TRUE) (mean imputation), fit ",
+            "per training fold and applied to the held-out fold. All ",
+            "other candidates receive `X` unchanged.")
   }
 
   # ---- 5. force sequential future plan for reproducibility ----------------
