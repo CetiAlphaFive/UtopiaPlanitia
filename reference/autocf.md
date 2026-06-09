@@ -47,7 +47,11 @@ autocf(
 
   Optional overrides for the design matrix, outcome vector, and
   treatment vector. If `NULL` (default) they are recovered from
-  `c.forest`.
+  `c.forest`. NAs in `X` are tolerated: `grf`, `xgboost`, `bart`, and
+  `tabpfn` handle missingness natively; the `glmnet` candidate auto-
+  imputes via `glmnet::makeX(na.impute = TRUE)` (mean for numeric
+  columns, mode for factors), fit per training fold and applied to the
+  held-out fold to avoid leakage. NAs in `Y` or `W` are not allowed.
 
 - K:
 
@@ -113,7 +117,7 @@ autocf(
   is forwarded to
   [`tabpfn::tab_pfn()`](https://tabpfn.tidymodels.org/reference/tab_pfn.html);
   `glmnet_args` to
-  [`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html);
+  [`glmnet::cv.glmnet()`](https://rdrr.io/pkg/glmnet/man/cv.glmnet.html);
   `xgboost_args` is forwarded to the mlr3 `xgboost` learner's
   `param_set$values` (use to set, e.g., `nthread = 4` for multi-core CPU
   or `device = "cuda"` to enable GPU on systems with a CUDA xgboost
@@ -198,15 +202,13 @@ identical to MSE on 0/1 outcomes), reports the comparison table, and
 only swaps in a competitor if it beats the grf baseline by a margin you
 choose.
 
-**Apples-to-apples grf baseline.** The "grf" candidate in the pool is
-**not** scored using `c.forest$Y.hat` / `W.hat`, because those come from
-grf's internal honest-split subsampling protocol — not strict K-fold
-cross-fitting — and would be unfair to compare against true K-fold OOF
-predictions from the other candidates. Instead, `autocf()` re-trains a
-[`grf::regression_forest`](https://rdrr.io/pkg/grf/man/regression_forest.html)
-on each held-out fold's training set and predicts on the held-out fold,
-producing strict K-fold OOF predictions for the "grf" candidate
-identically to every other candidate.
+**grf baseline scored out-of-bag.** The "grf" candidate is scored on the
+fitted forest's own out-of-bag honest nuisances (`c.forest$Y.hat` /
+`c.forest$W.hat`) — the predictions you actually keep — rather than
+refit per fold. Every other candidate is still scored on strict K-fold
+OOF predictions. Per-fold weighted MSE for the grf baseline is computed
+by binning its OOB residuals into the same K folds, so the 1-SE
+comparison machinery is unchanged.
 
 **1-SE rule for the swap.** With finite-sample CV noise any non-trivial
 candidate will produce some random improvement on a particular seed.

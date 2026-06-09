@@ -98,7 +98,12 @@ hyperparameters for the refit.</p></dd>
 <dt id="arg-x-y-w">X, Y, W<a class="anchor" aria-label="anchor" href="#arg-x-y-w"></a></dt>
 <dd><p>Optional overrides for the design matrix, outcome vector,
 and treatment vector. If <code>NULL</code> (default) they are recovered from
-<code>c.forest</code>.</p></dd>
+<code>c.forest</code>. NAs in <code>X</code> are tolerated: <code>grf</code>, <code>xgboost</code>, <code>bart</code>, and
+<code>tabpfn</code> handle missingness natively; the <code>glmnet</code> candidate auto-
+imputes via <code>glmnet::makeX(na.impute = TRUE)</code> (mean for numeric
+columns, mode for factors), fit per training fold and applied to
+the held-out fold to avoid leakage. NAs in <code>Y</code> or <code>W</code> are not
+allowed.</p></dd>
 
 
 <dt id="arg-k">K<a class="anchor" aria-label="anchor" href="#arg-k"></a></dt>
@@ -156,7 +161,7 @@ uses mlr3's default xgboost hyperparameters. Default <code>10L</code>.</p></dd>
 <dt id="arg-tabpfn-args-glmnet-args-xgboost-args-bart-args">tabpfn_args, glmnet_args, xgboost_args, bart_args<a class="anchor" aria-label="anchor" href="#arg-tabpfn-args-glmnet-args-xgboost-args-bart-args"></a></dt>
 <dd><p>Optional named
 lists of per-candidate extra arguments. <code>tabpfn_args</code> is forwarded
-to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://glmnet.stanford.edu/reference/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
+to <code><a href="https://tabpfn.tidymodels.org/reference/tab_pfn.html" class="external-link">tabpfn::tab_pfn()</a></code>; <code>glmnet_args</code> to <code><a href="https://rdrr.io/pkg/glmnet/man/cv.glmnet.html" class="external-link">glmnet::cv.glmnet()</a></code>;
 <code>xgboost_args</code> is forwarded to the mlr3 <code>xgboost</code> learner's
 <code>param_set$values</code> (use to set, e.g., <code>nthread = 4</code> for multi-core
 CPU or <code>device = "cuda"</code> to enable GPU on systems with a CUDA
@@ -230,16 +235,13 @@ pool under a shared K-fold cross-fit protocol with weighted CV loss
 W, which is identical to MSE on 0/1 outcomes), reports the comparison
 table, and only swaps in a competitor if it beats the grf baseline by
 a margin you choose.</p>
-<p><strong>Apples-to-apples grf baseline.</strong> The "grf"
-candidate in the pool is <strong>not</strong> scored using <code>c.forest$Y.hat</code> /
-<code>W.hat</code>, because those come from grf's internal honest-split
-subsampling protocol — not strict K-fold cross-fitting — and would
-be unfair to compare against true K-fold OOF predictions from the
-other candidates. Instead, <code>autocf()</code> re-trains a
-<code><a href="https://rdrr.io/pkg/grf/man/regression_forest.html" class="external-link">grf::regression_forest</a></code> on each held-out fold's training set and
-predicts on the held-out fold, producing strict K-fold OOF
-predictions for the "grf" candidate identically to every other
-candidate.</p>
+<p><strong>grf baseline scored out-of-bag.</strong> The "grf" candidate is scored on
+the fitted forest's own out-of-bag honest nuisances
+(<code>c.forest$Y.hat</code> / <code>c.forest$W.hat</code>) — the predictions you actually
+keep — rather than refit per fold. Every other candidate is still
+scored on strict K-fold OOF predictions. Per-fold weighted MSE for the
+grf baseline is computed by binning its OOB residuals into the same K
+folds, so the 1-SE comparison machinery is unchanged.</p>
 <p><strong>1-SE rule for the swap.</strong> With finite-sample CV
 noise any non-trivial candidate will produce some random improvement
 on a particular seed. Default <code>min_improvement = "1se"</code> requires the
