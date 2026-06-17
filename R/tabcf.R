@@ -16,11 +16,26 @@
 #'   `c.forest`.
 #' @param K Integer >= 2. Number of folds for cross-fitting the TabPFN
 #'   nuisances. Default `5`.
+#' @param R Integer >= 1. Number of repeated K-fold cross-fits. Each repeat
+#'   uses a distinct fold partition (seeded `seed + (r - 1)`) and the per-unit
+#'   nuisance predictions are averaged across repeats to reduce the
+#'   Monte-Carlo variance of a single partition. `R = 1` (default) reproduces
+#'   the original single cross-fit exactly. Cost scales as `R * K * 2` TabPFN
+#'   fits.
 #' @param seed Integer seed controlling fold assignment and the downstream
 #'   `grf::causal_forest()` call. Default `1995`.
-#' @param eps Numeric in `(0, 0.5)`. Propensity clipping bound for binary
-#'   `W`: TabPFN classifier predictions are clipped to `[eps, 1 - eps]` to
-#'   preserve overlap. Default `1e-3`.
+#' @param clip Propensity clipping control for binary `W`. One of:
+#'   \itemize{
+#'     \item `FALSE` (default): no clipping. If any averaged propensity falls
+#'       outside `[0.01, 0.99]`, a warning reports the count and min/max.
+#'     \item `TRUE`: clip to `[1e-3, 1 - 1e-3]`.
+#'     \item `c(lo, hi)`: clip to `[lo, hi]` with `0 < lo < hi < 1`.
+#'   }
+#'   When clipping is active it is applied within each repeat before
+#'   averaging. Ignored for continuous `W`.
+#' @param eps Deprecated; use `clip`. If supplied, maps to
+#'   `clip = c(eps, 1 - eps)` with a deprecation warning. Passing both `eps`
+#'   and `clip` is an error. Default `NULL`.
 #' @param tuning Character scalar controlling how `grf::causal_forest()`
 #'   tunable hyperparameters (`min.node.size`, `mtry`, `sample.fraction`,
 #'   `honesty.fraction`, `honesty.prune.leaves`, `alpha`,
@@ -54,11 +69,13 @@
 #'   attribute `"tabcf_meta"` records the cross-fit configuration:
 #'   \describe{
 #'     \item{K}{Number of folds.}
+#'     \item{R}{Number of repeated cross-fits.}
 #'     \item{seed}{Seed used.}
-#'     \item{eps}{Propensity clipping bound used (binary `W` only).}
+#'     \item{clip}{The resolved clip setting: `FALSE` (no clipping) or the
+#'       numeric `c(lo, hi)` bounds used.}
 #'     \item{w_type}{`"binary"` or `"continuous"`.}
 #'     \item{clipped}{Number of propensity predictions clipped to the
-#'       overlap region `[eps, 1 - eps]` (binary `W` only).}
+#'       active `clip` bounds (binary `W` only; `0` when `clip = FALSE`).}
 #'     \item{tuning}{The `tuning` mode used (`"orig"`, `"cf.default"`,
 #'       or `"cf.autotune"`).}
 #'   }
@@ -74,17 +91,18 @@
 #' classification tasks. Better nuisance fits reduce bias in the Robinson
 #' (1988) residualisation step that underlies `grf::causal_forest()`.
 #'
-#' **Cross-fitting.** TabPFN nuisance predictions are produced via K-fold
-#' cross-fitting: for each fold, TabPFN is trained on the other `K - 1`
-#' folds and predicts on the held-out fold. This avoids using a unit's
-#' own outcome to predict its own residual. If `c.forest$clusters` is
-#' non-trivial, folds are built so that all units in a cluster end up in
-#' the same fold (preserving \pkg{grf}'s cluster-aware inference).
+#' **Cross-fitting and repeats.** For each of `R` repeats, TabPFN nuisance
+#' predictions are produced via K-fold cross-fitting under a distinct fold
+#' partition; the per-unit predictions are then averaged across repeats. With
+#' `R = 1` this is a single cross-fit identical to earlier versions. If
+#' `c.forest$clusters` is non-trivial, folds keep each cluster intact.
 #'
 #' **Treatment type.** `W` is treated as binary if it is `{0, 1}`-valued
 #' (numeric or integer with both levels present), a logical, or a 2-level
 #' factor; in that case TabPFN's classifier is fit and propensity scores
-#' are clipped to `[eps, 1 - eps]` to preserve overlap. Otherwise `W` is
+#' are optionally clipped per the `clip` argument (default no clipping, with
+#' an overlap warning if any averaged propensity leaves `[0.01, 0.99]`).
+#' Otherwise `W` is
 #' treated as continuous and TabPFN's regressor is fit. If `W` is numeric
 #' with exactly 2 unique values that are not `{0, 1}` (e.g. `{1, 2}` or
 #' `{-1, 1}`), `tabcf()` emits a warning and falls back to the regressor;
@@ -179,6 +197,9 @@
 #'
 #' # re-tune from scratch under TabPFN nuisances
 #' cf4 <- tabcf(cf, K = 5, tuning = "cf.autotune")
+#'
+#' # repeated 10x 5-fold cross-fit, clip propensities to [0.01, 0.99]
+#' cf5 <- tabcf(cf, K = 5, R = 10, clip = c(0.01, 0.99))
 #' }
 tabcf <- function(c.forest,
                   X = NULL, Y = NULL, W = NULL,

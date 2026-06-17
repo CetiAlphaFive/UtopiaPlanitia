@@ -10,8 +10,10 @@ tabcf(
   Y = NULL,
   W = NULL,
   K = 5L,
+  R = 1L,
   seed = 1995L,
-  eps = 0.001,
+  clip = FALSE,
+  eps = NULL,
   tuning = c("orig", "cf.default", "cf.autotune"),
   tabpfn_args = list(),
   verbose = FALSE,
@@ -32,12 +34,29 @@ and treatment vector. Useful when \code{c.forest} was stripped (no
 \item{K}{Integer >= 2. Number of folds for cross-fitting the TabPFN
 nuisances. Default \code{5}.}
 
+\item{R}{Integer >= 1. Number of repeated K-fold cross-fits. Each repeat
+uses a distinct fold partition (seeded \code{seed + (r - 1)}) and the per-unit
+nuisance predictions are averaged across repeats to reduce the
+Monte-Carlo variance of a single partition. \code{R = 1} (default) reproduces
+the original single cross-fit exactly. Cost scales as \code{R * K * 2} TabPFN
+fits.}
+
 \item{seed}{Integer seed controlling fold assignment and the downstream
 \code{grf::causal_forest()} call. Default \code{1995}.}
 
-\item{eps}{Numeric in \verb{(0, 0.5)}. Propensity clipping bound for binary
-\code{W}: TabPFN classifier predictions are clipped to \verb{[eps, 1 - eps]} to
-preserve overlap. Default \code{1e-3}.}
+\item{clip}{Propensity clipping control for binary \code{W}. One of:
+\itemize{
+\item \code{FALSE} (default): no clipping. If any averaged propensity falls
+outside \verb{[0.01, 0.99]}, a warning reports the count and min/max.
+\item \code{TRUE}: clip to \verb{[1e-3, 1 - 1e-3]}.
+\item \code{c(lo, hi)}: clip to \verb{[lo, hi]} with \verb{0 < lo < hi < 1}.
+}
+When clipping is active it is applied within each repeat before
+averaging. Ignored for continuous \code{W}.}
+
+\item{eps}{Deprecated; use \code{clip}. If supplied, maps to
+\code{clip = c(eps, 1 - eps)} with a deprecation warning. Passing both \code{eps}
+and \code{clip} is an error. Default \code{NULL}.}
 
 \item{tuning}{Character scalar controlling how \code{grf::causal_forest()}
 tunable hyperparameters (\code{min.node.size}, \code{mtry}, \code{sample.fraction},
@@ -75,11 +94,13 @@ A \code{grf::causal_forest} object with TabPFN-derived \code{Y.hat} and
 attribute \code{"tabcf_meta"} records the cross-fit configuration:
 \describe{
 \item{K}{Number of folds.}
+\item{R}{Number of repeated cross-fits.}
 \item{seed}{Seed used.}
-\item{eps}{Propensity clipping bound used (binary \code{W} only).}
+\item{clip}{The resolved clip setting: \code{FALSE} (no clipping) or the
+numeric \code{c(lo, hi)} bounds used.}
 \item{w_type}{\code{"binary"} or \code{"continuous"}.}
 \item{clipped}{Number of propensity predictions clipped to the
-overlap region \verb{[eps, 1 - eps]} (binary \code{W} only).}
+active \code{clip} bounds (binary \code{W} only; \code{0} when \code{clip = FALSE}).}
 \item{tuning}{The \code{tuning} mode used (\code{"orig"}, \code{"cf.default"},
 or \code{"cf.autotune"}).}
 }
@@ -102,17 +123,18 @@ boosting on small-to-medium tabular regression and binary
 classification tasks. Better nuisance fits reduce bias in the Robinson
 (1988) residualisation step that underlies \code{grf::causal_forest()}.
 
-\strong{Cross-fitting.} TabPFN nuisance predictions are produced via K-fold
-cross-fitting: for each fold, TabPFN is trained on the other \code{K - 1}
-folds and predicts on the held-out fold. This avoids using a unit's
-own outcome to predict its own residual. If \code{c.forest$clusters} is
-non-trivial, folds are built so that all units in a cluster end up in
-the same fold (preserving \pkg{grf}'s cluster-aware inference).
+\strong{Cross-fitting and repeats.} For each of \code{R} repeats, TabPFN nuisance
+predictions are produced via K-fold cross-fitting under a distinct fold
+partition; the per-unit predictions are then averaged across repeats. With
+\code{R = 1} this is a single cross-fit identical to earlier versions. If
+\code{c.forest$clusters} is non-trivial, folds keep each cluster intact.
 
 \strong{Treatment type.} \code{W} is treated as binary if it is \verb{\{0, 1\}}-valued
 (numeric or integer with both levels present), a logical, or a 2-level
 factor; in that case TabPFN's classifier is fit and propensity scores
-are clipped to \verb{[eps, 1 - eps]} to preserve overlap. Otherwise \code{W} is
+are optionally clipped per the \code{clip} argument (default no clipping, with
+an overlap warning if any averaged propensity leaves \verb{[0.01, 0.99]}).
+Otherwise \code{W} is
 treated as continuous and TabPFN's regressor is fit. If \code{W} is numeric
 with exactly 2 unique values that are not \verb{\{0, 1\}} (e.g. \verb{\{1, 2\}} or
 \verb{\{-1, 1\}}), \code{tabcf()} emits a warning and falls back to the regressor;
@@ -186,6 +208,9 @@ cf3 <- tabcf(cf, K = 5, tuning = "cf.default")
 
 # re-tune from scratch under TabPFN nuisances
 cf4 <- tabcf(cf, K = 5, tuning = "cf.autotune")
+
+# repeated 10x 5-fold cross-fit, clip propensities to [0.01, 0.99]
+cf5 <- tabcf(cf, K = 5, R = 10, clip = c(0.01, 0.99))
 }
 }
 \references{
