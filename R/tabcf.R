@@ -396,6 +396,47 @@ tabcf <- function(c.forest,
 
 #' @keywords internal
 #' @noRd
+#' @description
+#' Resolve the user-facing `clip`/`eps` arguments into a normalized
+#' `list(active, lo, hi)`. Owns the `eps` deprecation, validation, and the
+#' eps/clip conflict error so `tabcf()` stays linear.
+.tabcf_resolve_clip <- function(clip = FALSE, eps = NULL) {
+  eps_given       <- !is.null(eps)
+  clip_is_default <- isFALSE(clip)
+
+  if (eps_given && !clip_is_default) {
+    stop("Pass either `clip` or the deprecated `eps`, not both.",
+         call. = FALSE)
+  }
+
+  if (eps_given) {
+    warning("`eps` is deprecated; use `clip = c(lo, hi)`. ",
+            "Mapping `eps` to `clip = c(eps, 1 - eps)`.", call. = FALSE)
+    if (!is.numeric(eps) || length(eps) != 1L || is.na(eps) ||
+        eps <= 0 || eps >= 0.5) {
+      stop("`eps` must be a single numeric in (0, 0.5).", call. = FALSE)
+    }
+    return(list(active = TRUE, lo = eps, hi = 1 - eps))
+  }
+
+  if (is.logical(clip) && length(clip) == 1L && !is.na(clip)) {
+    if (!clip) return(list(active = FALSE, lo = NA_real_, hi = NA_real_))
+    return(list(active = TRUE, lo = 1e-3, hi = 1 - 1e-3))
+  }
+
+  if (is.numeric(clip) && length(clip) == 2L && !anyNA(clip)) {
+    lo <- clip[1L]; hi <- clip[2L]
+    if (!(lo > 0 && hi < 1 && lo < hi)) {
+      stop("`clip` range must satisfy 0 < lo < hi < 1.", call. = FALSE)
+    }
+    return(list(active = TRUE, lo = lo, hi = hi))
+  }
+
+  stop("`clip` must be FALSE, TRUE, or a numeric c(lo, hi).", call. = FALSE)
+}
+
+#' @keywords internal
+#' @noRd
 .tabcf_w_type <- function(W) {
   if (is.factor(W)) {
     if (nlevels(W) == 2L) return("binary")

@@ -361,3 +361,55 @@ test_that("tabcf records the tuning mode in tabcf_meta (binary W)", {
   cf_def  <- tabcf(cf, K = 2, tuning = "cf.default")
   expect_equal(attr(cf_def, "tabcf_meta")$tuning, "cf.default")
 })
+
+# --- .tabcf_resolve_clip ----------------------------------------------------
+test_that(".tabcf_resolve_clip: FALSE means no clipping", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  out <- rc(clip = FALSE, eps = NULL)
+  expect_false(out$active)
+})
+
+test_that(".tabcf_resolve_clip: TRUE uses default bound", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  out <- rc(clip = TRUE, eps = NULL)
+  expect_true(out$active)
+  expect_equal(out$lo, 1e-3)
+  expect_equal(out$hi, 1 - 1e-3)
+})
+
+test_that(".tabcf_resolve_clip: c(lo,hi) sets manual range", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  out <- rc(clip = c(0.01, 0.99), eps = NULL)
+  expect_true(out$active)
+  expect_equal(out$lo, 0.01)
+  expect_equal(out$hi, 0.99)
+})
+
+test_that(".tabcf_resolve_clip: invalid range errors", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  expect_error(rc(clip = c(0.9, 0.1)), "0 < lo < hi < 1")
+  expect_error(rc(clip = c(-0.1, 0.9)), "0 < lo < hi < 1")
+  expect_error(rc(clip = c(0.1, 1.2)), "0 < lo < hi < 1")
+  expect_error(rc(clip = c(0.1, 0.2, 0.3)), "FALSE, TRUE, or a numeric")
+})
+
+test_that(".tabcf_resolve_clip: eps is deprecated and maps to clip range", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  expect_warning(out <- rc(clip = FALSE, eps = 0.05), "deprecated")
+  expect_true(out$active)
+  expect_equal(out$lo, 0.05)
+  expect_equal(out$hi, 0.95)
+})
+
+test_that(".tabcf_resolve_clip: invalid eps errors", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  expect_error(suppressWarnings(rc(eps = 0)), "eps")
+  expect_error(suppressWarnings(rc(eps = 0.5)), "eps")
+  expect_error(suppressWarnings(rc(eps = c(0.1, 0.2))), "eps")
+})
+
+test_that(".tabcf_resolve_clip: eps + non-default clip conflict errors", {
+  rc <- UtopiaPlanitia:::.tabcf_resolve_clip
+  expect_error(rc(clip = c(0.01, 0.99), eps = 0.05), "not both")
+  expect_error(rc(clip = TRUE, eps = 0.05), "not both")
+})
