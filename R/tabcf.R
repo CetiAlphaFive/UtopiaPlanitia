@@ -302,7 +302,9 @@ tabcf <- function(c.forest,
   clipped <- agg$clipped
 
   # Overlap warning fires only when clipping is OFF (binary W).
-  .tabcf_check_overlap(W.hat, active = (!clip_spec$active && w_type == "binary"))
+  .tabcf_check_overlap(
+    W.hat, active = (!clip_spec$active && w_type == "binary")
+  )
 
   if (clipped > 0L) {
     warning("tabcf(): clipped ", clipped,
@@ -421,7 +423,8 @@ tabcf <- function(c.forest,
   }
 
   if (is.numeric(clip) && length(clip) == 2L && !anyNA(clip)) {
-    lo <- clip[1L]; hi <- clip[2L]
+    lo <- clip[1L]
+    hi <- clip[2L]
     if (!(lo > 0 && hi < 1 && lo < hi)) {
       stop("`clip` range must satisfy 0 < lo < hi < 1.", call. = FALSE)
     }
