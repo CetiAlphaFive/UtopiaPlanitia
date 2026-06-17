@@ -508,6 +508,27 @@ tabcf <- function(c.forest,
 #' @keywords internal
 #' @noRd
 #' @description
+#' Warn (do not modify) when binary propensity predictions fall outside the
+#' fixed overlap window `[0.01, 0.99]`. Reports the count outside and the
+#' observed min/max. No-op when `active = FALSE` (continuous W or clipping on).
+.tabcf_check_overlap <- function(W.hat, active = TRUE) {
+  if (!active) return(invisible(NULL))
+  out <- W.hat < 0.01 | W.hat > 0.99
+  n_out <- sum(out, na.rm = TRUE)
+  if (n_out > 0L) {
+    warning("tabcf(): ", n_out, " of ", length(W.hat),
+            " propensity prediction(s) fall outside [0.01, 0.99] ",
+            "(min = ", signif(min(W.hat), 3L),
+            ", max = ", signif(max(W.hat), 3L),
+            "). Possible overlap violation; set `clip = TRUE` or ",
+            "`clip = c(lo, hi)` to clip.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' @keywords internal
+#' @noRd
+#' @description
 #' Decide which factor level of `y_train` corresponds to "treated" (W = 1)
 #' so that the classifier's positive-class probability can be extracted.
 #' Rules:

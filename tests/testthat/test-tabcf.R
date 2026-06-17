@@ -410,3 +410,25 @@ test_that(".tabcf_resolve_clip: eps + non-default clip conflict errors", {
   expect_error(rc(clip = c(0.01, 0.99), eps = 0.05), "not both")
   expect_error(rc(clip = TRUE, eps = 0.05), "not both")
 })
+
+# --- .tabcf_check_overlap ---------------------------------------------------
+test_that(".tabcf_check_overlap warns on out-of-range propensities", {
+  chk <- UtopiaPlanitia:::.tabcf_check_overlap
+  expect_warning(chk(c(0.005, 0.5, 0.995), active = TRUE),
+                 "outside \\[0.01, 0.99\\]")
+})
+
+test_that(".tabcf_check_overlap is silent when all in range", {
+  chk <- UtopiaPlanitia:::.tabcf_check_overlap
+  expect_silent(chk(c(0.2, 0.5, 0.8), active = TRUE))
+})
+
+test_that(".tabcf_check_overlap is silent when inactive", {
+  chk <- UtopiaPlanitia:::.tabcf_check_overlap
+  expect_silent(chk(c(0.001, 0.5, 0.999), active = FALSE))
+})
+
+test_that(".tabcf_check_overlap reports count and min/max", {
+  chk <- UtopiaPlanitia:::.tabcf_check_overlap
+  expect_warning(chk(c(0.005, 0.5, 0.995), active = TRUE), "2 of 3")
+})
