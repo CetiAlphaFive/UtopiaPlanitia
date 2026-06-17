@@ -263,7 +263,8 @@ test_that("tabcf cross-fits TabPFN nuisances and returns a causal_forest (binary
   meta <- attr(cf2, "tabcf_meta")
   expect_equal(meta$K, 2L)
   expect_equal(meta$w_type, "binary")
-  expect_equal(meta$eps, 1e-3)
+  expect_equal(meta$R, 1L)
+  expect_identical(meta$clip, FALSE)   # default: no clipping
 
   # TabPFN nuisances should differ from grf's default ones (sanity).
   expect_false(isTRUE(all.equal(cf$Y.hat, cf2$Y.hat)))
@@ -296,16 +297,35 @@ test_that("tabcf result is compatible with downstream methods", {
   expect_length(pr$predictions, nrow(cf$X.orig))
 })
 
-test_that("tabcf accepts custom eps and propagates to meta", {
+test_that("tabcf clip=c(lo,hi) clips and records range in meta", {
   skip_if_not_installed("tabpfn")
   skip_if(!nzchar(Sys.getenv("TABPFN_TOKEN")),
           "TABPFN_TOKEN not set; skipping live TabPFN test.")
   cf  <- make_small_cf(n = 60, w_kind = "binary")
-  cf2 <- tabcf(cf, K = 2, eps = 0.05)
+  cf2 <- tabcf(cf, K = 2, clip = c(0.05, 0.95))
   meta <- attr(cf2, "tabcf_meta")
-  expect_equal(meta$eps, 0.05)
+  expect_equal(meta$clip, c(0.05, 0.95))
   expect_true(all(cf2$W.hat >= 0.05))
   expect_true(all(cf2$W.hat <= 0.95))
+})
+
+test_that("tabcf eps still works via deprecation (gated)", {
+  skip_if_not_installed("tabpfn")
+  skip_if(!nzchar(Sys.getenv("TABPFN_TOKEN")),
+          "TABPFN_TOKEN not set; skipping live TabPFN test.")
+  cf  <- make_small_cf(n = 60, w_kind = "binary")
+  expect_warning(cf2 <- tabcf(cf, K = 2, eps = 0.05), "deprecated")
+  expect_equal(attr(cf2, "tabcf_meta")$clip, c(0.05, 0.95))
+})
+
+test_that("tabcf R>1 averages nuisances end-to-end (gated)", {
+  skip_if_not_installed("tabpfn")
+  skip_if(!nzchar(Sys.getenv("TABPFN_TOKEN")),
+          "TABPFN_TOKEN not set; skipping live TabPFN test.")
+  cf  <- make_small_cf(n = 60, w_kind = "binary")
+  cf2 <- tabcf(cf, K = 2, R = 2, clip = TRUE)
+  expect_equal(attr(cf2, "tabcf_meta")$R, 2L)
+  expect_length(cf2$W.hat, nrow(cf$X.orig))
 })
 
 # --- tuning argument and .tabcf_build_tune_args -----------------------------
