@@ -432,3 +432,26 @@ test_that(".tabcf_check_overlap reports count and min/max", {
   chk <- UtopiaPlanitia:::.tabcf_check_overlap
   expect_warning(chk(c(0.005, 0.5, 0.995), active = TRUE), "2 of 3")
 })
+
+# --- .tabcf_average_repeats -------------------------------------------------
+test_that(".tabcf_average_repeats averages per-unit and sums clipped", {
+  avg <- UtopiaPlanitia:::.tabcf_average_repeats
+  reps <- list(
+    list(Y.hat = c(0, 2), W.hat = c(0.2, 0.4), clipped = 1L),
+    list(Y.hat = c(2, 4), W.hat = c(0.4, 0.6), clipped = 2L)
+  )
+  out <- avg(reps)
+  expect_equal(out$Y.hat, c(1, 3))
+  expect_equal(out$W.hat, c(0.3, 0.5))
+  expect_equal(out$clipped, 3L)
+})
+
+test_that(".tabcf_average_repeats with R=1 returns the single repeat verbatim", {
+  avg <- UtopiaPlanitia:::.tabcf_average_repeats
+  reps <- list(list(Y.hat = c(1, 2, 3), W.hat = c(0.1, 0.2, 0.3),
+                    clipped = 0L))
+  out <- avg(reps)
+  expect_equal(out$Y.hat, c(1, 2, 3))
+  expect_equal(out$W.hat, c(0.1, 0.2, 0.3))
+  expect_equal(out$clipped, 0L)
+})

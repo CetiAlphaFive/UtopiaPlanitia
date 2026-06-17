@@ -529,6 +529,20 @@ tabcf <- function(c.forest,
 #' @keywords internal
 #' @noRd
 #' @description
+#' Average a list of per-repeat cross-fit results elementwise. Each element is
+#' `list(Y.hat, W.hat, clipped)`. Returns the mean `Y.hat`/`W.hat` and the
+#' total `clipped` across repeats.
+.tabcf_average_repeats <- function(reps) {
+  R <- length(reps)
+  Y.hat   <- Reduce(`+`, lapply(reps, `[[`, "Y.hat")) / R
+  W.hat   <- Reduce(`+`, lapply(reps, `[[`, "W.hat")) / R
+  clipped <- sum(vapply(reps, `[[`, integer(1L), "clipped"))
+  list(Y.hat = Y.hat, W.hat = W.hat, clipped = as.integer(clipped))
+}
+
+#' @keywords internal
+#' @noRd
+#' @description
 #' Decide which factor level of `y_train` corresponds to "treated" (W = 1)
 #' so that the classifier's positive-class probability can be extracted.
 #' Rules:
