@@ -51,7 +51,7 @@ Three functional clusters, all centered on a fitted `grf::causal_forest` (or rel
 Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W-hat), all returning a `causal_forest`-compatible object so downstream diagnostics work unchanged:
 | File | Export | Purpose |
 |------|--------|---------|
-| `autocf.R` | `autocf()` | Auto-selected nuisance causal forest (picks best nuisance learner) |
+| `autocf.R` | `autocf()` | Auto-selected nuisance causal forest. Cross-fits a pool of candidates (`grf`, `glmnet`, `xgboost`, `tabpfn`, `bart`), scores each by K-fold weighted MSE, picks the best per nuisance. Each candidate has its own `.autocf_fp_*` fit-predict closure; the `xgboost` candidate (and only that one) needs the `mlr3` stack (`mlr3`/`mlr3learners`/`mlr3tuning`/`paradox`) for its AutoTuner. `tabpfn` candidate is dropped when weights are non-trivial or `TABPFN_TOKEN` is unset |
 | `glmcf.R` | `glmcf()` | Nuisances via `cv.glmnet` |
 | `tabcf.R` | `tabcf()` | Nuisances via TabPFN (requires `TABPFN_TOKEN`) |
 | `setup_tabpfn_token.R` | `setup_tabpfn_token()` | Set up the `TABPFN_TOKEN` env var for `tabcf()` |
@@ -78,7 +78,7 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 | `utopia_plot.R` | `print.utopia_plot` | Shared S3 print method wrapping plot objects |
 | `omni_hetero` plotting | `plot.omni_hetero`, `print.omni_hetero` | S3 methods (in `plot.omni_hetero.R`) |
 
-`zzz.R` holds package `.onLoad`/`.onAttach` hooks. `R/old/` is archived/pruned code — not built.
+`zzz.R` holds package `.onLoad`/`.onAttach` hooks. `R/old/` is archived/pruned code — not built. `tools/blp_smoke.R` is a standalone `Rscript` smoke test that runs hetero + null toy DGPs through `omni_hetero() |> plot()` to eyeball the BLP calibration panel — handy after touching `plot_blp.R`/`omni_hetero.R`.
 
 ### Cross-cutting conventions
 - **S3 dispatch is the public interface.** A fitted `causal_forest` flows into `summary()` / `plot()`; LOCO objects (`cf_loco`) and test objects (`omni_hetero`) carry their own print/summary/plot methods. New functionality should return a classed object with matching S3 methods rather than printing directly.
@@ -89,7 +89,7 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 ## Dev Conventions
 
 - **Documentation:** roxygen2 (markdown enabled)
-- **Tests:** testthat edition 3; snapshots in `tests/testthat/_snaps/`
+- **Tests:** testthat edition 3; snapshots in `tests/testthat/_snaps/`. Slow Monte Carlo correctness tests (e.g. `test-h2-crossfit-typeI.R`, which checks the cross-fit High/Low test holds its nominal Type I rate) are gated behind `UTOPIA_RUN_SLOW_TESTS=1` and `skip_on_cran()` — set the env var to run them locally
 - **Site:** pkgdown (`_pkgdown.yml`)
 - **CRAN prep:** `cran-comments.md` tracks submission notes
 
