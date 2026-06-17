@@ -517,8 +517,8 @@ tabcf <- function(c.forest,
   if (n_out > 0L) {
     warning("tabcf(): ", n_out, " of ", length(W.hat),
             " propensity prediction(s) fall outside [0.01, 0.99] ",
-            "(min = ", signif(min(W.hat), 3L),
-            ", max = ", signif(max(W.hat), 3L),
+            "(min = ", signif(min(W.hat, na.rm = TRUE), 3L),
+            ", max = ", signif(max(W.hat, na.rm = TRUE), 3L),
             "). Possible overlap violation; set `clip = TRUE` or ",
             "`clip = c(lo, hi)` to clip.", call. = FALSE)
   }
