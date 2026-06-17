@@ -171,13 +171,11 @@ test_that(".tabcf_make_folds falls back to non-cluster mode for trivial clusters
   expect_setequal(unique(fold_one), seq_len(4))
 })
 
-# --- .tabcf_clip_propensity -------------------------------------------------
-
+# --- .tabcf_clip_propensity (lo/hi) -----------------------------------------
 test_that(".tabcf_clip_propensity clips both tails and counts correctly", {
   clip <- UtopiaPlanitia:::.tabcf_clip_propensity
   W.hat <- c(-0.1, 0, 0.0005, 0.5, 0.9999, 1, 1.5)
-  out <- clip(W.hat, eps = 1e-3, active = TRUE)
-  # values < 1e-3 -> -0.1, 0, 0.0005 (3 lo); > 1-1e-3 -> 0.9999, 1, 1.5 (3 hi)
+  out <- clip(W.hat, lo = 1e-3, hi = 1 - 1e-3, active = TRUE)
   expect_equal(out$clipped, 6L)
   expect_true(all(out$W.hat >= 1e-3))
   expect_true(all(out$W.hat <= 1 - 1e-3))
@@ -187,16 +185,15 @@ test_that(".tabcf_clip_propensity clips both tails and counts correctly", {
 test_that(".tabcf_clip_propensity is a no-op when active=FALSE", {
   clip <- UtopiaPlanitia:::.tabcf_clip_propensity
   W.hat <- c(-2, 0.5, 3)
-  out <- clip(W.hat, eps = 1e-3, active = FALSE)
+  out <- clip(W.hat, lo = 1e-3, hi = 1 - 1e-3, active = FALSE)
   expect_identical(out$W.hat, W.hat)
   expect_equal(out$clipped, 0L)
 })
 
-test_that(".tabcf_clip_propensity respects custom eps", {
+test_that(".tabcf_clip_propensity respects custom lo/hi", {
   clip <- UtopiaPlanitia:::.tabcf_clip_propensity
   W.hat <- c(0.05, 0.5, 0.95)
-  out <- clip(W.hat, eps = 0.1, active = TRUE)
-  # 0.05 < 0.1 (clipped lo); 0.95 > 0.9 (clipped hi)
+  out <- clip(W.hat, lo = 0.1, hi = 0.9, active = TRUE)
   expect_equal(out$clipped, 2L)
   expect_equal(out$W.hat, c(0.1, 0.5, 0.9))
 })
@@ -204,7 +201,7 @@ test_that(".tabcf_clip_propensity respects custom eps", {
 test_that(".tabcf_clip_propensity returns clipped=0 when nothing to clip", {
   clip <- UtopiaPlanitia:::.tabcf_clip_propensity
   W.hat <- c(0.2, 0.5, 0.8)
-  out <- clip(W.hat, eps = 1e-3, active = TRUE)
+  out <- clip(W.hat, lo = 1e-3, hi = 1 - 1e-3, active = TRUE)
   expect_equal(out$clipped, 0L)
   expect_identical(out$W.hat, W.hat)
 })

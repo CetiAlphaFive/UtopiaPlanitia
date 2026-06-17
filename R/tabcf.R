@@ -488,19 +488,19 @@ tabcf <- function(c.forest,
 #' @keywords internal
 #' @noRd
 #' @description
-#' Clip propensity predictions to the overlap region `[eps, 1 - eps]`.
-#' Returns the clipped vector and the count of clipped entries. When
-#' `active = FALSE` (continuous treatment), the input is returned
+#' Clip propensity predictions to `[lo, hi]`. Returns the clipped vector and
+#' the count of clipped entries. When `active = FALSE`, returns the input
 #' unchanged with `clipped = 0`.
-.tabcf_clip_propensity <- function(W.hat, eps = 1e-3, active = TRUE) {
+.tabcf_clip_propensity <- function(W.hat, lo = 1e-3, hi = 1 - 1e-3,
+                                   active = TRUE) {
   if (!active) {
     return(list(W.hat = W.hat, clipped = 0L))
   }
-  n_clip_lo <- sum(W.hat < eps,       na.rm = TRUE)
-  n_clip_hi <- sum(W.hat > 1 - eps,   na.rm = TRUE)
+  n_clip_lo <- sum(W.hat < lo, na.rm = TRUE)
+  n_clip_hi <- sum(W.hat > hi, na.rm = TRUE)
   clipped   <- as.integer(n_clip_lo + n_clip_hi)
   if (clipped > 0L) {
-    W.hat <- pmin(pmax(W.hat, eps), 1 - eps)
+    W.hat <- pmin(pmax(W.hat, lo), hi)
   }
   list(W.hat = W.hat, clipped = clipped)
 }
