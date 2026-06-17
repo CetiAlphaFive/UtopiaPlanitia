@@ -455,3 +455,49 @@ test_that(".tabcf_average_repeats with R=1 returns the single repeat verbatim", 
   expect_equal(out$W.hat, c(0.1, 0.2, 0.3))
   expect_equal(out$clipped, 0L)
 })
+
+# --- .tabcf_crossfit_once (mocked) ------------------------------------------
+test_that(".tabcf_crossfit_once cross-fits with mocked TabPFN and clips", {
+  cf1 <- UtopiaPlanitia:::.tabcf_crossfit_once
+  set.seed(1)
+  X <- matrix(stats::rnorm(40 * 3), 40, 3); colnames(X) <- paste0("V", 1:3)
+  Y <- stats::rnorm(40); W <- stats::rbinom(40, 1, 0.5)
+
+  testthat::local_mocked_bindings(
+    .tabcf_fit_predict = function(X_train, y_train, X_test, kind,
+                                  tabpfn_args = list()) {
+      rep(if (kind == "classifier") 0.9999 else 1.0, nrow(X_test))
+    }
+  )
+
+  out <- cf1(X = X, Y = Y, W = W, w_type = "binary", K = 2,
+             clusters = NULL, fold_seed = 1995L, tabpfn_random_base = 1995L,
+             clip_active = TRUE, lo = 1e-3, hi = 1 - 1e-3,
+             tabpfn_args = list(), user_supplied_control = FALSE,
+             verbose = FALSE, repeat_id = 1L)
+
+  expect_length(out$Y.hat, 40L)
+  expect_length(out$W.hat, 40L)
+  expect_true(all(out$Y.hat == 1.0))
+  expect_true(all(out$W.hat <= 1 - 1e-3))   # 0.9999 > 0.999 -> clipped to 0.999
+  expect_equal(out$clipped, 40L)            # all 0.9999 > 1-1e-3
+})
+
+test_that(".tabcf_crossfit_once aborts on non-finite output", {
+  cf1 <- UtopiaPlanitia:::.tabcf_crossfit_once
+  X <- matrix(stats::rnorm(20 * 2), 20, 2); colnames(X) <- c("V1", "V2")
+  Y <- stats::rnorm(20); W <- stats::rbinom(20, 1, 0.5)
+  testthat::local_mocked_bindings(
+    .tabcf_fit_predict = function(X_train, y_train, X_test, kind,
+                                  tabpfn_args = list()) {
+      rep(NA_real_, nrow(X_test))
+    }
+  )
+  expect_error(
+    cf1(X = X, Y = Y, W = W, w_type = "binary", K = 2, clusters = NULL,
+        fold_seed = 1L, tabpfn_random_base = 1L, clip_active = FALSE,
+        lo = NA_real_, hi = NA_real_, tabpfn_args = list(),
+        user_supplied_control = FALSE, verbose = FALSE, repeat_id = 2L),
+    "repeat 2"
+  )
+})

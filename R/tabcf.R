@@ -529,6 +529,73 @@ tabcf <- function(c.forest,
 #' @keywords internal
 #' @noRd
 #' @description
+#' Run one full K-fold cross-fit of the TabPFN nuisances and return
+#' `list(Y.hat, W.hat, clipped)`. Builds folds under `fold_seed`, derives each
+#' fold's TabPFN `random_state` as `tabpfn_random_base + k` (unless the user
+#' supplied their own `control`), checks finiteness/range postconditions
+#' (aborting with the `repeat_id` named), and applies per-repeat propensity
+#' clipping to `[lo, hi]` when `clip_active` and `w_type == "binary"`.
+.tabcf_crossfit_once <- function(X, Y, W, w_type, K, clusters,
+                                 fold_seed, tabpfn_random_base,
+                                 clip_active, lo, hi,
+                                 tabpfn_args, user_supplied_control,
+                                 verbose, repeat_id = 1L) {
+  n <- length(Y)
+  set.seed(fold_seed)
+  fold <- .tabcf_make_folds(n = n, K = K, clusters = clusters)
+
+  Y.hat <- numeric(n)
+  W.hat <- numeric(n)
+  for (k in seq_len(K)) {
+    test  <- which(fold == k)
+    train <- which(fold != k)
+    if (verbose) message("[tabcf] repeat ", repeat_id, " fold ", k, "/", K,
+                         " (train n = ", length(train),
+                         ", test n = ", length(test), ")")
+
+    fold_args <- tabpfn_args
+    if (!user_supplied_control) {
+      fold_args$control <- tabpfn::control_tab_pfn(
+        random_state = as.integer(tabpfn_random_base) + k
+      )
+    }
+
+    Y.hat[test] <- .tabcf_fit_predict(
+      X_train = X[train, , drop = FALSE], y_train = Y[train],
+      X_test  = X[test,  , drop = FALSE],
+      kind = "regressor", tabpfn_args = fold_args
+    )
+    W.hat[test] <- .tabcf_fit_predict(
+      X_train = X[train, , drop = FALSE], y_train = W[train],
+      X_test  = X[test,  , drop = FALSE],
+      kind = if (w_type == "binary") "classifier" else "regressor",
+      tabpfn_args = fold_args
+    )
+  }
+
+  if (!all(is.finite(Y.hat))) {
+    stop("tabcf(): TabPFN returned non-finite Y.hat in repeat ", repeat_id,
+         ". Check tabpfn installation/output shape.", call. = FALSE)
+  }
+  if (w_type == "binary" && !all(W.hat >= 0 & W.hat <= 1, na.rm = TRUE)) {
+    stop("tabcf(): TabPFN classifier returned out-of-range W.hat in repeat ",
+         repeat_id, " (not in [0,1]).", call. = FALSE)
+  }
+  if (!all(is.finite(W.hat))) {
+    stop("tabcf(): TabPFN returned non-finite W.hat in repeat ", repeat_id,
+         ".", call. = FALSE)
+  }
+
+  clip_res <- .tabcf_clip_propensity(
+    W.hat, lo = lo, hi = hi,
+    active = isTRUE(clip_active) && (w_type == "binary")
+  )
+  list(Y.hat = Y.hat, W.hat = clip_res$W.hat, clipped = clip_res$clipped)
+}
+
+#' @keywords internal
+#' @noRd
+#' @description
 #' Average a list of per-repeat cross-fit results elementwise. Each element is
 #' `list(Y.hat, W.hat, clipped)`. Returns the mean `Y.hat`/`W.hat` and the
 #' total `clipped` across repeats.
