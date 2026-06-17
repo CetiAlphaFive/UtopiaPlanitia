@@ -27,23 +27,65 @@ make_small_cf <- function(n = 80, p = 4, num.trees = 50,
 
 test_that("tabcf signature exposes expected formals and defaults", {
   f <- formals(tabcf)
-  expect_true(all(c("c.forest", "X", "Y", "W", "K", "seed", "eps",
-                    "tabpfn_args", "verbose") %in% names(f)))
+  expect_true(all(c("c.forest", "X", "Y", "W", "K", "R", "seed", "clip",
+                    "eps", "tabpfn_args", "verbose") %in% names(f)))
   expect_equal(eval(f$K), 5L)
+  expect_equal(eval(f$R), 1L)
   expect_equal(eval(f$seed), 1995L)
-  expect_equal(eval(f$eps), 1e-3)
+  expect_false(eval(f$clip))          # clip = FALSE default
+  expect_null(eval(f$eps))            # eps = NULL default (deprecated)
 })
 
 test_that("tabcf rejects non-causal_forest input", {
   expect_error(tabcf("not a forest"), "causal_forest")
 })
 
-test_that("tabcf rejects invalid eps", {
+test_that("tabcf rejects invalid eps (deprecated path)", {
   cf <- make_small_cf(n = 40, w_kind = "binary")
-  expect_error(tabcf(cf, eps = 0),    "eps")
-  expect_error(tabcf(cf, eps = 0.5),  "eps")
-  expect_error(tabcf(cf, eps = -0.1), "eps")
-  expect_error(tabcf(cf, eps = c(0.1, 0.2)), "eps")
+  expect_error(suppressWarnings(tabcf(cf, eps = 0)),    "eps")
+  expect_error(suppressWarnings(tabcf(cf, eps = 0.5)),  "eps")
+  expect_error(suppressWarnings(tabcf(cf, eps = c(0.1, 0.2))), "eps")
+})
+
+test_that("tabcf rejects invalid R", {
+  cf <- make_small_cf(n = 40, w_kind = "binary")
+  expect_error(tabcf(cf, R = 0),   "R")
+  expect_error(tabcf(cf, R = 1.5), "R")
+  expect_error(tabcf(cf, R = NA),  "R")
+})
+
+test_that("tabcf rejects invalid clip range early", {
+  cf <- make_small_cf(n = 40, w_kind = "binary")
+  expect_error(tabcf(cf, clip = c(0.9, 0.1)), "0 < lo < hi < 1")
+})
+
+test_that("tabcf errors when both eps and clip supplied", {
+  cf <- make_small_cf(n = 40, w_kind = "binary")
+  expect_error(tabcf(cf, clip = c(0.01, 0.99), eps = 0.05), "not both")
+})
+
+test_that("tabcf averages R repeats and records R in meta (mocked)", {
+  cf <- make_small_cf(n = 60, w_kind = "binary")
+
+  testthat::local_mocked_bindings(
+    .tabcf_crossfit_once = function(X, Y, W, w_type, K, clusters, fold_seed,
+                                    tabpfn_random_base, clip_active, lo, hi,
+                                    tabpfn_args, user_supplied_control,
+                                    verbose, repeat_id = 1L) {
+      n <- length(Y)
+      list(Y.hat = rep(repeat_id, n),
+           W.hat = rep(repeat_id / 10, n),
+           clipped = repeat_id)
+    }
+  )
+  withr::local_envvar(TABPFN_TOKEN = "dummy")
+
+  out <- tabcf(cf, K = 2, R = 3, clip = TRUE)
+  meta <- attr(out, "tabcf_meta")
+  expect_equal(meta$R, 3L)
+  expect_true(all(abs(out$Y.hat - 2) < 1e-8))    # mean(1,2,3)=2
+  expect_true(all(abs(out$W.hat - 0.2) < 1e-8))  # mean(.1,.2,.3)=.2
+  expect_equal(meta$clipped, 6L)                  # 1+2+3
 })
 
 test_that("tabcf errors on NA in X / Y / W", {

@@ -183,8 +183,10 @@
 tabcf <- function(c.forest,
                   X = NULL, Y = NULL, W = NULL,
                   K = 5L,
+                  R = 1L,
                   seed = 1995L,
-                  eps = 1e-3,
+                  clip = FALSE,
+                  eps = NULL,
                   tuning = c("orig", "cf.default", "cf.autotune"),
                   tabpfn_args = list(),
                   verbose = FALSE,
@@ -225,9 +227,15 @@ tabcf <- function(c.forest,
     stop("`K` must be an integer in [2, n].", call. = FALSE)
   }
   K <- as.integer(K)
-  if (!is.numeric(eps) || length(eps) != 1L || eps <= 0 || eps >= 0.5) {
-    stop("`eps` must be a single numeric in (0, 0.5).", call. = FALSE)
+  if (!is.numeric(R) || length(R) != 1L || is.na(R) ||
+      R < 1L || R != as.integer(R)) {
+    stop("`R` must be an integer >= 1.", call. = FALSE)
   }
+  R <- as.integer(R)
+
+  # Resolve clip / deprecated eps into list(active, lo, hi). Surfaces eps
+  # deprecation, range validation, and the eps/clip conflict error early.
+  clip_spec <- .tabcf_resolve_clip(clip, eps)
 
   # ---- 2. detect treatment type -------------------------------------------
   w_type <- .tabcf_w_type(W)
@@ -251,68 +259,34 @@ tabcf <- function(c.forest,
     }
   }
 
-  # ---- 4. build folds (cluster-aware) -------------------------------------
-  set.seed(seed)
+  # ---- 4-5. repeated cross-fit nuisances ----------------------------------
   clusters <- c.forest$clusters
-  fold <- .tabcf_make_folds(n = n, K = K, clusters = clusters)
-
-  # ---- 5. cross-fit nuisances ---------------------------------------------
-  Y.hat <- numeric(n)
-  W.hat <- numeric(n)
   user_supplied_control <- "control" %in% names(tabpfn_args)
-  for (k in seq_len(K)) {
-    test  <- which(fold == k)
-    train <- which(fold != k)
-    if (verbose) message("[tabcf] fold ", k, "/", K,
-                         " (train n = ", length(train),
-                         ", test n = ", length(test), ")")
 
-    # Build per-fold control unless the user already supplied one.
-    fold_args <- tabpfn_args
-    if (!user_supplied_control) {
-      fold_args$control <- tabpfn::control_tab_pfn(
-        random_state = as.integer(seed) + k
-      )
-    }
-
-    Y.hat[test] <- .tabcf_fit_predict(
-      X_train = X[train, , drop = FALSE], y_train = Y[train],
-      X_test  = X[test,  , drop = FALSE],
-      kind = "regressor", tabpfn_args = fold_args
-    )
-    W.hat[test] <- .tabcf_fit_predict(
-      X_train = X[train, , drop = FALSE], y_train = W[train],
-      X_test  = X[test,  , drop = FALSE],
-      kind = if (w_type == "binary") "classifier" else "regressor",
-      tabpfn_args = fold_args
+  reps <- vector("list", R)
+  for (r in seq_len(R)) {
+    reps[[r]] <- .tabcf_crossfit_once(
+      X = X, Y = Y, W = W, w_type = w_type, K = K, clusters = clusters,
+      fold_seed          = as.integer(seed) + (r - 1L),
+      tabpfn_random_base = as.integer(seed) + (r - 1L) * K,
+      clip_active = clip_spec$active, lo = clip_spec$lo, hi = clip_spec$hi,
+      tabpfn_args = tabpfn_args, user_supplied_control = user_supplied_control,
+      verbose = verbose, repeat_id = r
     )
   }
 
-  # ---- 5b. validate TabPFN postconditions ---------------------------------
-  if (!all(is.finite(Y.hat))) {
-    stop("tabcf(): TabPFN returned non-finite Y.hat. ",
-         "Check tabpfn installation/output shape.", call. = FALSE)
-  }
-  if (w_type == "binary" &&
-      !all(W.hat >= 0 & W.hat <= 1, na.rm = TRUE)) {
-    stop("tabcf(): TabPFN classifier returned out-of-range W.hat ",
-         "(not in [0,1]).", call. = FALSE)
-  }
-  if (!all(is.finite(W.hat))) {
-    stop("tabcf(): TabPFN returned non-finite W.hat.", call. = FALSE)
-  }
+  agg     <- .tabcf_average_repeats(reps)
+  Y.hat   <- agg$Y.hat
+  W.hat   <- agg$W.hat
+  clipped <- agg$clipped
 
-  # clip propensity to preserve overlap
-  clip_res <- .tabcf_clip_propensity(W.hat, eps = eps,
-                                     active = (w_type == "binary"))
-  W.hat   <- clip_res$W.hat
-  clipped <- clip_res$clipped
+  # Overlap warning fires only when clipping is OFF (binary W).
+  .tabcf_check_overlap(W.hat, active = (!clip_spec$active && w_type == "binary"))
+
   if (clipped > 0L) {
-    warning("tabcf(): clipped ", clipped, " of ", n,
-            " TabPFN propensity predictions to [eps, 1 - eps] = [",
-            eps, ", ", 1 - eps,
-            "] to preserve overlap. Increase `eps` to widen the window.",
-            call. = FALSE)
+    warning("tabcf(): clipped ", clipped,
+            " propensity prediction(s) across ", R, " repeat(s) to [",
+            clip_spec$lo, ", ", clip_spec$hi, "].", call. = FALSE)
   }
 
   # ---- 6. refit causal forest with TabPFN nuisances -----------------------
@@ -340,8 +314,9 @@ tabcf <- function(c.forest,
   # ---- 7. annotate and return ---------------------------------------------
   attr(out, "tabcf_meta") <- list(
     K       = K,
+    R       = R,
     seed    = seed,
-    eps     = eps,
+    clip    = if (clip_spec$active) c(clip_spec$lo, clip_spec$hi) else FALSE,
     w_type  = w_type,
     clipped = clipped,
     tuning  = tuning
