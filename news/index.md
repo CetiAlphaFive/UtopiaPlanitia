@@ -2,6 +2,21 @@
 
 ## UtopiaPlanitia (development version)
 
+### `tabcf()` gains repeated cross-fitting and clip control
+
+- **New `R` argument for repeated K-fold cross-fitting.** Nuisance
+  predictions are averaged over `R` independent fold partitions to cut
+  Monte-Carlo variance. `R = 1` (default) is identical to previous
+  behavior.
+- **New `clip` argument** controls binary-propensity clipping: `FALSE`
+  (default; no clipping, with an overlap warning), `TRUE` (clip to
+  `[1e-3, 1 - 1e-3]`), or `c(lo, hi)` for custom bounds.
+- **Behavior change:** binary propensities are **no longer clipped by
+  default**. Previous versions always clipped at `1e-3`; the default is
+  now warn-only. Pass `clip = TRUE` to restore the old clipping.
+- **`eps` is deprecated** in favor of `clip`. It maps to
+  `clip = c(eps, 1 - eps)` with a deprecation warning.
+
 ### `loco()` gains grf backend support
 
 - **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)

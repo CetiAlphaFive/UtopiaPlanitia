@@ -41,6 +41,18 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
 <div class="section level3">
+<h3 id="tabcf-gains-repeated-cross-fitting-and-clip-control-development-version">
+<code>tabcf()</code> gains repeated cross-fitting and clip control<a class="anchor" aria-label="anchor" href="#tabcf-gains-repeated-cross-fitting-and-clip-control-development-version"></a></h3>
+<ul><li>
+<strong>New <code>R</code> argument for repeated K-fold cross-fitting.</strong> Nuisance predictions are averaged over <code>R</code> independent fold partitions to cut Monte-Carlo variance. <code>R = 1</code> (default) is identical to previous behavior.</li>
+<li>
+<strong>New <code>clip</code> argument</strong> controls binary-propensity clipping: <code>FALSE</code> (default; no clipping, with an overlap warning), <code>TRUE</code> (clip to <code>[1e-3, 1 - 1e-3]</code>), or <code>c(lo, hi)</code> for custom bounds.</li>
+<li>
+<strong>Behavior change:</strong> binary propensities are <strong>no longer clipped by default</strong>. Previous versions always clipped at <code>1e-3</code>; the default is now warn-only. Pass <code>clip = TRUE</code> to restore the old clipping.</li>
+<li>
+<strong><code>eps</code> is deprecated</strong> in favor of <code>clip</code>. It maps to <code>clip = c(eps, 1 - eps)</code> with a deprecation warning.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="loco-gains-grf-backend-support-development-version">
 <code>loco()</code> gains grf backend support<a class="anchor" aria-label="anchor" href="#loco-gains-grf-backend-support-development-version"></a></h3>
 <ul><li>
