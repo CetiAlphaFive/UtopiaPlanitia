@@ -12,7 +12,8 @@
 \item{seed}{Integer seed for reproducibility. Default is \code{1995}.
 Passed to \code{\link[=omni_hetero]{omni_hetero()}} for the sequential RATE fold assignment.}
 
-\item{...}{Additional arguments (currently unused).}
+\item{...}{Additional arguments forwarded to \code{\link[=omni_hetero]{omni_hetero()}} (for
+example \code{num.folds} or \code{min_fold_n}).}
 }
 \value{
 An object of class \code{"summary.causal_forest"} (returned invisibly)

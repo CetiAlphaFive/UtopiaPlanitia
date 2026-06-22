@@ -7,7 +7,8 @@
 #' @param object A fitted causal forest object from the \code{grf} package.
 #' @param seed Integer seed for reproducibility. Default is `1995`.
 #'   Passed to [omni_hetero()] for the sequential RATE fold assignment.
-#' @param ... Additional arguments (currently unused).
+#' @param ... Additional arguments forwarded to [omni_hetero()] (for
+#'   example `num.folds` or `min_fold_n`).
 #' @return An object of class `"summary.causal_forest"` (returned invisibly)
 #'   with components:
 #'   \describe{

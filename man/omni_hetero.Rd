@@ -4,7 +4,7 @@
 \alias{omni_hetero}
 \title{Omnibus Tests of Heterogeneity}
 \usage{
-omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
+omni_hetero(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5)
 }
 \arguments{
 \item{c.forest}{A fitted causal forest object from the \code{grf} package.}
@@ -27,6 +27,14 @@ accumulate), the Sequential RATE p-value is returned as \code{NA_real_}
 with an explanatory \code{reason} attribute, because the
 \code{sqrt(num.folds - 1)} aggregation denominator would otherwise
 under-normalize and deflate the t-statistic. Default is \code{100}.}
+
+\item{num.folds}{Integer number of folds K for the sequential RATE
+cross-validation (Wager, 2024). Must be a single integer \verb{>= 3}
+(\code{K = 2} cannot yield the two usable folds the test requires) and no
+greater than the number of observations. Default is \code{5}; \code{5} or more
+is recommended. Larger K gives each per-fold CATE forest more training
+data, but more folds at small n raises the risk of degenerate folds
+(see \code{min_fold_n}).}
 }
 \value{
 An object of class \code{"omni_hetero"} (a data frame) with one row

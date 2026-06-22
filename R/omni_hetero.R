@@ -24,6 +24,13 @@
 #'   with an explanatory `reason` attribute, because the
 #'   `sqrt(num.folds - 1)` aggregation denominator would otherwise
 #'   under-normalize and deflate the t-statistic. Default is `100`.
+#' @param num.folds Integer number of folds K for the sequential RATE
+#'   cross-validation (Wager, 2024). Must be a single integer `>= 3`
+#'   (`K = 2` cannot yield the two usable folds the test requires) and no
+#'   greater than the number of observations. Default is `5`; `5` or more
+#'   is recommended. Larger K gives each per-fold CATE forest more training
+#'   data, but more folds at small n raises the risk of degenerate folds
+#'   (see `min_fold_n`).
 #' @return An object of class `"omni_hetero"` (a data frame) with one row
 #'   per test and the following columns:
 #'   \describe{
@@ -99,7 +106,8 @@
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' omni_hetero(cf)
 #' }
-omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5) {
+omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100,
+                        num.folds = 5) {
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a grf causal forest.")
@@ -109,8 +117,8 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5) 
   # K = 2 always yields < 2 usable folds (the loop runs k in 2:K), so the
   # Sequential RATE p-value would always be NA -- reject it outright.
   if (!is.numeric(num.folds) || length(num.folds) != 1L ||
-      !is.finite(num.folds) || num.folds != round(num.folds) ||
-      num.folds < 3) {
+        !is.finite(num.folds) || num.folds != round(num.folds) ||
+        num.folds < 3 || num.folds > .Machine$integer.max) {
     stop("num.folds must be a single integer >= 3 (5 or more recommended).",
          call. = FALSE)
   }

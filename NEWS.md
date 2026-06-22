@@ -1,5 +1,14 @@
 # UtopiaPlanitia (development version)
 
+## `omni_hetero()` exposes the Sequential RATE fold count
+
+* **New `num.folds` argument** (default `5`) controls the number of folds
+  K in the Sequential RATE test (Wager, 2024). Must be an integer `>= 3`
+  and no greater than the sample size; `5` or more is recommended. The
+  upfront sample-size warning now scales with the chosen fold count.
+* **`summary.causal_forest()` forwards `...`** to `omni_hetero()`, so
+  `summary(cf, num.folds = 10)` works.
+
 ## `tabcf()` gains repeated cross-fitting and clip control
 
 * **New `R` argument for repeated K-fold cross-fitting.** Nuisance
