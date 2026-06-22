@@ -162,3 +162,43 @@ test_that("omni_hetero rejects invalid num.folds", {
     "cannot exceed"
   )
 })
+
+test_that("omni_hetero respects num.folds in the RATE payload", {
+  set.seed(1995)
+  n <- 500; p <- 5
+  X <- matrix(rnorm(n * p), n, p)
+  W <- rbinom(n, 1, 0.5)
+  Y <- rnorm(n)
+  cf <- grf::causal_forest(X, Y, W, num.trees = 100)
+
+  result <- suppressWarnings(suppressMessages(omni_hetero(cf, num.folds = 3)))
+  rate <- attr(result, "rate")
+  expect_equal(rate$num_folds, 3)
+  # loop runs k in 2:num.folds -> at most num.folds - 1 per-fold rows
+  expect_lte(nrow(rate$folds_df), 2L)
+})
+
+test_that("omni_hetero size-check warning scales with num.folds", {
+  set.seed(1995)
+  n <- 500; p <- 5
+  X <- matrix(rnorm(n * p), n, p)
+  W <- rbinom(n, 1, 0.5)
+  Y <- rnorm(n)
+  cf <- grf::causal_forest(X, Y, W, num.trees = 100)
+
+  collect <- function(folds) {
+    msgs <- character(0)
+    suppressMessages(withCallingHandlers(
+      omni_hetero(cf, num.folds = folds),
+      warning = function(w) {
+        msgs <<- c(msgs, conditionMessage(w)); invokeRestart("muffleWarning")
+      }))
+    msgs
+  }
+  # n/5 = 100 is NOT < min_fold_n (100) and n >= 400 -> no size warning
+  expect_false(any(grepl("Sequential RATE may be unstable",
+                         collect(5), fixed = TRUE)))
+  # n/6 = 83.3 < 100 -> size warning fires (proves the count is dynamic)
+  expect_true(any(grepl("Sequential RATE may be unstable",
+                        collect(6), fixed = TRUE)))
+})

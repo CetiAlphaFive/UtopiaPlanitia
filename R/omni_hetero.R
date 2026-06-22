@@ -455,13 +455,12 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5) 
   }
 
   # Upfront size check (Task A requirement): warn when Sequential RATE
-  # likely unstable. Uses default num.folds = 5 from rate_sequential().
-  .seq.num.folds <- 5L
+  # likely unstable. Scales with the user-supplied num.folds.
   .n <- nrow(X)
-  if (.n < 400L || (.n / .seq.num.folds) < min_fold_n) {
+  if (.n < 400L || (.n / num.folds) < min_fold_n) {
     warning(
       "Sequential RATE may be unstable at this sample size (n = ", .n,
-      ", n/num.folds = ", round(.n / .seq.num.folds, 1),
+      ", n/num.folds = ", round(.n / num.folds, 1),
       "; min_fold_n = ", min_fold_n, "). Training folds may be too small ",
       "for the per-fold CATE forest to detect heterogeneity, which can ",
       "produce degenerate RATE statistics. Consider the Calibration test ",
@@ -470,7 +469,7 @@ omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5) 
     )
   }
 
-  rate_result <- rate_sequential(X, Y, W)
+  rate_result <- rate_sequential(X, Y, W, num.folds = num.folds)
   sequential_rate_test_pvalue <- rate_result$p
   if (is.na(sequential_rate_test_pvalue) && !is.na(rate_result$reason)) {
     message("Sequential RATE: ", rate_result$reason)
