@@ -68,7 +68,7 @@ summary.causal_forest <- function(object, seed = 1995, ...) {
   vi.scores <- as.numeric(vi)
   names(vi.scores) <- colnames(object$X.orig)
 
-  hetero <- omni_hetero(object, seed = seed)
+  hetero <- omni_hetero(object, seed = seed, ...)
 
 
   out <- list(

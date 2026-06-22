@@ -202,3 +202,16 @@ test_that("omni_hetero size-check warning scales with num.folds", {
   expect_true(any(grepl("Sequential RATE may be unstable",
                         collect(6), fixed = TRUE)))
 })
+
+test_that("summary.causal_forest forwards num.folds to omni_hetero", {
+  set.seed(1995)
+  n <- 500; p <- 5
+  X <- matrix(rnorm(n * p), n, p)
+  W <- rbinom(n, 1, 0.5)
+  Y <- rnorm(n)
+  cf <- grf::causal_forest(X, Y, W, num.trees = 100)
+
+  s <- suppressWarnings(suppressMessages(summary(cf, num.folds = 3)))
+  rate <- attr(s$heterogeneity, "rate")
+  expect_equal(rate$num_folds, 3)
+})
