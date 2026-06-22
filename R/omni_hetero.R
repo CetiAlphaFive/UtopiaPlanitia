@@ -99,10 +99,28 @@
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' omni_hetero(cf)
 #' }
-omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100) {
+omni_hetero <- function(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5) {
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a grf causal forest.")
+  }
+
+  # Validate num.folds: a single integer K >= 3 (5 or more recommended).
+  # K = 2 always yields < 2 usable folds (the loop runs k in 2:K), so the
+  # Sequential RATE p-value would always be NA -- reject it outright.
+  if (!is.numeric(num.folds) || length(num.folds) != 1L ||
+      !is.finite(num.folds) || num.folds != round(num.folds) ||
+      num.folds < 3) {
+    stop("num.folds must be a single integer >= 3 (5 or more recommended).",
+         call. = FALSE)
+  }
+  num.folds <- as.integer(num.folds)
+  # More folds than observations leaves high fold-ids unassigned in
+  # sample(rep(1:num.folds, length = n)), so samples.by.fold[[k]] is missing
+  # and the fold loop errors. Guard against it.
+  if (num.folds > nrow(c.forest$X.orig)) {
+    stop("num.folds (", num.folds, ") cannot exceed the number of ",
+         "observations (", nrow(c.forest$X.orig), ").", call. = FALSE)
   }
 
   set.seed(seed)

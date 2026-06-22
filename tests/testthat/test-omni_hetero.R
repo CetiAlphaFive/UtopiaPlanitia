@@ -144,3 +144,21 @@ test_that("omni_hetero at n = 150 either returns valid Sequential RATE or NA (ne
   # And: the size-check warning must have fired
   expect_true(any(grepl("Sequential RATE may be unstable", msgs, fixed = TRUE)))
 })
+
+test_that("omni_hetero exposes num.folds parameter with default 5", {
+  expect_true("num.folds" %in% names(formals(omni_hetero)))
+  expect_equal(eval(formals(omni_hetero)$num.folds), 5)
+})
+
+test_that("omni_hetero rejects invalid num.folds", {
+  cf <- make_small_null_cf(n = 200, num.trees = 100, seed = 1995)
+  expect_error(omni_hetero(cf, num.folds = 2),       "num.folds")
+  expect_error(omni_hetero(cf, num.folds = 0),       "num.folds")
+  expect_error(omni_hetero(cf, num.folds = 5.5),     "num.folds")
+  expect_error(omni_hetero(cf, num.folds = c(3, 4)), "num.folds")
+  expect_error(omni_hetero(cf, num.folds = "5"),     "num.folds")
+  expect_error(
+    omni_hetero(cf, num.folds = nrow(cf$X.orig) + 1L),
+    "cannot exceed"
+  )
+})
