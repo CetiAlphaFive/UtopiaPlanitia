@@ -25,7 +25,9 @@ summary(object, seed = 1995, ...)
 
 - ...:
 
-  Additional arguments (currently unused).
+  Additional arguments forwarded to
+  [`omni_hetero()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/omni_hetero.md)
+  (for example `num.folds` or `min_fold_n`).
 
 ## Value
 

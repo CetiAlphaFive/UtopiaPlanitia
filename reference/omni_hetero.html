@@ -57,7 +57,7 @@ summary table.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">omni_hetero</span><span class="op">(</span><span class="va">c.forest</span>, seed <span class="op">=</span> <span class="fl">1995</span>, min_fold_n <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">omni_hetero</span><span class="op">(</span><span class="va">c.forest</span>, seed <span class="op">=</span> <span class="fl">1995</span>, min_fold_n <span class="op">=</span> <span class="fl">100</span>, num.folds <span class="op">=</span> <span class="fl">5</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -89,6 +89,16 @@ accumulate), the Sequential RATE p-value is returned as <code>NA_real_</code>
 with an explanatory <code>reason</code> attribute, because the
 <code>sqrt(num.folds - 1)</code> aggregation denominator would otherwise
 under-normalize and deflate the t-statistic. Default is <code>100</code>.</p></dd>
+
+
+<dt id="arg-num-folds">num.folds<a class="anchor" aria-label="anchor" href="#arg-num-folds"></a></dt>
+<dd><p>Integer number of folds K for the sequential RATE
+cross-validation (Wager, 2024). Must be a single integer <code>&gt;= 3</code>
+(<code>K = 2</code> cannot yield the two usable folds the test requires) and no
+greater than the number of observations. Default is <code>5</code>; <code>5</code> or more
+is recommended. Larger K gives each per-fold CATE forest more training
+data, but more folds at small n raises the risk of degenerate folds
+(see <code>min_fold_n</code>).</p></dd>
 
 </dl></div>
     <div class="section level2">

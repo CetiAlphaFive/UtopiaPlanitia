@@ -41,6 +41,14 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
 <div class="section level3">
+<h3 id="omni_hetero-exposes-the-sequential-rate-fold-count-development-version">
+<code>omni_hetero()</code> exposes the Sequential RATE fold count<a class="anchor" aria-label="anchor" href="#omni_hetero-exposes-the-sequential-rate-fold-count-development-version"></a></h3>
+<ul><li>
+<strong>New <code>num.folds</code> argument</strong> (default <code>5</code>) controls the number of folds K in the Sequential RATE test (Wager, 2024). Must be an integer <code>&gt;= 3</code> and no greater than the sample size; <code>5</code> or more is recommended. The upfront sample-size warning now scales with the chosen fold count.</li>
+<li>
+<strong><code><a href="../reference/summary.causal_forest.html">summary.causal_forest()</a></code> forwards <code>...</code></strong> to <code><a href="../reference/omni_hetero.html">omni_hetero()</a></code>, so <code>summary(cf, num.folds = 10)</code> works.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="tabcf-gains-repeated-cross-fitting-and-clip-control-development-version">
 <code>tabcf()</code> gains repeated cross-fitting and clip control<a class="anchor" aria-label="anchor" href="#tabcf-gains-repeated-cross-fitting-and-clip-control-development-version"></a></h3>
 <ul><li>

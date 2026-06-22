@@ -9,7 +9,7 @@ single summary table.
 ## Usage
 
 ``` r
-omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
+omni_hetero(c.forest, seed = 1995, min_fold_n = 100, num.folds = 5)
 ```
 
 ## Arguments
@@ -40,6 +40,15 @@ omni_hetero(c.forest, seed = 1995, min_fold_n = 100)
   with an explanatory `reason` attribute, because the
   `sqrt(num.folds - 1)` aggregation denominator would otherwise
   under-normalize and deflate the t-statistic. Default is `100`.
+
+- num.folds:
+
+  Integer number of folds K for the sequential RATE cross-validation
+  (Wager, 2024). Must be a single integer `>= 3` (`K = 2` cannot yield
+  the two usable folds the test requires) and no greater than the number
+  of observations. Default is `5`; `5` or more is recommended. Larger K
+  gives each per-fold CATE forest more training data, but more folds at
+  small n raises the risk of degenerate folds (see `min_fold_n`).
 
 ## Value
 
