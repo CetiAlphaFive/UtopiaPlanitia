@@ -117,7 +117,7 @@ test_that("H3: at n=200 (every rep drops 1 fold), Sequential RATE p-value is NA 
 # ------------------------------------------------------------------
 test_that("T-API: omni_hetero formals unchanged", {
   fn <- names(formals(omni_hetero))
-  expect_setequal(fn, c("c.forest", "seed", "min_fold_n"))
+  expect_setequal(fn, c("c.forest", "seed", "min_fold_n", "num.folds"))
 })
 
 test_that("T-API: cf_loco formals unchanged", {
