@@ -53,7 +53,9 @@ near-identical propensity scores. Default \code{1e-6}. Set to \code{0} to disabl
 \item{verbose}{Logical. If \code{TRUE} (default), after the refits print the
 conditioning-variable correlation matrix and warn when any pair of
 covariates is correlated above \verb{|r| = 0.5} (suppressed when variables are
-grouped via \code{group.by.corr} or \code{variable.groups}). Default \code{TRUE}.}
+grouped via \code{group.by.corr} or \code{variable.groups}). Default \code{TRUE}. The
+warning uses a fixed \verb{|r| = 0.5} threshold and is independent of
+\code{corr.threshold}, which only controls the \code{group.by.corr} grouping.}
 }
 \value{
 An object of class \code{"cf_loco"} with components:

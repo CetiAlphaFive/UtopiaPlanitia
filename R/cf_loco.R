@@ -31,7 +31,9 @@
 #' @param verbose Logical. If `TRUE` (default), after the refits print the
 #'   conditioning-variable correlation matrix and warn when any pair of
 #'   covariates is correlated above `|r| = 0.5` (suppressed when variables are
-#'   grouped via `group.by.corr` or `variable.groups`). Default `TRUE`.
+#'   grouped via `group.by.corr` or `variable.groups`). Default `TRUE`. The
+#'   warning uses a fixed `|r| = 0.5` threshold and is independent of
+#'   `corr.threshold`, which only controls the `group.by.corr` grouping.
 #' @return An object of class `"cf_loco"` with components:
 #'   \describe{
 #'     \item{vimp}{Data frame with columns `Variable` and `Importance`.}

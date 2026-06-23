@@ -13,7 +13,7 @@ make_cf <- function(n = 200, p = 5, num.trees = 100) {
 
 test_that("cf_loco returns cf_loco class with correct structure", {
   cf <- make_cf()
-  result <- cf_loco(cf, normalize = TRUE)
+  result <- cf_loco(cf, normalize = TRUE, verbose = FALSE)
   expect_s3_class(result, "cf_loco")
   expect_named(result, c("vimp", "normalized", "n", "p"))
   expect_true(result$normalized)
@@ -22,20 +22,20 @@ test_that("cf_loco returns cf_loco class with correct structure", {
 
 test_that("print.cf_loco runs without error", {
   cf <- make_cf()
-  result <- cf_loco(cf)
+  result <- cf_loco(cf, verbose = FALSE)
   expect_output(print(result), "LOCO Variable Importance")
 })
 
 test_that("summary.cf_loco runs without error", {
   cf <- make_cf()
-  result <- cf_loco(cf)
+  result <- cf_loco(cf, verbose = FALSE)
   expect_output(summary(result), "LOCO Variable Importance")
 })
 
 test_that("plot.cf_loco returns a ggplot", {
   skip_if_not_installed("ggplot2")
   cf <- make_cf()
-  result <- cf_loco(cf)
+  result <- cf_loco(cf, verbose = FALSE)
   p <- plot(result)
   expect_s3_class(p, "gg")
 })
@@ -128,14 +128,14 @@ test_that("cf_loco stabilize warns on near-zero denominator", {
   # Set an absurdly high threshold so every observation triggers the warning.
   # Multiple warnings fire (one per compute_vimp call); suppress extras.
   suppressWarnings(
-    expect_warning(cf_loco(cf, stabilize = 1e6), "near-zero local treatment variation")
+    expect_warning(cf_loco(cf, stabilize = 1e6, verbose = FALSE), "near-zero local treatment variation")
   )
 })
 
 test_that("cf_loco stabilize = 0 disables clamping", {
   cf <- make_cf()
   # stabilize = 0 should not warn (threshold is zero, nothing clamped)
-  expect_no_warning(cf_loco(cf, stabilize = 0))
+  expect_no_warning(cf_loco(cf, stabilize = 0, verbose = FALSE))
 })
 
 test_that("plot_pdp num.threads passes without error", {
@@ -186,7 +186,7 @@ test_that("cf_loco screen = TRUE returns correct structure and messages", {
 
 test_that("cf_loco screen = integer keeps exactly k nonzero", {
   cf <- make_cf()
-  expect_message(result <- cf_loco(cf, screen = 3), "top 3 of 5")
+  expect_message(result <- cf_loco(cf, screen = 3, verbose = FALSE), "top 3 of 5")
   nonzero <- sum(result$vimp$Importance != 0)
   expect_equal(nonzero, 3)
 })
@@ -194,7 +194,7 @@ test_that("cf_loco screen = integer keeps exactly k nonzero", {
 test_that("cf_loco screen = FALSE with small p does not prompt", {
   cf <- make_cf()
   # small p, low cost — should run without prompting or screening
-  result <- cf_loco(cf, screen = FALSE)
+  result <- cf_loco(cf, screen = FALSE, verbose = FALSE)
   expect_s3_class(result, "cf_loco")
   expect_equal(nrow(result$vimp), 5)
 })
