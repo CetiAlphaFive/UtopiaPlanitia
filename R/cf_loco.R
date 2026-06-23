@@ -282,6 +282,36 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
     In_out <- In
   }
 
+  # --- correlation diagnostic (conditioning variables) ---
+  if (verbose && p > 1L) {
+    cov.names <- colnames(X)
+    if (is.null(cov.names)) cov.names <- paste0("V", seq_len(p))
+    cm <- suppressWarnings(stats::cor(X))
+    dimnames(cm) <- list(cov.names, cov.names)
+    message("Conditioning-variable correlation matrix:")
+    print(round(cm, 2))
+
+    grouping.active <- isTRUE(group.by.corr) || !is.null(variable.groups)
+    if (!grouping.active) {
+      cm.off <- cm
+      diag(cm.off) <- NA_real_
+      hit <- upper.tri(cm.off) & !is.na(cm.off) & abs(cm.off) > 0.5
+      if (any(hit)) {
+        idx <- which(hit, arr.ind = TRUE)
+        pair.str <- apply(idx, 1L, function(rc) {
+          sprintf("%s & %s (r = %.2f)",
+                  cov.names[rc[1L]], cov.names[rc[2L]], cm[rc[1L], rc[2L]])
+        })
+        warning("cf_loco: the following conditioning variables are correlated ",
+                "above |r| = 0.5: ", paste(pair.str, collapse = "; "),
+                ". LOCO importance is divided among correlated covariates and ",
+                "may understate their individual relevance. Consider grouping ",
+                "them via `group.by.corr = TRUE` or interpreting their ",
+                "importances jointly.", call. = FALSE)
+      }
+    }
+  }
+
   result <- data.frame(Variable = variable.names, Importance = In_out)
 
   out <- structure(
