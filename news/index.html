@@ -41,6 +41,14 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
 <div class="section level3">
+<h3 id="cf_loco-screening--correlation-diagnostic-development-version">
+<code>cf_loco()</code> screening + correlation diagnostic<a class="anchor" aria-label="anchor" href="#cf_loco-screening--correlation-diagnostic-development-version"></a></h3>
+<ul><li>
+<strong><code>screen = TRUE</code> now drops only zero-importance covariates.</strong> Auto-screening keeps every variable with non-zero split-frequency importance (previously: above the mean, which over-selected). The interactive runtime prompt was removed.</li>
+<li>
+<strong>New <code>verbose</code> argument (default <code>TRUE</code>)</strong> prints the conditioning-variable correlation matrix after the refits and warns when any covariate pair is correlated above <code>|r| = 0.5</code>. Set <code>verbose = FALSE</code> to silence. The warning is suppressed when variables are grouped via <code>group.by.corr</code> or <code>variable.groups</code>. Note: with the default <code>verbose = TRUE</code>, existing calls now emit this matrix and (when applicable) the new warning.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="omni_hetero-exposes-the-sequential-rate-fold-count-development-version">
 <code>omni_hetero()</code> exposes the Sequential RATE fold count<a class="anchor" aria-label="anchor" href="#omni_hetero-exposes-the-sequential-rate-fold-count-development-version"></a></h3>
 <ul><li>

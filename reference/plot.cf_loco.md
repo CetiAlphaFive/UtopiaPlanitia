@@ -51,5 +51,12 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 vi <- cf_loco(cf)
+#> Conditioning-variable correlation matrix:
+#>       X1    X2    X3    X4    X5
+#> X1  1.00 -0.18 -0.03 -0.09 -0.01
+#> X2 -0.18  1.00 -0.02  0.05 -0.07
+#> X3 -0.03 -0.02  1.00  0.05 -0.02
+#> X4 -0.09  0.05  0.05  1.00  0.02
+#> X5 -0.01 -0.07 -0.02  0.02  1.00
 plot(vi)
 ```

@@ -14,7 +14,8 @@ cf_loco(
   normalize = FALSE,
   screen = FALSE,
   stabilize = 0.000001,
-  seed = 1995
+  seed = 1995,
+  verbose = TRUE
 )
 ```
 
@@ -54,13 +55,12 @@ cf_loco(
 
   `FALSE` (default)
 
-  :   No screening. If estimated runtime is high and the session is
-      interactive, the user is prompted to screen.
+  :   No screening; LOCO is run on every variable.
 
   `TRUE`
 
-  :   Auto-screen. Keep variables with split-frequency importance above
-      the mean.
+  :   Auto-screen. Keep only variables with non-zero split-frequency
+      importance (drop covariates the forest never split on).
 
   Integer `k`
 
@@ -79,6 +79,15 @@ cf_loco(
 - seed:
 
   An integer seed for reproducibility. Default is `1995`.
+
+- verbose:
+
+  Logical. If `TRUE` (default), after the refits print the
+  conditioning-variable correlation matrix and warn when any pair of
+  covariates is correlated above `|r| = 0.5` (suppressed when variables
+  are grouped via `group.by.corr` or `variable.groups`). Default `TRUE`.
+  The warning uses a fixed `|r| = 0.5` threshold and is independent of
+  `corr.threshold`, which only controls the `group.by.corr` grouping.
 
 ## Value
 
@@ -165,6 +174,13 @@ W <- rbinom(n, 1, 0.5)
 Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 vi <- cf_loco(cf)
+#> Conditioning-variable correlation matrix:
+#>       X1    X2    X3    X4    X5
+#> X1  1.00 -0.18 -0.03 -0.09 -0.01
+#> X2 -0.18  1.00 -0.02  0.05 -0.07
+#> X3 -0.03 -0.02  1.00  0.05 -0.02
+#> X4 -0.09  0.05  0.05  1.00  0.02
+#> X5 -0.01 -0.07 -0.02  0.02  1.00
 summary(vi)
 #> LOCO Variable Importance (Benard and Josse, 2023)
 #>   n = 200  p = 5 
@@ -181,6 +197,13 @@ plot(vi)
 
 # Normalized importance (sums to 1)
 vi_norm <- cf_loco(cf, normalize = TRUE)
+#> Conditioning-variable correlation matrix:
+#>       X1    X2    X3    X4    X5
+#> X1  1.00 -0.18 -0.03 -0.09 -0.01
+#> X2 -0.18  1.00 -0.02  0.05 -0.07
+#> X3 -0.03 -0.02  1.00  0.05 -0.02
+#> X4 -0.09  0.05  0.05  1.00  0.02
+#> X5 -0.01 -0.07 -0.02  0.02  1.00
 summary(vi_norm)
 #> LOCO Variable Importance (Benard and Josse, 2023)
 #>   n = 200  p = 5 

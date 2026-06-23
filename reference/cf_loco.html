@@ -56,7 +56,8 @@ forests using the debiased method of Benard and Josse (2023).</p>
 <span>  normalize <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  screen <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  stabilize <span class="op">=</span> <span class="fl">0.000001</span>,</span>
-<span>  seed <span class="op">=</span> <span class="fl">1995</span></span>
+<span>  seed <span class="op">=</span> <span class="fl">1995</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -92,12 +93,11 @@ Default is <code>FALSE</code>.</p></dd>
 <dd><p>Controls optional pre-screening of variables via split-frequency
 importance (<code><a href="https://rdrr.io/pkg/grf/man/variable_importance.html" class="external-link">grf::variable_importance()</a></code>), which is essentially free to
 compute. Screening reduces the number of expensive LOCO refits.</p><dl><dt><code>FALSE</code> (default)</dt>
-<dd><p>No screening. If estimated runtime is high and
-the session is interactive, the user is prompted to screen.</p></dd>
+<dd><p>No screening; LOCO is run on every variable.</p></dd>
 
 <dt><code>TRUE</code></dt>
-<dd><p>Auto-screen. Keep variables with split-frequency importance
-above the mean.</p></dd>
+<dd><p>Auto-screen. Keep only variables with non-zero
+split-frequency importance (drop covariates the forest never split on).</p></dd>
 
 <dt>Integer <code>k</code></dt>
 <dd><p>Keep the top-k variables by split-frequency
@@ -116,6 +116,15 @@ near-identical propensity scores. Default <code>1e-6</code>. Set to <code>0</cod
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
 <dd><p>An integer seed for reproducibility. Default is <code>1995</code>.</p></dd>
+
+
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (default), after the refits print the
+conditioning-variable correlation matrix and warn when any pair of
+covariates is correlated above <code>|r| = 0.5</code> (suppressed when variables are
+grouped via <code>group.by.corr</code> or <code>variable.groups</code>). Default <code>TRUE</code>. The
+warning uses a fixed <code>|r| = 0.5</code> threshold and is independent of
+<code>corr.threshold</code>, which only controls the <code>group.by.corr</code> grouping.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -189,6 +198,13 @@ summarizing results, <code><a href="omni_hetero.html">omni_hetero()</a></code> f
 <span class="r-in"><span><span class="va">Y</span> <span class="op">&lt;-</span> <span class="va">X</span><span class="op">[</span>, <span class="fl">1</span><span class="op">]</span> <span class="op">*</span> <span class="va">W</span> <span class="op">+</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">cf</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/pkg/grf/man/causal_forest.html" class="external-link">causal_forest</a></span><span class="op">(</span><span class="va">X</span>, <span class="va">Y</span>, <span class="va">W</span>, num.trees <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">vi</span> <span class="op">&lt;-</span> <span class="fu">cf_loco</span><span class="op">(</span><span class="va">cf</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Conditioning-variable correlation matrix:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       X1    X2    X3    X4    X5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1  1.00 -0.18 -0.03 -0.09 -0.01</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2 -0.18  1.00 -0.02  0.05 -0.07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3 -0.03 -0.02  1.00  0.05 -0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X4 -0.09  0.05  0.05  1.00  0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X5 -0.01 -0.07 -0.02  0.02  1.00</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">vi</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> LOCO Variable Importance (Benard and Josse, 2023)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   n = 200  p = 5 </span>
@@ -205,6 +221,13 @@ summarizing results, <code><a href="omni_hetero.html">omni_hetero()</a></code> f
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Normalized importance (sums to 1)</span></span></span>
 <span class="r-in"><span><span class="va">vi_norm</span> <span class="op">&lt;-</span> <span class="fu">cf_loco</span><span class="op">(</span><span class="va">cf</span>, normalize <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Conditioning-variable correlation matrix:</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       X1    X2    X3    X4    X5</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X1  1.00 -0.18 -0.03 -0.09 -0.01</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X2 -0.18  1.00 -0.02  0.05 -0.07</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X3 -0.03 -0.02  1.00  0.05 -0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X4 -0.09  0.05  0.05  1.00  0.02</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> X5 -0.01 -0.07 -0.02  0.02  1.00</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">vi_norm</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> LOCO Variable Importance (Benard and Josse, 2023)</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   n = 200  p = 5 </span>
