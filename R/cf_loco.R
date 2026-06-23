@@ -179,22 +179,25 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
     }
   }
 
-  if (!isFALSE(screen) || interactive()) {
+  if (!isFALSE(screen)) {
     # compute split-frequency importance (essentially free)
     vi.split <- as.numeric(grf::variable_importance(c.forest))
-
     # aggregate to group level: max importance among member variables
     vi.group <- vapply(all.index.groups, function(idx) max(vi.split[idx]), numeric(1))
   }
 
   if (isTRUE(screen)) {
-    # auto-screen: keep variables with importance > mean
-    keep <- vi.group > mean(vi.group)
-    if (sum(keep) == 0L) keep <- rep(TRUE, n.groups)  # safety: keep all if none above mean
+    # auto-screen: drop covariates the forest never split on (importance exactly 0)
+    keep <- vi.group > 0
+    if (sum(keep) == 0L) {
+      keep <- rep(TRUE, n.groups)  # safety: all zero -> keep all
+      message("Screening: all variables have zero split-frequency importance; ",
+              "keeping all ", n.groups, ".")
+    } else {
+      message("Screening: LOCO on ", sum(keep), " of ", n.groups, " variables (",
+              paste(all.variable.names[keep], collapse = ", "), ")")
+    }
     screened <- !keep
-    k <- sum(keep)
-    message("Screening: LOCO on ", k, " of ", n.groups, " variables (",
-            paste(all.variable.names[keep], collapse = ", "), ")")
     index.groups <- all.index.groups[keep]
     variable.names <- all.variable.names[keep]
 
@@ -209,27 +212,6 @@ cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, cor
             paste(all.variable.names[keep], collapse = ", "), ")")
     index.groups <- all.index.groups[keep]
     variable.names <- all.variable.names[keep]
-
-  } else if (isFALSE(screen) && interactive()) {
-    # prompt if runtime looks extreme
-    n.fits <- n.groups + 1L
-    cost <- n.fits * n * c.forest$`_num_trees`
-    if (cost > 5e6) {
-      keep <- vi.group > mean(vi.group)
-      if (sum(keep) == 0L) keep <- rep(TRUE, n.groups)
-      k <- sum(keep)
-      ans <- readline(paste0(
-        "cf_loco will refit ", n.fits, " forests (n=", n,
-        ", trees=", c.forest$`_num_trees`,
-        "). Screen to top ", k, " variables? (y/n): "))
-      if (tolower(trimws(ans)) == "y") {
-        screened <- !keep
-        message("Screening: LOCO on ", k, " of ", n.groups, " variables (",
-                paste(all.variable.names[keep], collapse = ", "), ")")
-        index.groups <- all.index.groups[keep]
-        variable.names <- all.variable.names[keep]
-      }
-    }
   }
 
   # compute vimp for all input variables using the settings of the initial causal forest
