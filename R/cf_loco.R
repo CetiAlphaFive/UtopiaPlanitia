@@ -99,7 +99,7 @@
 #' vi_norm <- cf_loco(cf, normalize = TRUE)
 #' summary(vi_norm)
 #' }
-cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, screen = FALSE, stabilize = 1e-6, seed = 1995) {
+cf_loco <- function(c.forest, variable.groups = NULL, group.by.corr = FALSE, corr.threshold = 0.5, normalize = FALSE, screen = FALSE, stabilize = 1e-6, seed = 1995, verbose = TRUE) {
 
   set.seed(seed) # Set seed for reproducibility
 

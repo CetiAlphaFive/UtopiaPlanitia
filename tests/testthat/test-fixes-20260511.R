@@ -125,5 +125,5 @@ test_that("T-API: cf_loco formals unchanged", {
   expect_setequal(fn,
                   c("c.forest", "variable.groups", "group.by.corr",
                     "corr.threshold", "normalize", "screen",
-                    "stabilize", "seed"))
+                    "stabilize", "seed", "verbose"))
 })
