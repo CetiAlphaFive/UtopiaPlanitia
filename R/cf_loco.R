@@ -20,15 +20,18 @@
 #'   importance (`grf::variable_importance()`), which is essentially free to
 #'   compute. Screening reduces the number of expensive LOCO refits.
 #'   \describe{
-#'     \item{`FALSE` (default)}{No screening. If estimated runtime is high and
-#'       the session is interactive, the user is prompted to screen.}
-#'     \item{`TRUE`}{Auto-screen. Keep variables with split-frequency importance
-#'       above the mean.}
+#'     \item{`FALSE` (default)}{No screening; LOCO is run on every variable.}
+#'     \item{`TRUE`}{Auto-screen. Keep only variables with non-zero
+#'       split-frequency importance (drop covariates the forest never split on).}
 #'     \item{Integer `k`}{Keep the top-k variables by split-frequency
 #'       importance.}
 #'   }
 #'   Screened-out variables receive importance = 0 in the output.
 #' @param seed An integer seed for reproducibility. Default is `1995`.
+#' @param verbose Logical. If `TRUE` (default), after the refits print the
+#'   conditioning-variable correlation matrix and warn when any pair of
+#'   covariates is correlated above `|r| = 0.5` (suppressed when variables are
+#'   grouped via `group.by.corr` or `variable.groups`). Default `TRUE`.
 #' @return An object of class `"cf_loco"` with components:
 #'   \describe{
 #'     \item{vimp}{Data frame with columns `Variable` and `Importance`.}

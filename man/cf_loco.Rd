@@ -12,7 +12,8 @@ cf_loco(
   normalize = FALSE,
   screen = FALSE,
   stabilize = 0.000001,
-  seed = 1995
+  seed = 1995,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -34,10 +35,9 @@ Default is \code{FALSE}.}
 importance (\code{grf::variable_importance()}), which is essentially free to
 compute. Screening reduces the number of expensive LOCO refits.
 \describe{
-\item{\code{FALSE} (default)}{No screening. If estimated runtime is high and
-the session is interactive, the user is prompted to screen.}
-\item{\code{TRUE}}{Auto-screen. Keep variables with split-frequency importance
-above the mean.}
+\item{\code{FALSE} (default)}{No screening; LOCO is run on every variable.}
+\item{\code{TRUE}}{Auto-screen. Keep only variables with non-zero
+split-frequency importance (drop covariates the forest never split on).}
 \item{Integer \code{k}}{Keep the top-k variables by split-frequency
 importance.}
 }
@@ -49,6 +49,11 @@ division-by-zero when forest weights concentrate on units with
 near-identical propensity scores. Default \code{1e-6}. Set to \code{0} to disable.}
 
 \item{seed}{An integer seed for reproducibility. Default is \code{1995}.}
+
+\item{verbose}{Logical. If \code{TRUE} (default), after the refits print the
+conditioning-variable correlation matrix and warn when any pair of
+covariates is correlated above \verb{|r| = 0.5} (suppressed when variables are
+grouped via \code{group.by.corr} or \code{variable.groups}). Default \code{TRUE}.}
 }
 \value{
 An object of class \code{"cf_loco"} with components:

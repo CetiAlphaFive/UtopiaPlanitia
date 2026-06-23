@@ -166,12 +166,22 @@ test_that("plot_pdp 2-way hull trim emits message", {
 })
 
 test_that("cf_loco screen = TRUE returns correct structure and messages", {
-  cf <- make_cf()
-  expect_message(result <- cf_loco(cf, screen = TRUE), "Screening")
+  # screen = TRUE now drops only covariates with zero split-frequency
+  # importance (covariates the forest never split on). Add a constant column
+  # so exactly one variable is screened out.
+  set.seed(1995)
+  n <- 200
+  X <- matrix(rnorm(n * 5), n, 5)
+  colnames(X) <- paste0("X", seq_len(5))
+  X[, 5] <- 1                       # constant -> zero split frequency
+  W <- rbinom(n, 1, .5)
+  Y <- X[, 1] * W + rnorm(n)
+  cf <- grf::causal_forest(X, Y, W, num.trees = 100)
+  expect_message(result <- cf_loco(cf, screen = TRUE, verbose = FALSE), "Screening")
   expect_s3_class(result, "cf_loco")
   expect_equal(nrow(result$vimp), 5)
-  # screened-out variables should have importance = 0
-  expect_true(any(result$vimp$Importance == 0))
+  # the never-split (constant) covariate is screened out -> importance = 0
+  expect_equal(result$vimp$Importance[result$vimp$Variable == "X5"], 0)
 })
 
 test_that("cf_loco screen = integer keeps exactly k nonzero", {

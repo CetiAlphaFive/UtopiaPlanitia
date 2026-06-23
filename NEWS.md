@@ -1,5 +1,17 @@
 # UtopiaPlanitia (development version)
 
+## `cf_loco()` screening + correlation diagnostic
+
+* **`screen = TRUE` now drops only zero-importance covariates.** Auto-screening
+  keeps every variable with non-zero split-frequency importance (previously: above
+  the mean, which over-selected). The interactive runtime prompt was removed.
+* **New `verbose` argument (default `TRUE`)** prints the conditioning-variable
+  correlation matrix after the refits and warns when any covariate pair is
+  correlated above `|r| = 0.5`. Set `verbose = FALSE` to silence. The warning is
+  suppressed when variables are grouped via `group.by.corr` or `variable.groups`.
+  Note: with the default `verbose = TRUE`, existing calls now emit this matrix and
+  (when applicable) the new warning.
+
 ## `omni_hetero()` exposes the Sequential RATE fold count
 
 * **New `num.folds` argument** (default `5`) controls the number of folds
