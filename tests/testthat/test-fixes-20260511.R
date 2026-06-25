@@ -127,3 +127,11 @@ test_that("T-API: cf_loco formals unchanged", {
                     "corr.threshold", "normalize", "screen",
                     "stabilize", "seed", "verbose"))
 })
+
+test_that("T-API: plot_pdp formals unchanged", {
+  fn <- names(formals(plot_pdp))
+  expect_setequal(fn, c("c.forest", "x_var", "y_var", "grid_size", "n_max",
+                        "show_ate_region", "show_scatter", "trim",
+                        "x.limits", "y.limits", "color.var", "color.cat",
+                        "color.lab", "xlab", "num.threads", "subgroup"))
+})

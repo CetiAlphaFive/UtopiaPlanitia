@@ -19,7 +19,8 @@ plot_pdp(
   color.cat = NULL,
   color.lab = NULL,
   xlab = NULL,
-  num.threads = NULL
+  num.threads = NULL,
+  subgroup = FALSE
 )
 }
 \arguments{
@@ -69,9 +70,25 @@ Defaults to \code{color.var}.}
 \item{num.threads}{Integer or \code{NULL}. Number of threads for \code{predict()}.
 Passed directly to \code{\link[grf:predict.causal_forest]{grf::predict.causal_forest()}}. \code{NULL} (default) uses
 all available threads.}
+
+\item{subgroup}{Logical. If \code{TRUE}, ignore the partial-dependence machinery
+and instead plot the doubly-robust (AIPW) subgroup average treatment effect
+at each observed value of \code{x_var} (and, if \code{y_var} is given, each cell of the
+\code{x_var} x \code{y_var} cross), via \code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}} with
+\verb{subset =}. Intended for binary or low-cardinality integer covariates.
+1-way: points with 95\% CIs per level. 2-way: a heatmap of subgroup ATEs with
+a \code{*} on cells whose 95\% CI excludes 0. Levels are \code{sort(unique(.))} with no
+binning; a level/cell with too few units to estimate is warned and dropped.
+When \code{TRUE}, \code{grid_size}, \code{n_max}, \code{trim}, \code{show_scatter}, \code{color.var},
+\code{color.cat}, \code{color.lab}, \code{x.limits}, and \code{num.threads} are ignored;
+\code{show_ate_region} (1-way reference band), \code{y.limits} (1-way only), and \code{xlab}
+still apply.
+Default \code{FALSE}.}
 }
 \value{
-A \code{utopia_plot} object (a \code{ggExtraPlot} with marginal histograms).
+A \code{utopia_plot} object. For the PDP modes this wraps a \code{ggExtraPlot}
+with marginal histograms; for \code{subgroup = TRUE} it wraps a plain ggplot grob
+(no marginal histograms).
 }
 \description{
 Computes and plots the partial dependence of the CATE on one or two
@@ -100,6 +117,10 @@ Y <- X[, 1] * W + rnorm(n)
 cf <- causal_forest(X, Y, W, num.trees = 100)
 plot_pdp(cf, x_var = "X1")
 plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 20)
+# Discrete subgroup ATE instead of a PDP curve
+Xb <- X; Xb[, 1] <- rbinom(n, 1, 0.5)
+cfb <- causal_forest(Xb, Y, W, num.trees = 100)
+plot_pdp(cfb, x_var = "X1", subgroup = TRUE)
 \dontshow{\}) # examplesIf}
 }
 \references{

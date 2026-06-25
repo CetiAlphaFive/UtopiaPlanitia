@@ -38,8 +38,23 @@
 #' @param num.threads Integer or `NULL`. Number of threads for `predict()`.
 #'   Passed directly to [grf::predict.causal_forest()]. `NULL` (default) uses
 #'   all available threads.
+#' @param subgroup Logical. If `TRUE`, ignore the partial-dependence machinery
+#'   and instead plot the doubly-robust (AIPW) subgroup average treatment effect
+#'   at each observed value of `x_var` (and, if `y_var` is given, each cell of the
+#'   `x_var` x `y_var` cross), via [grf::average_treatment_effect()] with
+#'   `subset =`. Intended for binary or low-cardinality integer covariates.
+#'   1-way: points with 95% CIs per level. 2-way: a heatmap of subgroup ATEs with
+#'   a `*` on cells whose 95% CI excludes 0. Levels are `sort(unique(.))` with no
+#'   binning; a level/cell with too few units to estimate is warned and dropped.
+#'   When `TRUE`, `grid_size`, `n_max`, `trim`, `show_scatter`, `color.var`,
+#'   `color.cat`, `color.lab`, `x.limits`, and `num.threads` are ignored;
+#'   `show_ate_region` (1-way reference band), `y.limits` (1-way only), and `xlab`
+#'   still apply.
+#'   Default `FALSE`.
 #'
-#' @return A `utopia_plot` object (a `ggExtraPlot` with marginal histograms).
+#' @return A `utopia_plot` object. For the PDP modes this wraps a `ggExtraPlot`
+#'   with marginal histograms; for `subgroup = TRUE` it wraps a plain ggplot grob
+#'   (no marginal histograms).
 #'
 #' @details
 #' **Computational cost.** Each grid point requires a full `predict()` call on
@@ -69,6 +84,10 @@
 #' cf <- causal_forest(X, Y, W, num.trees = 100)
 #' plot_pdp(cf, x_var = "X1")
 #' plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 20)
+#' # Discrete subgroup ATE instead of a PDP curve
+#' Xb <- X; Xb[, 1] <- rbinom(n, 1, 0.5)
+#' cfb <- causal_forest(Xb, Y, W, num.trees = 100)
+#' plot_pdp(cfb, x_var = "X1", subgroup = TRUE)
 plot_pdp <- function(c.forest, x_var, y_var = NULL,
                      grid_size = 50, n_max = 2000,
                      show_ate_region = TRUE, show_scatter = TRUE,
@@ -76,16 +95,14 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
                      x.limits = NULL, y.limits = NULL,
                      color.var = NULL, color.cat = NULL,
                      color.lab = NULL, xlab = NULL,
-                     num.threads = NULL) {
+                     num.threads = NULL,
+                     subgroup = FALSE) {
 
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a causal_forest object from the grf package.")
   }
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed.")
-  }
-  if (!requireNamespace("ggExtra", quietly = TRUE)) {
-    stop("Package 'ggExtra' is required but not installed.")
   }
 
   X.orig <- c.forest$X.orig
@@ -98,6 +115,18 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
   }
   if (!is.null(color.var) && !is.null(y_var)) {
     stop("color.var grouping is only supported for 1-way PDP.")
+  }
+
+  if (subgroup) {
+    if (is.null(y_var)) {
+      return(.plot_subgroup_1way(c.forest, x_var, show_ate_region,
+                                 y.limits, xlab))
+    }
+    return(.plot_subgroup_2way(c.forest, x_var, y_var, xlab))
+  }
+
+  if (!requireNamespace("ggExtra", quietly = TRUE)) {
+    stop("Package 'ggExtra' is required but not installed.")
   }
 
   # Lower default n_max for 2-way PDP (PD averaging converges by ~500 rows)
@@ -149,6 +178,167 @@ plot_pdp <- function(c.forest, x_var, y_var = NULL,
                            num.threads = num.threads)$predictions
   # Average within each grid-point block
   colMeans(matrix(preds, nrow = n.sub, ncol = n.grid))
+}
+
+#' Doubly-robust AIPW ATE on one subset, with 95% CI and significance flag.
+#' Returns NULL (and warns) if grf cannot estimate the subset.
+#' @keywords internal
+#' @noRd
+.subgroup_ate_one <- function(c.forest, subset, label) {
+  res <- tryCatch(
+    grf::average_treatment_effect(c.forest, subset = subset),
+    error = function(e) {
+      warning("plot_pdp(subgroup): ", label, " skipped (",
+              conditionMessage(e), ")", call. = FALSE)
+      NULL
+    }
+  )
+  if (is.null(res)) return(NULL)
+  est <- res[["estimate"]]
+  se  <- res[["std.err"]]
+  data.frame(
+    estimate = est,
+    std.err  = se,
+    lower    = est - 1.96 * se,
+    upper    = est + 1.96 * se,
+    signif   = (est - 1.96 * se) > 0 | (est + 1.96 * se) < 0
+  )
+}
+
+#' Assemble per-level subgroup ATEs for a single covariate.
+#' Levels are sort(unique(x)); failed levels are warned + dropped.
+#' @keywords internal
+#' @noRd
+.subgroup_ate_1way_df <- function(c.forest, x_var) {
+  x.col <- .col_vec(c.forest$X.orig, x_var)
+  lv <- sort(unique(x.col[!is.na(x.col)]))
+  rows <- lapply(lv, function(v) {
+    s <- !is.na(x.col) & x.col == v
+    one <- .subgroup_ate_one(c.forest, s, paste0(x_var, " = ", v))
+    if (is.null(one)) return(NULL)
+    one$level <- v
+    one
+  })
+  df <- do.call(rbind, rows)
+  if (is.null(df) || nrow(df) == 0L) {
+    stop("plot_pdp(subgroup): no level of '", x_var,
+         "' had enough units to estimate an ATE.", call. = FALSE)
+  }
+  df
+}
+
+#' Shared ggplot theme for the subgroup plots (matches the PDP panels).
+#' @keywords internal
+#' @noRd
+.utopia_pdp_theme <- function() {
+  ggplot2::theme(
+    text = ggplot2::element_text(size = 12, family = "serif"),
+    panel.background = ggplot2::element_rect(fill = "#e6e6e6"),
+    plot.title = ggplot2::element_text(hjust = 0.5),
+    legend.position = "bottom",
+    panel.border = ggplot2::element_blank(),
+    axis.text = ggplot2::element_text(),
+    axis.title = ggplot2::element_text(size = ggplot2::rel(1.2)),
+    strip.text = ggplot2::element_text(hjust = 0),
+    strip.background = ggplot2::element_rect(fill = NA, color = NA),
+    legend.key = ggplot2::element_blank(),
+    complete = TRUE
+  )
+}
+
+#' 1-way discrete subgroup ATE plot: point + 95% CI per level.
+#' @keywords internal
+#' @noRd
+.plot_subgroup_1way <- function(c.forest, x_var, show_ate_region,
+                                y.limits, xlab) {
+  df <- .subgroup_ate_1way_df(c.forest, x_var)
+  df$level <- factor(as.character(df$level),
+                     levels = as.character(sort(unique(df$level))))
+  x.label <- if (!is.null(xlab)) xlab else x_var
+
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data[["level"]],
+                                        y = .data[["estimate"]]))
+
+  if (show_ate_region) {
+    ate.result <- grf::average_treatment_effect(c.forest)
+    ate <- ate.result[["estimate"]]
+    hi  <- ate + 1.96 * ate.result[["std.err"]]
+    lo  <- ate - 1.96 * ate.result[["std.err"]]
+    p <- p +
+      ggplot2::geom_hline(yintercept = ate, color = "black", linewidth = 0.5) +
+      ggplot2::geom_hline(yintercept = hi, linetype = "dotted") +
+      ggplot2::geom_hline(yintercept = lo, linetype = "dotted")
+  }
+
+  p <- p +
+    ggplot2::geom_errorbar(
+      ggplot2::aes(ymin = .data[["lower"]], ymax = .data[["upper"]]),
+      width = 0.15, color = "#5ab0c0", linewidth = 0.8) +
+    ggplot2::geom_point(color = "#ea794e", size = 2.5) +
+    ggplot2::labs(x = x.label, y = "CATE") +
+    ggplot2::scale_y_continuous(limits = y.limits) +
+    .utopia_pdp_theme()
+
+  .as_utopia_plot(p)
+}
+
+#' Assemble subgroup ATEs over the cross of two covariates' levels.
+#' Empty and failed cells are skipped; significance => trailing "*".
+#' @keywords internal
+#' @noRd
+.subgroup_ate_2way_df <- function(c.forest, x_var, y_var) {
+  x.col <- .col_vec(c.forest$X.orig, x_var)
+  y.col <- .col_vec(c.forest$X.orig, y_var)
+  x.lv <- sort(unique(x.col[!is.na(x.col)]))
+  y.lv <- sort(unique(y.col[!is.na(y.col)]))
+
+  cells <- list()
+  for (vx in x.lv) {
+    for (vy in y.lv) {
+      s <- !is.na(x.col) & !is.na(y.col) & x.col == vx & y.col == vy
+      if (!any(s)) next
+      one <- .subgroup_ate_one(
+        c.forest, s, paste0(x_var, "=", vx, ", ", y_var, "=", vy))
+      if (is.null(one)) next
+      one$xv <- vx
+      one$yv <- vy
+      cells[[length(cells) + 1L]] <- one
+    }
+  }
+  df <- do.call(rbind, cells)
+  if (is.null(df) || nrow(df) == 0L) {
+    stop("plot_pdp(subgroup): no (", x_var, ", ", y_var,
+         ") cell had enough units to estimate an ATE.", call. = FALSE)
+  }
+  df$lab <- paste0(formatC(df$estimate, format = "f", digits = 2),
+                   ifelse(df$signif, "*", ""))
+  df
+}
+
+#' 2-way discrete subgroup ATE heatmap with significance asterisks.
+#' @keywords internal
+#' @noRd
+.plot_subgroup_2way <- function(c.forest, x_var, y_var, xlab) {
+  df <- .subgroup_ate_2way_df(c.forest, x_var, y_var)
+  x.lv <- sort(unique(df$xv))
+  y.lv <- sort(unique(df$yv))
+  df$xv <- factor(as.character(df$xv), levels = as.character(x.lv))
+  df$yv <- factor(as.character(df$yv), levels = as.character(y.lv))
+  x.label <- if (!is.null(xlab)) xlab else x_var
+
+  p <- ggplot2::ggplot(df, ggplot2::aes(x = .data[["xv"]], y = .data[["yv"]])) +
+    ggplot2::geom_tile(ggplot2::aes(fill = .data[["estimate"]]),
+                       color = "white") +
+    ggplot2::geom_text(ggplot2::aes(label = .data[["lab"]]),
+                       family = "serif", size = 3.5) +
+    ggplot2::scale_fill_gradient2(low = "#fd647c", mid = "#e6e6e6",
+                                  high = "#3d900e", midpoint = 0) +
+    ggplot2::labs(x = x.label, y = y_var, fill = "Subgroup ATE") +
+    ggplot2::scale_x_discrete(expand = c(0, 0)) +
+    ggplot2::scale_y_discrete(expand = c(0, 0)) +
+    .utopia_pdp_theme()
+
+  .as_utopia_plot(p)
 }
 
 #' Ray-casting point-in-polygon test (base R)
