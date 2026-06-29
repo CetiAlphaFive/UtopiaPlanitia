@@ -92,3 +92,20 @@ test_that("cf_perm normalize rescales importance to sum 1 and NAs the inference 
   expect_true(all(is.na(res$vimp$SE)))
   expect_true(all(is.na(res$vimp$p.value)))
 })
+
+test_that("cf_perm cross-fit path returns fold-based inference", {
+  cf  <- make_test_cf(n = 400)
+  res <- cf_perm(cf, n.perm = 10, cross.fit = TRUE, num.folds = 3,
+                 seed = 1, verbose = FALSE)
+  expect_true(res$cross.fit)
+  expect_equal(res$num.folds, 3)
+  imp <- stats::setNames(res$vimp$Importance, res$vimp$Variable)
+  expect_equal(names(which.max(imp)), "X1")
+  expect_false(any(is.na(res$vimp$p.value)))
+})
+
+test_that("cf_perm cross-fit rejects AIPW in this version", {
+  cf <- make_test_cf()
+  expect_error(cf_perm(cf, cross.fit = TRUE, loss = "AIPW", verbose = FALSE),
+               "only supported with loss")
+})

@@ -223,3 +223,80 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
     class = "cf_perm"
   )
 }
+
+# Stratified fold ids on the binary treatment W.
+.cf_perm_folds <- function(W, num.folds) {
+  fold <- integer(length(W))
+  for (lev in unique(W)) {
+    idx <- which(W == lev)
+    fold[idx] <- sample(rep_len(seq_len(num.folds), length(idx)))
+  }
+  fold
+}
+
+# Cross-fit PermuCATE (R-loss). Returns named list of per-covariate vectors.
+.cf_perm_cv <- function(c.forest, X, Y, W, keep, n.perm, num.folds,
+                        conf.level, seed) {
+  n <- nrow(X)
+  p <- ncol(X)
+  zc <- stats::qnorm(1 - (1 - conf.level) / 2)
+  fold <- .cf_perm_folds(W, num.folds)
+
+  Psi <- matrix(NA_real_, num.folds, p)   # per-fold, per-covariate importance
+  n1  <- numeric(num.folds)               # train sizes
+  n2  <- numeric(num.folds)               # test sizes
+
+  for (f in seq_len(num.folds)) {
+    tr <- which(fold != f)
+    te <- which(fold == f)
+    n1[f] <- length(tr)
+    n2[f] <- length(te)
+
+    cf.k <- grf::causal_forest(
+      X[tr, , drop = FALSE], Y[tr], W[tr],
+      num.trees             = c.forest$`_num_trees`,
+      sample.fraction       = c.forest$tunable.params$sample.fraction,
+      mtry                  = c.forest$tunable.params$mtry,
+      min.node.size         = c.forest$tunable.params$min.node.size,
+      honesty.fraction      = c.forest$tunable.params$honesty.fraction,
+      honesty.prune.leaves  = c.forest$tunable.params$honesty.prune.leaves,
+      alpha                 = c.forest$tunable.params$alpha,
+      imbalance.penalty     = c.forest$tunable.params$imbalance.penalty,
+      ci.group.size         = c.forest$ci.group.size,
+      seed                  = seed
+    )
+    m.te  <- stats::predict(grf::regression_forest(X[tr, , drop = FALSE], Y[tr], seed = seed),
+                            X[te, , drop = FALSE])$predictions
+    pi.te <- stats::predict(grf::regression_forest(X[tr, , drop = FALSE], W[tr], seed = seed),
+                            X[te, , drop = FALSE])$predictions
+    tau.te <- stats::predict(cf.k, X[te, , drop = FALSE])$predictions
+    L0.te  <- .cf_perm_risk(tau.te, Y[te], m.te, W[te], pi.te, NULL, "R")
+
+    Xte <- X[te, , drop = FALSE]
+    Xtr <- X[tr, , drop = FALSE]
+    for (j in which(keep)) {
+      Xperm <- .cf_perm_cp_sample(j, Xtr, Xte, n.perm, seed = seed)
+      dbar  <- numeric(length(te))
+      for (k in seq_len(n.perm)) {
+        Xk <- Xte
+        Xk[, j] <- Xperm[, k]
+        tau.k <- stats::predict(cf.k, Xk)$predictions
+        Lk    <- .cf_perm_risk(tau.k, Y[te], m.te, W[te], pi.te, NULL, "R")
+        dbar  <- dbar + (Lk - L0.te) / 2
+      }
+      Psi[f, j] <- mean(dbar / n.perm)
+    }
+  }
+
+  imp <- colMeans(Psi)
+  # Nadeau-Bengio corrected variance of the cross-validated mean.
+  rho <- mean(n2) / mean(n1)
+  s2  <- apply(Psi, 2L, stats::var)
+  se  <- sqrt((1 / num.folds + rho) * s2)
+  z   <- imp / se
+  pval  <- stats::pnorm(z, lower.tail = FALSE)
+  ci.lo <- imp - zc * se
+  ci.hi <- imp + zc * se
+
+  list(imp = imp, se = se, z = z, pval = pval, ci.lo = ci.lo, ci.hi = ci.hi)
+}
