@@ -69,3 +69,26 @@ test_that("cf_perm AIPW loss runs and agrees in sign on the signal variable", {
   expect_gt(x1_R, 0)
   expect_gt(x1_A, 0)
 })
+
+test_that("cf_perm rejects non-causal_forest input", {
+  expect_error(cf_perm(list(), verbose = FALSE),
+               "must be a grf causal forest")
+})
+
+test_that("cf_perm screen = integer keeps only top-k; rest get 0 importance, p=1", {
+  cf  <- make_test_cf()
+  res <- cf_perm(cf, n.perm = 10, screen = 2L, seed = 1, verbose = FALSE)
+  scored   <- res$vimp$Importance != 0 | res$vimp$p.value < 1
+  expect_lte(sum(scored), 2L)
+  dropped <- res$vimp[res$vimp$Importance == 0 & res$vimp$p.value == 1, ]
+  expect_true(nrow(dropped) >= 2L)
+})
+
+test_that("cf_perm normalize rescales importance to sum 1 and NAs the inference cols", {
+  cf  <- make_test_cf()
+  res <- cf_perm(cf, n.perm = 10, normalize = TRUE, seed = 1, verbose = FALSE)
+  expect_true(res$normalized)
+  expect_equal(sum(res$vimp$Importance), 1, tolerance = 1e-8)
+  expect_true(all(is.na(res$vimp$SE)))
+  expect_true(all(is.na(res$vimp$p.value)))
+})
