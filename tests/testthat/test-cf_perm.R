@@ -109,3 +109,33 @@ test_that("cf_perm cross-fit rejects AIPW in this version", {
   expect_error(cf_perm(cf, cross.fit = TRUE, loss = "AIPW", verbose = FALSE),
                "only supported with loss")
 })
+
+test_that("cf_perm validates num.folds under cross.fit", {
+  cf <- make_test_cf()
+  expect_error(cf_perm(cf, cross.fit = TRUE, num.folds = 1, verbose = FALSE),
+               "num.folds")
+})
+
+test_that("cf_perm cross.fit + screen: screened vars get 0 importance, p=1, NA inference", {
+  cf  <- make_test_cf(n = 400)
+  res <- cf_perm(cf, n.perm = 10, cross.fit = TRUE, num.folds = 3,
+                 screen = 2L, seed = 1, verbose = FALSE)
+  dropped <- res$vimp[res$vimp$Importance == 0 & res$vimp$p.value == 1, ]
+  expect_true(nrow(dropped) >= 2L)
+  expect_true(all(is.na(dropped$SE)))
+})
+
+test_that("cf_perm normalize warns and returns uniform 1/p when all importances <= 0", {
+  set.seed(11)
+  n <- 250; p <- 3
+  X <- matrix(stats::rnorm(n * p), n, p); colnames(X) <- paste0("X", 1:p)
+  W <- stats::rbinom(n, 1, 0.5)
+  Y <- stats::rnorm(n)  # no treatment-effect heterogeneity -> all importances <= 0
+  cf <- grf::causal_forest(X, Y, W, num.trees = 250, seed = 11)
+  expect_warning(
+    res <- cf_perm(cf, n.perm = 10, normalize = TRUE, seed = 1, verbose = FALSE),
+    "uniform"
+  )
+  expect_equal(sum(res$vimp$Importance), 1, tolerance = 1e-8)
+  expect_true(all(abs(res$vimp$Importance - 1 / p) < 1e-8))
+})

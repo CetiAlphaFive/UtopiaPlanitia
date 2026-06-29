@@ -896,9 +896,7 @@ git commit -m "test(cf_perm): add gated null-DGP false-positive check"
 
 ## Notes for the implementer
 
-- **Prediction mode:** in the light path, score BOTH baseline and permuted covariates with
-  `predict(c.forest, X)` (in-sample), never `c.forest$predictions` (OOB), so the two risks are
-  comparable. This is deliberate.
+- **Prediction mode (amended):** the light path scores the BASELINE risk with the forest's out-of-bag predictions (`c.forest$predictions`) for conservative null calibration, and the PERMUTED covariates with in-sample `predict(c.forest, X_perm)` (no OOB available for new data). cross.fit = TRUE gives unbiased cross-fitted inference.
 - **AIPW caveat (spec open-check #1):** `grf::get_scores()` bakes the forest's own `tau.hat`
   into `psi`, making the AIPW baseline slightly self-favoring. Compare AIPW vs R-loss on the toy
   DGP and note the result in the PR; R-loss is the recommended default.

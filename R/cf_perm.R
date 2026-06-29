@@ -129,6 +129,14 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   if (cross.fit && loss == "AIPW") {
     stop("cross.fit = TRUE is only supported with loss = \"R\" in this version.")
   }
+  cl <- c.forest$clusters
+  if (!is.null(cl) && length(cl) > 0L && length(unique(cl)) > 1L) {
+    stop("cf_perm does not yet support clustered causal forests.")
+  }
+  if (!is.null(c.forest$sample.weights)) {
+    warning("cf_perm ignores sample.weights; importances are unweighted.",
+            call. = FALSE)
+  }
   set.seed(seed)
 
   X <- c.forest$X.orig
@@ -138,6 +146,9 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   pi <- c.forest$W.hat
   n  <- nrow(X)
   p  <- ncol(X)
+  if (cross.fit && (num.folds < 2L || num.folds > n)) {
+    stop("num.folds must be between 2 and n when cross.fit = TRUE.")
+  }
   vnames <- colnames(X)
   if (is.null(vnames)) vnames <- paste0("V", seq_len(p))
 
@@ -174,7 +185,7 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
     # cross-fitted inference.
     tau.base <- c.forest$predictions
     L0 <- .cf_perm_risk(tau.base, Y, m, W, pi, psi, loss)
-    zc <- stats::qnorm(1 - (1 - conf.level) / 2)
+    zc <- stats::qnorm(conf.level)
 
     for (j in which(keep)) {
       Xperm <- .cf_perm_cp_sample(j, X, X, n.perm, seed = seed)
@@ -192,7 +203,7 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
       z[j]    <- imp[j] / se[j]
       pval[j] <- stats::pnorm(z[j], lower.tail = FALSE)
       ci.lo[j] <- imp[j] - zc * se[j]
-      ci.hi[j] <- imp[j] + zc * se[j]
+      ci.hi[j] <- Inf
     }
   } else {
     cv <- .cf_perm_cv(c.forest, X, Y, W, keep, n.perm, num.folds, conf.level, seed)
@@ -206,7 +217,13 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
 
   if (normalize) {
     impc <- ifelse(imp >= 0, imp, 0)
-    imp  <- if (sum(impc) == 0) rep(1 / p, p) else impc / sum(impc)
+    if (sum(impc) == 0) {
+      warning("cf_perm: all non-negative importances are zero; returning ",
+              "uniform 1/p importance.", call. = FALSE)
+      imp <- rep(1 / p, p)
+    } else {
+      imp <- impc / sum(impc)
+    }
     se[] <- z[] <- pval[] <- ci.lo[] <- ci.hi[] <- NA_real_
   }
 
@@ -239,7 +256,6 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
                         conf.level, seed) {
   n <- nrow(X)
   p <- ncol(X)
-  zc <- stats::qnorm(1 - (1 - conf.level) / 2)
   fold <- .cf_perm_folds(W, num.folds)
 
   Psi <- matrix(NA_real_, num.folds, p)   # per-fold, per-covariate importance
@@ -289,14 +305,18 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   }
 
   imp <- colMeans(Psi)
-  # Nadeau-Bengio corrected variance of the cross-validated mean.
+  # Nadeau-Bengio corrected variance of the cross-validated mean. The corrected
+  # resampled statistic is a t with (num.folds - 1) df, so reference t, not normal.
   rho <- mean(n2) / mean(n1)
   s2  <- apply(Psi, 2L, stats::var)
   se  <- sqrt((1 / num.folds + rho) * s2)
   z   <- imp / se
-  pval  <- stats::pnorm(z, lower.tail = FALSE)
-  ci.lo <- imp - zc * se
-  ci.hi <- imp + zc * se
+  df.nb <- num.folds - 1L
+  pval  <- stats::pt(z, df = df.nb, lower.tail = FALSE)
+  tc    <- stats::qt(conf.level, df = df.nb)
+  ci.lo <- imp - tc * se
+  ci.hi <- rep(Inf, length(imp))
+  ci.hi[is.na(se)] <- NA_real_
 
   list(imp = imp, se = se, z = z, pval = pval, ci.lo = ci.lo, ci.hi = ci.hi)
 }
