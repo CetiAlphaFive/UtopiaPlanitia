@@ -110,7 +110,9 @@
 #' comparable to the R-loss and should be read ordinally (ranking and
 #' significance), because \code{grf::get_scores()} bakes the forest's own CATE
 #' estimate into the pseudo-outcome. The default \code{loss = "R"} is
-#' recommended when magnitudes are to be interpreted.
+#' recommended when magnitudes are to be interpreted. AIPW importances are also
+#' systematically larger than the R-loss and penalize noise covariates more
+#' heavily, so AIPW and R-loss magnitudes are not directly comparable.
 #'
 #' @references
 #' Paillard, J., Reyero Lobo, A. D., Kolodyazhniy, V., Thirion, B., and
@@ -152,7 +154,7 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
     stop("cross.fit = TRUE is only supported with loss = \"R\" in this version.")
   }
   cl <- c.forest$clusters
-  if (!is.null(cl) && length(cl) > 0L && length(unique(cl)) > 1L) {
+  if (!is.null(cl) && length(cl) > 0L && length(unique(cl)) >= 1L) {
     stop("cf_perm does not yet support clustered causal forests.")
   }
   if (!is.null(c.forest$sample.weights)) {
@@ -168,8 +170,17 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   pi <- c.forest$W.hat
   n  <- nrow(X)
   p  <- ncol(X)
-  if (cross.fit && (num.folds < 2L || num.folds > n)) {
-    stop("num.folds must be between 2 and n when cross.fit = TRUE.")
+  if (p < 2L) {
+    stop("cf_perm requires at least 2 covariates (conditional permutation of X_j needs X_{-j}).")
+  }
+  if (cross.fit) {
+    if (num.folds < 2L || num.folds >= n) {
+      stop("num.folds must be between 2 and n - 1 when cross.fit = TRUE.")
+    }
+    if (length(unique(W)) <= 10L && num.folds > min(table(W))) {
+      stop("num.folds (", num.folds, ") cannot exceed the smaller treatment-group ",
+           "size (", min(table(W)), ") for stratified cross-fitting.")
+    }
   }
   vnames <- colnames(X)
   if (is.null(vnames)) vnames <- paste0("V", seq_len(p))
@@ -181,8 +192,8 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
                              screen == as.integer(screen) && screen >= 1L)) {
       stop("screen must be FALSE, TRUE, or a positive integer.")
     }
-    if (is.numeric(screen) && screen >= p) {
-      stop("screen must be less than the number of covariates (", p, ").")
+    if (is.numeric(screen) && screen > p) {
+      stop("screen must be no greater than the number of covariates (", p, ").")
     }
     vi.split <- as.numeric(grf::variable_importance(c.forest))
     if (isTRUE(screen)) {
@@ -228,7 +239,7 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
       ci.hi[j] <- Inf
     }
   } else {
-    cv <- .cf_perm_cv(c.forest, X, Y, W, keep, n.perm, num.folds, conf.level, seed)
+    cv <- .cf_perm_cv(c.forest, X, Y, W, keep, n.perm, num.folds, conf.level, seed, verbose)
     imp <- cv$imp; se <- cv$se; z <- cv$z
     pval <- cv$pval; ci.lo <- cv$ci.lo; ci.hi <- cv$ci.hi
   }
@@ -241,8 +252,9 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
     impc <- ifelse(imp >= 0, imp, 0)
     if (sum(impc) == 0) {
       warning("cf_perm: all non-negative importances are zero; returning ",
-              "uniform 1/p importance.", call. = FALSE)
-      imp <- rep(1 / p, p)
+              "uniform importance over screened-in covariates.", call. = FALSE)
+      imp[keep]  <- 1 / sum(keep)
+      imp[!keep] <- 0
     } else {
       imp <- impc / sum(impc)
     }
@@ -263,19 +275,25 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   )
 }
 
-# Stratified fold ids on the binary treatment W.
+# Fold ids: stratified on a discrete treatment, simple random for continuous W.
 .cf_perm_folds <- function(W, num.folds) {
-  fold <- integer(length(W))
-  for (lev in unique(W)) {
-    idx <- which(W == lev)
-    fold[idx] <- sample(rep_len(seq_len(num.folds), length(idx)))
+  n <- length(W)
+  fold <- integer(n)
+  uW <- unique(W)
+  if (length(uW) <= 10L) {
+    for (lev in uW) {
+      idx <- which(W == lev)
+      fold[idx] <- sample(rep_len(seq_len(num.folds), length(idx)))
+    }
+  } else {
+    fold <- sample(rep_len(seq_len(num.folds), n))
   }
   fold
 }
 
 # Cross-fit PermuCATE (R-loss). Returns named list of per-covariate vectors.
 .cf_perm_cv <- function(c.forest, X, Y, W, keep, n.perm, num.folds,
-                        conf.level, seed) {
+                        conf.level, seed, verbose = TRUE) {
   n <- nrow(X)
   p <- ncol(X)
   fold <- .cf_perm_folds(W, num.folds)
@@ -285,6 +303,7 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   n2  <- numeric(num.folds)               # test sizes
 
   for (f in seq_len(num.folds)) {
+    if (verbose) message("cf_perm cross-fit: fold ", f, " of ", num.folds)
     tr <- which(fold != f)
     te <- which(fold == f)
     n1[f] <- length(tr)
@@ -333,6 +352,13 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   s2  <- apply(Psi, 2L, stats::var)
   se  <- sqrt((1 / num.folds + rho) * s2)
   z   <- imp / se
+  zero.se <- !is.na(se) & se == 0
+  if (any(zero.se)) {
+    warning("cf_perm: zero cross-fit SE for some covariates (identical fold ",
+            "importances); their z and p-values are set to NA. Use more folds ",
+            "or a larger sample.", call. = FALSE)
+    z[zero.se] <- NA_real_
+  }
   df.nb <- num.folds - 1L
   pval  <- stats::pt(z, df = df.nb, lower.tail = FALSE)
   tc    <- stats::qt(conf.level, df = df.nb)

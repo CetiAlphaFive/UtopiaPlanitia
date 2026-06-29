@@ -146,7 +146,8 @@ test_that("cf_perm S3 methods behave", {
 
   expect_output(print(res), "PermuCATE Variable Importance")
   expect_invisible(print(res))
-  expect_identical(summary(res), invisible(res))
+  expect_output(summary(res), "PermuCATE Variable Importance")
+  expect_invisible(summary(res))
 
   skip_if_not_installed("ggplot2")
   g <- plot(res)
@@ -168,4 +169,59 @@ test_that("cf_perm controls false positives under a null DGP (slow)", {
     any(res$vimp$p.value < 0.05, na.rm = TRUE)
   })
   expect_lt(mean(reject), 0.30)   # generous bound; OOB light path is conservative
+})
+
+test_that("cf_perm guards single-covariate forests", {
+  set.seed(3); n <- 150
+  X <- matrix(stats::rnorm(n), n, 1); colnames(X) <- "X1"
+  W <- stats::rbinom(n, 1, 0.5); Y <- X[, 1] * W + stats::rnorm(n)
+  cf <- grf::causal_forest(X, Y, W, num.trees = 200)
+  expect_error(cf_perm(cf, verbose = FALSE), "at least 2 covariates")
+})
+
+test_that("cf_perm errors on clustered forests (single and multi cluster)", {
+  set.seed(4); n <- 200; p <- 3
+  X <- matrix(stats::rnorm(n * p), n, p); colnames(X) <- paste0("X", 1:p)
+  W <- stats::rbinom(n, 1, 0.5); Y <- X[, 1] * W + stats::rnorm(n)
+  cf1 <- grf::causal_forest(X, Y, W, num.trees = 200, clusters = rep(1, n))
+  expect_error(cf_perm(cf1, verbose = FALSE), "clustered")
+  cf2 <- grf::causal_forest(X, Y, W, num.trees = 200,
+                            clusters = sample(1:4, n, replace = TRUE))
+  expect_error(cf_perm(cf2, verbose = FALSE), "clustered")
+})
+
+test_that("cf_perm cross.fit rejects num.folds >= n", {
+  cf <- make_test_cf(n = 120)
+  expect_error(cf_perm(cf, cross.fit = TRUE, num.folds = 120, verbose = FALSE),
+               "num.folds")
+})
+
+test_that("cf_perm screen = p is a no-op (keeps all), not an error", {
+  cf <- make_test_cf()  # p = 4
+  expect_no_error(res <- cf_perm(cf, n.perm = 5, screen = 4L, seed = 1, verbose = FALSE))
+  expect_equal(nrow(res$vimp), 4L)
+})
+
+test_that("cf_perm normalize + screen gives no importance to screened-out vars", {
+  set.seed(11); n <- 250; p <- 4
+  X <- matrix(stats::rnorm(n * p), n, p); colnames(X) <- paste0("X", 1:p)
+  W <- stats::rbinom(n, 1, 0.5); Y <- stats::rnorm(n)  # null DGP
+  cf <- grf::causal_forest(X, Y, W, num.trees = 250, seed = 11)
+  suppressWarnings(
+    res <- cf_perm(cf, n.perm = 5, screen = 2L, normalize = TRUE, seed = 1, verbose = FALSE)
+  )
+  expect_true(sum(res$vimp$Importance == 0) >= 2L)  # screened-out stay 0, not 1/p
+  expect_equal(sum(res$vimp$Importance), 1, tolerance = 1e-8)
+})
+
+test_that("cf_perm cross.fit handles continuous treatment without empty folds", {
+  set.seed(5); n <- 300; p <- 3
+  X <- matrix(stats::rnorm(n * p), n, p); colnames(X) <- paste0("X", 1:p)
+  W <- stats::runif(n)  # continuous treatment
+  Y <- X[, 1] * W + stats::rnorm(n)
+  cf <- grf::causal_forest(X, Y, W, num.trees = 200, seed = 5)
+  expect_no_error(
+    res <- cf_perm(cf, n.perm = 5, cross.fit = TRUE, num.folds = 3, seed = 1, verbose = FALSE)
+  )
+  expect_false(any(is.na(res$vimp$Importance)))
 })

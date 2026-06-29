@@ -91,7 +91,9 @@ AIPW importance magnitudes (\code{loss = "AIPW"}) are not on a scale
 comparable to the R-loss and should be read ordinally (ranking and
 significance), because \code{grf::get_scores()} bakes the forest's own CATE
 estimate into the pseudo-outcome. The default \code{loss = "R"} is
-recommended when magnitudes are to be interpreted.
+recommended when magnitudes are to be interpreted. AIPW importances are also
+systematically larger than the R-loss and penalize noise covariates more
+heavily, so AIPW and R-loss magnitudes are not directly comparable.
 }
 \examples{
 \donttest{

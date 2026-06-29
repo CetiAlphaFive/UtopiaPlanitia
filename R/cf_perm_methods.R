@@ -80,9 +80,10 @@ plot.cf_perm <- function(x, ...) {
     )
 
   # One-sided lower confidence bound (CI.upper is +Inf by construction).
-  if (!x$normalized && all(is.finite(v$CI.lower))) {
+  if (!x$normalized && any(is.finite(v$CI.lower))) {
     g <- g + ggplot2::geom_linerange(
       ggplot2::aes(ymin = .data[["CI.lower"]], ymax = .data[["Importance"]]),
+      data = v[is.finite(v$CI.lower), , drop = FALSE],
       color = "grey40")
   }
   g
