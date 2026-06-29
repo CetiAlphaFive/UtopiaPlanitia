@@ -30,3 +30,30 @@ test_that(".cf_perm_cp_sample only emits observed levels (discrete)", {
   out <- .cf_perm_cp_sample(1, X, X, n.perm = 5, seed = 2)
   expect_true(all(out %in% c(0, 1)))
 })
+
+test_that("cf_perm light path returns a cf_perm object with signal detected", {
+  cf <- make_test_cf()
+  res <- cf_perm(cf, n.perm = 20, seed = 1, verbose = FALSE)
+
+  expect_s3_class(res, "cf_perm")
+  expect_named(res$vimp,
+    c("Variable", "Importance", "SE", "z", "p.value", "CI.lower", "CI.upper"))
+  expect_equal(nrow(res$vimp), 4L)
+  expect_false(res$cross.fit)
+  expect_identical(res$loss, "R")
+
+  imp <- stats::setNames(res$vimp$Importance, res$vimp$Variable)
+  p   <- stats::setNames(res$vimp$p.value,    res$vimp$Variable)
+  # X1 drives the CATE: largest importance, significant.
+  expect_equal(names(which.max(imp)), "X1")
+  expect_lt(p[["X1"]], 0.05)
+  # X3 is pure noise: not significant.
+  expect_gt(p[["X3"]], 0.05)
+})
+
+test_that("cf_perm rejects covariates containing NA", {
+  cf <- make_test_cf()
+  cf$X.orig[1, 1] <- NA
+  expect_error(cf_perm(cf, verbose = FALSE),
+               "does not support missing values")
+})
