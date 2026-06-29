@@ -57,3 +57,15 @@ test_that("cf_perm rejects covariates containing NA", {
   expect_error(cf_perm(cf, verbose = FALSE),
                "does not support missing values")
 })
+
+test_that("cf_perm AIPW loss runs and agrees in sign on the signal variable", {
+  cf  <- make_test_cf()
+  rR  <- cf_perm(cf, loss = "R",    n.perm = 20, seed = 1, verbose = FALSE)
+  rA  <- cf_perm(cf, loss = "AIPW", n.perm = 20, seed = 1, verbose = FALSE)
+
+  expect_identical(rA$loss, "AIPW")
+  x1_R <- rR$vimp$Importance[rR$vimp$Variable == "X1"]
+  x1_A <- rA$vimp$Importance[rA$vimp$Variable == "X1"]
+  expect_gt(x1_R, 0)
+  expect_gt(x1_A, 0)
+})
