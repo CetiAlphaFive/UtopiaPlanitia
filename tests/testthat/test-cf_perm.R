@@ -139,3 +139,16 @@ test_that("cf_perm normalize warns and returns uniform 1/p when all importances 
   expect_equal(sum(res$vimp$Importance), 1, tolerance = 1e-8)
   expect_true(all(abs(res$vimp$Importance - 1 / p) < 1e-8))
 })
+
+test_that("cf_perm S3 methods behave", {
+  cf  <- make_test_cf()
+  res <- cf_perm(cf, n.perm = 10, seed = 1, verbose = FALSE)
+
+  expect_output(print(res), "PermuCATE Variable Importance")
+  expect_invisible(print(res))
+  expect_identical(summary(res), invisible(res))
+
+  skip_if_not_installed("ggplot2")
+  g <- plot(res)
+  expect_s3_class(g, "ggplot")
+})
