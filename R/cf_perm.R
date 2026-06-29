@@ -64,8 +64,11 @@
 #' @param n.perm Integer number of conditional permutations per covariate.
 #'   Default \code{50}.
 #' @param cross.fit Logical. If \code{FALSE} (default), the light path scores the
-#'   passed forest in place and derives influence-function SEs. If \code{TRUE},
-#'   refit per fold and aggregate with the Nadeau-Bengio correction (R-loss only).
+#'   passed forest in place using its out-of-bag predictions as the risk baseline
+#'   and derives influence-function SEs. This baseline keeps the light-path
+#'   inference conservative (it controls false positives at some cost to power for
+#'   weak effect modifiers). If \code{TRUE}, refit per fold and aggregate with the
+#'   Nadeau-Bengio correction for unbiased cross-fitted inference (R-loss only).
 #' @param num.folds Integer number of folds when \code{cross.fit = TRUE}. Default
 #'   \code{5}.
 #' @param screen Optional split-frequency pre-screening, identical in meaning to
@@ -166,7 +169,10 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
 
   if (!cross.fit) {
     psi <- if (loss == "AIPW") as.numeric(grf::get_scores(c.forest)) else NULL
-    tau.base <- stats::predict(c.forest, X)$predictions
+    # OOB baseline (honest) keeps null inference conservative; permuted
+    # predictions are necessarily non-OOB. Use cross.fit = TRUE for unbiased
+    # cross-fitted inference.
+    tau.base <- c.forest$predictions
     L0 <- .cf_perm_risk(tau.base, Y, m, W, pi, psi, loss)
     zc <- stats::qnorm(1 - (1 - conf.level) / 2)
 

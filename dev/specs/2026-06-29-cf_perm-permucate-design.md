@@ -71,6 +71,7 @@ Williamson et al.):
 `SE_j = sd(d_bar_i) / sqrt(n)`, `z_j = Psi_j / SE_j`, one-sided `p = 1 - Phi(z_j)` (H0: Psi_j <= 0),
 CI `Psi_j +/- z_{1-alpha/2} * SE_j`. Documented as **approximate** (single fitted forest; permuted
 predictions are in-sample re-scores, OOB `tau.hat` mitigates optimism for the baseline term).
+**Amendment (2026-06-29):** the baseline risk uses the forest's out-of-bag predictions (`c.forest$predictions`), not in-sample predictions, so null inference is conservative; the permuted predictions remain non-OOB. This trades some power on weak effect modifiers for false-positive control. cross.fit = TRUE remains the route to unbiased inference.
 
 ### Cross-fit path (`cross.fit = TRUE`)
 
