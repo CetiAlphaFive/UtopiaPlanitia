@@ -11,6 +11,16 @@
   `cross.fit = TRUE` opts into K-fold refitting with Nadeau-Bengio inference (R-loss only).
   Ships with `print`/`summary`/`plot` methods.
 
+## `plot_pdp()` gains a discrete subgroup ATE mode
+
+* **New `subgroup` argument (default `FALSE`).** For a binary or low-cardinality
+  integer covariate, `subgroup = TRUE` plots the doubly-robust (AIPW) subgroup
+  average treatment effect at each observed value of `x_var` — points with 95%
+  CIs (1-way), or a heatmap of subgroup ATEs with significance asterisks over the
+  `x_var` x `y_var` cross (2-way) — instead of a smooth partial-dependence curve.
+  Subgroup ATEs come from `grf::average_treatment_effect(cf, subset = ...)`.
+  `subgroup = FALSE` is the default and reproduces existing behavior exactly.
+
 ## `cf_loco()` screening + correlation diagnostic
 
 * **`screen = TRUE` now drops only zero-importance covariates.** Auto-screening

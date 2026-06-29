@@ -70,7 +70,7 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 | `plot.causal_forest.R` | `plot.causal_forest` | S3 `plot()` dispatcher; `type =` "diag" (default), "rank", "pdp", "inter" |
 | `summary.causal_forest.R` | `summary.causal_forest`, `print.summary.causal_forest` | S3 `summary()` for causal forests |
 | `plot_diag.R` | (internal panels) | Multi-panel diagnostic plot |
-| `plot_pdp.R` | `plot_pdp()` | Real 1-way and 2-way partial dependence plots |
+| `plot_pdp.R` | `plot_pdp()` | Real 1-way and 2-way partial dependence plots; `subgroup = TRUE` switches to doubly-robust (AIPW) subgroup-ATE points (1-way) / heatmap (2-way) for binary or low-cardinality covariates |
 | `plot_rank.R` | `plot_rank()`, `rank_plot()` | Ranked CATEs with confidence intervals |
 | `plot_scatter.R` | `plot_scatter()` | Individual OOB CATEs vs. a covariate |
 | `plot_rate.R` | (internal) `plot_rate` | TOC/RATE curve panel |
@@ -78,20 +78,26 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 | `utopia_plot.R` | `print.utopia_plot` | Shared S3 print method wrapping plot objects |
 | `omni_hetero` plotting | `plot.omni_hetero`, `print.omni_hetero` | S3 methods (in `plot.omni_hetero.R`) |
 
-`zzz.R` holds package `.onLoad`/`.onAttach` hooks. `R/old/` is archived/pruned code — not built. `tools/blp_smoke.R` is a standalone `Rscript` smoke test that runs hetero + null toy DGPs through `omni_hetero() |> plot()` to eyeball the BLP calibration panel — handy after touching `plot_blp.R`/`omni_hetero.R`.
+`zzz.R` holds package `.onLoad`/`.onAttach` hooks. `R/old/` is archived/pruned code — not built; `dev/` (plans, specs) and `runs/` are agent/scratch working dirs, also not part of the package. `tools/blp_smoke.R` is a standalone `Rscript` smoke test that runs hetero + null toy DGPs through `omni_hetero() |> plot()` to eyeball the BLP calibration panel — handy after touching `plot_blp.R`/`omni_hetero.R`.
 
 ### Cross-cutting conventions
 - **S3 dispatch is the public interface.** A fitted `causal_forest` flows into `summary()` / `plot()`; LOCO objects (`cf_loco`) and test objects (`omni_hetero`) carry their own print/summary/plot methods. New functionality should return a classed object with matching S3 methods rather than printing directly.
 - **NAMESPACE is generated** by roxygen2 — never hand-edit it; edit roxygen blocks and run `devtools::document()`.
-- `grf` and `rlang` are the only hard `Imports`. Everything else (ggplot2, ranger, glmnet, xgboost, TabPFN, mlr3 stack, etc.) is `Suggests` — guard usage with `requireNamespace()` and keep examples/tests skippable when a suggested package is absent.
+- `grf` and `rlang` are the only hard `Imports`. Everything else (ggplot2, ranger, glmnet, xgboost, TabPFN, mlr3 stack, etc.) is `Suggests` — guard usage with `requireNamespace()` and keep examples/tests skippable when a suggested package is absent. `future` provides optional parallelism for `tabcf()`/`autocf()`/`setup_tabpfn_token()`; `MLbalance` backs a `plot_diag.R` calibration panel; `survival` and `conformalInference` are used by `loco.R`; `dbarts` is the `bart` candidate in `autocf()`.
 - Markdown roxygen is enabled (`Roxygen: list(markdown = TRUE)`).
 
 ## Dev Conventions
 
 - **Documentation:** roxygen2 (markdown enabled)
+- **Feature workflow.** Non-trivial features are built plan-first: a dated `dev/plans/YYYY-MM-DD-<feature>.md` (what/why) paired with a `dev/specs/YYYY-MM-DD-<feature>-design.md` (design), then a dedicated `tests/testthat/test-<feature>.R` and a `NEWS.md` entry under the development-version heading. `dev/` and `runs/` are tracked scratch dirs, build-ignored via `.Rbuildignore` (alongside `CLAUDE.md`, `tools/`, `docs/`, `pkgdown/`).
 - **Tests:** testthat edition 3; snapshots in `tests/testthat/_snaps/`. Slow Monte Carlo correctness tests (e.g. `test-h2-crossfit-typeI.R`, which checks the cross-fit High/Low test holds its nominal Type I rate) are gated behind `UTOPIA_RUN_SLOW_TESTS=1` and `skip_on_cran()` — set the env var to run them locally
 - **Site:** pkgdown (`_pkgdown.yml`)
 - **CRAN prep:** `cran-comments.md` tracks submission notes
+- **Backwards compatibility is mandatory.** Code from this package ends up in published replication materials, so a breaking change can silently invalidate someone's already-run results. Treat the public API — exported function names, argument names, argument order, defaults, and return-object structure / S3 classes — as a contract:
+    - **Add, don't change.** New arguments go at the *end* of the signature with a default that reproduces the old behavior exactly (e.g. `omni_hetero(..., num.folds = 5)`). Never reorder or rename existing arguments, change a default, or alter a return structure without a deprecation path.
+    - **Deprecate, don't delete.** Warn for at least one release (the `lifecycle` pattern) before removing or renaming anything user-facing; see the `tabcf()` `eps` → `clip` deprecation for the template.
+    - **Flag breaking changes loudly.** If a change is unavoidably breaking, raise it with Jack *before* shipping, document it under an explicit "Breaking changes" heading in `NEWS.md`, and bump the version accordingly.
+    - The API-stability guards in `tests/testthat/test-fixes-20260511.R` (`T-API: … formals unchanged`) pin exported signatures on purpose. If one fails, do **not** reflexively update it — first confirm the API change is intended, backwards-compatible, and flagged.
 
 ---
 

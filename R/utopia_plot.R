@@ -15,6 +15,21 @@
   m
 }
 
+#' Wrap a plain ggplot (no marginal histograms) as a `utopia_plot`.
+#'
+#' Converts the ggplot to a grob and tags it `"utopia_plot"` so
+#' [print.utopia_plot()] renders it via `grid::grid.draw()`. Used by the
+#' discrete subgroup plots, where ggMarginal histograms are meaningless.
+#' @param p A ggplot object.
+#' @return An object of class `c("utopia_plot", "gtable", "grob", ...)`.
+#' @keywords internal
+#' @noRd
+.as_utopia_plot <- function(p) {
+  g <- ggplot2::ggplotGrob(p)
+  class(g) <- c("utopia_plot", class(g))
+  g
+}
+
 #' Print a UtopiaPlanitia plot
 #'
 #' Ensures `grid.newpage()` is always called before drawing, which fixes
