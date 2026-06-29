@@ -152,3 +152,20 @@ test_that("cf_perm S3 methods behave", {
   g <- plot(res)
   expect_s3_class(g, "ggplot")
 })
+
+test_that("cf_perm controls false positives under a null DGP (slow)", {
+  skip_on_cran()
+  skip_if(Sys.getenv("UTOPIA_RUN_SLOW_TESTS") != "1",
+          "set UTOPIA_RUN_SLOW_TESTS=1 to run")
+  set.seed(7)
+  reject <- replicate(50, {
+    n <- 400; p <- 4
+    X <- matrix(stats::rnorm(n * p), n, p); colnames(X) <- paste0("X", 1:p)
+    W <- stats::rbinom(n, 1, 0.5)
+    Y <- X[, 2] + stats::rnorm(n)              # no treatment-effect heterogeneity
+    cf <- grf::causal_forest(X, Y, W, num.trees = 300)
+    res <- cf_perm(cf, n.perm = 20, seed = 1, verbose = FALSE)
+    any(res$vimp$p.value < 0.05, na.rm = TRUE)
+  })
+  expect_lt(mean(reject), 0.30)   # generous bound; OOB light path is conservative
+})

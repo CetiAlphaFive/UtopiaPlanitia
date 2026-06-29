@@ -17,6 +17,7 @@ reference:
     desc: Leave-one-covariate-out (LOCO) importance for causal forests and ranger models.
     contents:
       - cf_loco
+      - cf_perm
       - loco
 
   - title: Heterogeneity Tests
@@ -48,3 +49,10 @@ reference:
       - summary.cf_loco
       - print.cf_loco
       - plot.cf_loco
+
+  - title: S3 Methods for cf_perm
+    desc: Print, summary, and plot methods for PermuCATE results.
+    contents:
+      - summary.cf_perm
+      - print.cf_perm
+      - plot.cf_perm

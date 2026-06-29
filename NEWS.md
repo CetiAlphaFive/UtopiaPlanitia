@@ -1,5 +1,16 @@
 # UtopiaPlanitia (development version)
 
+## New function `cf_perm()` — PermuCATE variable importance
+
+* **`cf_perm()` implements PermuCATE** (Paillard et al., 2025): conditional-permutation
+  variable importance for a fitted `grf` causal forest, returning importance scores with
+  one-sided p-values and confidence bounds. It complements `cf_loco()` — it permutes rather
+  than refits, has lower variance, and reports inference. `loss = "R"` (default, Robinson
+  residual) uses the forest's `Y.hat`/`W.hat`; `loss = "AIPW"` uses `grf::get_scores()`.
+  The default light path scores the supplied forest in place (approximate, conservative SEs);
+  `cross.fit = TRUE` opts into K-fold refitting with Nadeau-Bengio inference (R-loss only).
+  Ships with `print`/`summary`/`plot` methods.
+
 ## `cf_loco()` screening + correlation diagnostic
 
 * **`screen = TRUE` now drops only zero-importance covariates.** Auto-screening

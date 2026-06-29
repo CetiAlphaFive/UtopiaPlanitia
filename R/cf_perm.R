@@ -90,6 +90,28 @@
 #'   \code{cross.fit}, \code{n.perm}, \code{num.folds}, \code{normalized},
 #'   \code{conf.level}, \code{n}, and \code{p}.
 #'
+#' @details
+#' **Light path vs. cross-fitting.** With \code{cross.fit = FALSE} (default),
+#' importance is scored on the supplied forest using its out-of-bag predictions
+#' as the risk baseline. This keeps the test conservative, but the standard
+#' errors are an influence-function approximation that assumes an independence
+#' the in-sample re-scoring does not strictly provide, so the light-path
+#' p-values should be read as approximate. For calibrated inference use
+#' \code{cross.fit = TRUE}, which refits the nuisances and CATE per fold and
+#' applies the Nadeau-Bengio corrected \eqn{t} test (with \code{num.folds - 1}
+#' degrees of freedom; use \code{num.folds = 5} or more for a less conservative
+#' reference).
+#'
+#' **Unsupported designs.** Clustered causal forests are not yet supported
+#' (an error is raised); \code{sample.weights} are ignored and importances are
+#' computed unweighted (a warning is raised).
+#'
+#' @note AIPW importance magnitudes (\code{loss = "AIPW"}) are not on a scale
+#' comparable to the R-loss and should be read ordinally (ranking and
+#' significance), because \code{grf::get_scores()} bakes the forest's own CATE
+#' estimate into the pseudo-outcome. The default \code{loss = "R"} is
+#' recommended when magnitudes are to be interpreted.
+#'
 #' @references
 #' Paillard, J., Reyero Lobo, A. D., Kolodyazhniy, V., Thirion, B., and
 #' Engemann, D.-A. (2025). Measuring Variable Importance in Heterogeneous
