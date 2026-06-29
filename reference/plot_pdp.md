@@ -25,7 +25,8 @@ plot_pdp(
   color.cat = NULL,
   color.lab = NULL,
   xlab = NULL,
-  num.threads = NULL
+  num.threads = NULL,
+  subgroup = FALSE
 )
 ```
 
@@ -111,9 +112,28 @@ plot_pdp(
   [`grf::predict.causal_forest()`](https://rdrr.io/pkg/grf/man/predict.causal_forest.html).
   `NULL` (default) uses all available threads.
 
+- subgroup:
+
+  Logical. If `TRUE`, ignore the partial-dependence machinery and
+  instead plot the doubly-robust (AIPW) subgroup average treatment
+  effect at each observed value of `x_var` (and, if `y_var` is given,
+  each cell of the `x_var` x `y_var` cross), via
+  [`grf::average_treatment_effect()`](https://rdrr.io/pkg/grf/man/average_treatment_effect.html)
+  with `subset =`. Intended for binary or low-cardinality integer
+  covariates. 1-way: points with 95% CIs per level. 2-way: a heatmap of
+  subgroup ATEs with a `*` on cells whose 95% CI excludes 0. Levels are
+  `sort(unique(.))` with no binning; a level/cell with too few units to
+  estimate is warned and dropped. When `TRUE`, `grid_size`, `n_max`,
+  `trim`, `show_scatter`, `color.var`, `color.cat`, `color.lab`,
+  `x.limits`, and `num.threads` are ignored; `show_ate_region` (1-way
+  reference band), `y.limits` (1-way only), and `xlab` still apply.
+  Default `FALSE`.
+
 ## Value
 
-A `utopia_plot` object (a `ggExtraPlot` with marginal histograms).
+A `utopia_plot` object. For the PDP modes this wraps a `ggExtraPlot`
+with marginal histograms; for `subgroup = TRUE` it wraps a plain ggplot
+grob (no marginal histograms).
 
 ## Details
 
@@ -152,4 +172,9 @@ plot_pdp(cf, x_var = "X1")
 
 plot_pdp(cf, x_var = "X1", y_var = "X2", grid_size = 20)
 #> 191 of 400 grid points trimmed (outside convex hull)
+
+# Discrete subgroup ATE instead of a PDP curve
+Xb <- X; Xb[, 1] <- rbinom(n, 1, 0.5)
+cfb <- causal_forest(Xb, Y, W, num.trees = 100)
+plot_pdp(cfb, x_var = "X1", subgroup = TRUE)
 ```

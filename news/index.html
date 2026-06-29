@@ -41,6 +41,17 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
 <div class="section level3">
+<h3 id="new-function-cf_perm--permucate-variable-importance-development-version">New function <code>cf_perm()</code> — PermuCATE variable importance<a class="anchor" aria-label="anchor" href="#new-function-cf_perm--permucate-variable-importance-development-version"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/cf_perm.html">cf_perm()</a></code> implements PermuCATE</strong> (Paillard et al., 2025): conditional-permutation variable importance for a fitted <code>grf</code> causal forest, returning importance scores with one-sided p-values and confidence bounds. It complements <code><a href="../reference/cf_loco.html">cf_loco()</a></code> — it permutes rather than refits, has lower variance, and reports inference. <code>loss = "R"</code> (default, Robinson residual) uses the forest’s <code>Y.hat</code>/<code>W.hat</code>; <code>loss = "AIPW"</code> uses <code><a href="https://rdrr.io/pkg/grf/man/get_scores.html" class="external-link">grf::get_scores()</a></code>. The default light path scores the supplied forest in place (approximate, conservative SEs); <code>cross.fit = TRUE</code> opts into K-fold refitting with Nadeau-Bengio inference (R-loss only). Ships with <code>print</code>/<code>summary</code>/<code>plot</code> methods.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="plot_pdp-gains-a-discrete-subgroup-ate-mode-development-version">
+<code>plot_pdp()</code> gains a discrete subgroup ATE mode<a class="anchor" aria-label="anchor" href="#plot_pdp-gains-a-discrete-subgroup-ate-mode-development-version"></a></h3>
+<ul><li>
+<strong>New <code>subgroup</code> argument (default <code>FALSE</code>).</strong> For a binary or low-cardinality integer covariate, <code>subgroup = TRUE</code> plots the doubly-robust (AIPW) subgroup average treatment effect at each observed value of <code>x_var</code> — points with 95% CIs (1-way), or a heatmap of subgroup ATEs with significance asterisks over the <code>x_var</code> x <code>y_var</code> cross (2-way) — instead of a smooth partial-dependence curve. Subgroup ATEs come from <code>grf::average_treatment_effect(cf, subset = ...)</code>. <code>subgroup = FALSE</code> is the default and reproduces existing behavior exactly.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="cf_loco-screening--correlation-diagnostic-development-version">
 <code>cf_loco()</code> screening + correlation diagnostic<a class="anchor" aria-label="anchor" href="#cf_loco-screening--correlation-diagnostic-development-version"></a></h3>
 <ul><li>

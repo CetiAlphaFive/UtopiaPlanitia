@@ -4,7 +4,7 @@ Refits a
 [`grf::causal_forest()`](https://rdrr.io/pkg/grf/man/causal_forest.html)
 after replacing the conditional outcome `m(x) = E[Y | X = x]` and
 propensity `e(x) = E[W | X = x]` with cross-fitted predictions from
-[`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html)
+[`glmnet::cv.glmnet()`](https://rdrr.io/pkg/glmnet/man/cv.glmnet.html)
 (penalized elastic-net regression / classification, optionally relaxed).
 The CATE estimator and identification assumptions of `grf` are unchanged
 — only the Robinson-residualisation nuisances are swapped.
@@ -97,7 +97,7 @@ glmcf(
 - glmnet_args:
 
   Named list of additional arguments forwarded to
-  [`glmnet::cv.glmnet()`](https://glmnet.stanford.edu/reference/cv.glmnet.html)
+  [`glmnet::cv.glmnet()`](https://rdrr.io/pkg/glmnet/man/cv.glmnet.html)
   (e.g. `list(nfolds = 5L, nlambda = 50L)`). Note: `nfolds`/`foldid`
   supplied here are overridden by the internal shared `foldid` used for
   alpha tuning.

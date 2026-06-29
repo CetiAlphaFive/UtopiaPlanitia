@@ -18,6 +18,8 @@ models.
 
 - [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
   : Modified LOCO Variable Importance for Causal Forests
+- [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)
+  : PermuCATE Variable Importance for Causal Forests
 - [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
   : LOCO Variable Importance for Outcome Models
 
@@ -70,3 +72,14 @@ Print, summary, and plot methods for LOCO results.
   : Print LOCO Variable Importance
 - [`plot(`*`<cf_loco>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_loco.md)
   : Plot LOCO Variable Importance
+
+## S3 Methods for cf_perm
+
+Print, summary, and plot methods for PermuCATE results.
+
+- [`summary(`*`<cf_perm>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.cf_perm.md)
+  : Summarize PermuCATE Variable Importance
+- [`print(`*`<cf_perm>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.cf_perm.md)
+  : Print PermuCATE Variable Importance
+- [`plot(`*`<cf_perm>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_perm.md)
+  : Plot PermuCATE Variable Importance
