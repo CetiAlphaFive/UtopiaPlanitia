@@ -16,32 +16,76 @@
 # fitted conditional mean. Discrete (integer-coded, <= disc.max levels): draw a
 # new level per row from the predicted class probabilities.
 # Returns an nrow(Xapply) x n.perm matrix of permuted X_j columns.
-.cf_perm_cp_sample <- function(j, Xfit, Xapply, n.perm, disc.max = 10L, seed = 1995) {
+#
+# `obs.support = FALSE` runs the original body verbatim (complete-data default;
+# probability_forest discrete branch included). `obs.support = TRUE` runs the
+# NA-aware, observed-support body: nu_hat_j is fit on observed-label rows only
+# (X_{-j} NAs are routed via grf's MIA), perturbed values are spliced back into
+# observed apply rows, and NA apply rows are left NA so their loss delta is 0.
+# A binary observed support draws Bernoulli(p_hat) on {lo, hi} from a
+# regression_forest (probability_forest is never reached on this branch); other
+# supports residual-shuffle. Columns with fewer than `min.obs` observed labels
+# return an all-NA matrix for the caller to degrade to importance 0 / p 1.
+.cf_perm_cp_sample <- function(j, Xfit, Xapply, n.perm, disc.max = 10L,
+                               seed = 1995, obs.support = FALSE, min.obs = 5L) {
   xj.fit <- Xfit[, j]
   Xm.fit <- Xfit[, -j, drop = FALSE]
   xj.app <- Xapply[, j]
   Xm.app <- Xapply[, -j, drop = FALSE]
   na <- nrow(Xapply)
 
-  is.disc <- all(xj.fit == round(xj.fit)) &&
-    length(unique(xj.fit)) <= disc.max
+  if (!obs.support) {
+    ## ---- ORIGINAL PATH (unchanged): probability_forest for discrete ----
+    is.disc <- all(xj.fit == round(xj.fit)) &&
+      length(unique(xj.fit)) <= disc.max
 
-  out <- matrix(NA_real_, na, n.perm)
+    out <- matrix(NA_real_, na, n.perm)
 
-  if (!is.disc) {
-    rf <- grf::regression_forest(Xm.fit, xj.fit, seed = seed)
-    nu <- stats::predict(rf, Xm.app)$predictions
-    e  <- xj.app - nu
+    if (!is.disc) {
+      rf <- grf::regression_forest(Xm.fit, xj.fit, seed = seed)
+      nu <- stats::predict(rf, Xm.app)$predictions
+      e  <- xj.app - nu
+      for (k in seq_len(n.perm)) {
+        out[, k] <- nu + e[sample.int(na)]
+      }
+    } else {
+      fy    <- factor(xj.fit)
+      pf    <- grf::probability_forest(Xm.fit, fy, seed = seed)
+      probs <- stats::predict(pf, Xm.app)$predictions
+      lev   <- as.numeric(colnames(probs))
+      for (k in seq_len(n.perm)) {
+        out[, k] <- lev[apply(probs, 1L, function(pr) sample.int(length(lev), 1L, prob = pr))]
+      }
+    }
+    return(out)
+  }
+
+  ## ---- OBSERVED-SUPPORT PATH: regression_forest, NA-aware ----
+  obs.fit <- !is.na(xj.fit)
+  obs.app <- !is.na(xj.app)
+  out <- matrix(NA_real_, na, n.perm)            # NA rows stay NA by construction
+  if (sum(obs.fit) < min.obs) return(out)        # degenerate -> caller sets j to 0
+
+  xj.o    <- xj.fit[obs.fit]
+  lev.o   <- sort(unique(xj.o))
+  is.bin  <- length(lev.o) == 2L && all(lev.o == round(lev.o))
+  idx.app <- which(obs.app)
+
+  if (is.bin) {
+    lo <- lev.o[1]; hi <- lev.o[2]
+    rf <- grf::regression_forest(Xm.fit[obs.fit, , drop = FALSE],
+                                 as.numeric(xj.o == hi), seed = seed)
+    p  <- pmin(pmax(stats::predict(rf, Xm.app[obs.app, , drop = FALSE])$predictions, 0), 1)
     for (k in seq_len(n.perm)) {
-      out[, k] <- nu + e[sample.int(na)]
+      out[idx.app, k] <- ifelse(stats::runif(length(p)) < p, hi, lo)
     }
   } else {
-    fy    <- factor(xj.fit)
-    pf    <- grf::probability_forest(Xm.fit, fy, seed = seed)
-    probs <- stats::predict(pf, Xm.app)$predictions
-    lev   <- as.numeric(colnames(probs))
+    rf <- grf::regression_forest(Xm.fit[obs.fit, , drop = FALSE], xj.o, seed = seed)
+    nu <- stats::predict(rf, Xm.app[obs.app, , drop = FALSE])$predictions
+    e  <- xj.app[obs.app] - nu
+    no <- length(e)
     for (k in seq_len(n.perm)) {
-      out[, k] <- lev[apply(probs, 1L, function(pr) sample.int(length(lev), 1L, prob = pr))]
+      out[idx.app, k] <- nu + e[sample.int(no)]
     }
   }
   out
@@ -83,12 +127,27 @@
 #' @param seed Integer seed for reproducibility. Default \code{1995}.
 #' @param verbose Logical; if \code{TRUE} (default) emit progress/screening
 #'   messages.
+#' @param allow.missing Controls how missing covariate values are handled.
+#'   \code{FALSE} (default) errors if \code{X} contains any \code{NA}, instructing
+#'   the user to choose a scope; with complete data it is inert and the function
+#'   runs exactly as before. Set to \code{"observed"} or \code{"marginal"} to
+#'   opt into observed-support conditional permutation: each covariate is scored
+#'   on its observed rows (rows with \code{NA} in \eqn{X_j} pass through the
+#'   forest's MIA routing and contribute a per-row loss delta of exactly zero).
+#'   The two scopes differ only in the estimand: \code{"observed"} averages the
+#'   per-row importance over observed rows only (importance conditional on
+#'   \eqn{X_j} observed, no missingness discount), while \code{"marginal"}
+#'   averages over all \eqn{n} rows so the score is auto-discounted by the
+#'   covariate's missingness rate. With complete data the two scopes coincide and
+#'   reproduce the default behavior.
 #'
 #' @return An object of class \code{"cf_perm"} with components \code{vimp} (a data
 #'   frame with columns \code{Variable}, \code{Importance}, \code{SE}, \code{z},
 #'   \code{p.value}, \code{CI.lower}, \code{CI.upper}), \code{loss},
 #'   \code{cross.fit}, \code{n.perm}, \code{num.folds}, \code{normalized},
-#'   \code{conf.level}, \code{n}, and \code{p}.
+#'   \code{conf.level}, \code{n}, \code{p}, and \code{miss.rate} (a named numeric
+#'   vector of length \code{p} giving the per-covariate missingness rate,
+#'   \code{colMeans(is.na(X))}; all zeros when \code{X} is complete).
 #'
 #' @details
 #' **Light path vs. cross-fitting.** With \code{cross.fit = FALSE} (default),
@@ -105,6 +164,36 @@
 #' **Unsupported designs.** Clustered causal forests are not yet supported
 #' (an error is raised); \code{sample.weights} are ignored and importances are
 #' computed unweighted (a warning is raised).
+#'
+#' **Missing covariate values.** \code{grf} forests route \code{NA} natively via
+#' MIA (Missingness Incorporated in Attributes), but the conditional-permutation
+#' nuisance \eqn{\hat\nu_j = E[X_j \mid X_{-j}]} cannot use an \code{NA} as its
+#' regression \emph{label}. With \code{allow.missing} set to \code{"observed"} or
+#' \code{"marginal"}, \eqn{\hat\nu_j} is fit on the observed-label rows only
+#' (\eqn{X_{-j}} missingness is still routed via MIA, never imputed), and
+#' perturbed values are spliced back into observed rows. A unit with \code{NA} in
+#' \eqn{X_j} has a CATE prediction that is invariant to permuting \eqn{X_j} (MIA
+#' routes it identically regardless of the imputed value), so its true importance
+#' contribution is exactly zero in \emph{both} paths: naturally under
+#' \code{cross.fit = TRUE} (baseline and permuted risks both come from the
+#' held-out-fold forest, so the per-row delta cancels), and by construction in
+#' the light path (where the OOB-vs-in-sample baseline artifact is zeroed out for
+#' those rows). Consequently \code{"observed"} reports the undiscounted
+#' observed-support importance, while \code{"marginal"} is exactly that importance
+#' discounted by the covariate's missingness rate. On this branch (and only on
+#' this branch) the discrete conditional model switches from a
+#' \code{probability_forest} to a \code{regression_forest}: a binary covariate
+#' draws \eqn{\mathrm{Bernoulli}(\hat p)} on its two observed levels, while
+#' continuous or multi-level supports residual-shuffle. This switch is scoped
+#' entirely to the opt-in missingness branch, so complete-data results are
+#' byte-for-byte unchanged. A covariate with fewer than \code{min.obs} (5)
+#' observed values degrades to importance 0 / p-value 1 with a warning. The
+#' light-path standard errors remain an influence-function approximation (see
+#' above); under \code{"marginal"} the exact-zero \code{NA} rows additionally
+#' shrink the SE, so those p-values are importance-conditional-on-design. Because
+#' cross-variable magnitude comparison is only fair after accounting for
+#' per-variable missingness, \code{print}/\code{summary} render a per-covariate
+#' missingness table whenever any covariate has missing values.
 #'
 #' @note AIPW importance magnitudes (\code{loss = "AIPW"}) are not on a scale
 #' comparable to the R-loss and should be read ordinally (ranking and
@@ -141,14 +230,28 @@
 cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
                     cross.fit = FALSE, num.folds = 5L, screen = FALSE,
                     normalize = FALSE, conf.level = 0.95, seed = 1995,
-                    verbose = TRUE) {
+                    verbose = TRUE, allow.missing = FALSE) {
 
   loss <- match.arg(loss)
+  if (!identical(allow.missing, FALSE)) {
+    allow.missing <- match.arg(allow.missing, c("observed", "marginal"))
+  }
   if (!inherits(c.forest, "causal_forest")) {
     stop("c.forest must be a grf causal forest.")
   }
-  if (anyNA(c.forest$X.orig)) {
-    stop("cf_perm does not support missing values in the covariate matrix.")
+  if (anyNA(c.forest$X.orig) && identical(allow.missing, FALSE)) {
+    stop(
+      "cf_perm: X contains missing values.\n",
+      "  cf_perm scores importance on the observed support of each covariate and lets\n",
+      "  NA rows pass through to the forest's MIA routing. Set `allow.missing` to choose\n",
+      "  how rows with missing X_j are averaged:\n",
+      '    "observed" - average over observed rows only; importance conditional on X_j\n',
+      "                 observed (no missingness discount).\n",
+      '    "marginal" - average over all rows; NA rows contribute exactly 0, so the score\n',
+      "                 is auto-discounted by the covariate's missingness rate.\n",
+      "  See ?cf_perm.",
+      call. = FALSE
+    )
   }
   if (cross.fit && loss == "AIPW") {
     stop("cross.fit = TRUE is only supported with loss = \"R\" in this version.")
@@ -170,6 +273,12 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   pi <- c.forest$W.hat
   n  <- nrow(X)
   p  <- ncol(X)
+
+  # Active observed-support flags. When X is complete, use.obs = FALSE and every
+  # path reduces to the original (complete-data) behavior.
+  have.na <- anyNA(X)
+  use.obs <- have.na && !identical(allow.missing, FALSE)
+  scope   <- if (use.obs) allow.missing else NA_character_
   if (p < 2L) {
     stop("cf_perm requires at least 2 covariates (conditional permutation of X_j needs X_{-j}).")
   }
@@ -184,6 +293,9 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   }
   vnames <- colnames(X)
   if (is.null(vnames)) vnames <- paste0("V", seq_len(p))
+
+  miss.rate <- colMeans(is.na(X))
+  names(miss.rate) <- vnames
 
   # --- screening (split-frequency importance) ---
   keep <- rep(TRUE, p)
@@ -220,8 +332,17 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
     L0 <- .cf_perm_risk(tau.base, Y, m, W, pi, psi, loss)
     zc <- stats::qnorm(conf.level)
 
+    degen <- character(0)
     for (j in which(keep)) {
-      Xperm <- .cf_perm_cp_sample(j, X, X, n.perm, seed = seed)
+      Xperm <- .cf_perm_cp_sample(j, X, X, n.perm, seed = seed,
+                                  obs.support = use.obs)
+      if (all(is.na(Xperm))) {
+        # Too few observed values to permute: degrade to importance 0, p 1.
+        degen   <- c(degen, vnames[j])
+        imp[j]  <- 0
+        pval[j] <- 1
+        next
+      }
       dbar  <- numeric(n)
       for (k in seq_len(n.perm)) {
         Xk <- X
@@ -231,15 +352,31 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
         dbar  <- dbar + (Lk - L0) / 2
       }
       dbar    <- dbar / n.perm
-      imp[j]  <- mean(dbar)
-      se[j]   <- stats::sd(dbar) / sqrt(n)
+      obs <- if (use.obs) !is.na(X[, j]) else rep(TRUE, n)
+      # An NA-X_j unit's prediction is invariant to permuting X_j (MIA routes it
+      # identically), so its true importance contribution is exactly 0; the
+      # nonzero dbar it would otherwise carry is only the OOB-vs-in-sample
+      # baseline artifact (L0 uses the OOB tau.base, Lk uses the in-sample
+      # predict). Force it to 0 so "marginal" is an exact auto-discount of the
+      # observed-support importance by the missingness rate, while "observed" is
+      # unaffected (those rows are already excluded from its average via sel).
+      if (use.obs) dbar[!obs] <- 0
+      sel <- if (identical(scope, "observed")) obs else rep(TRUE, n)
+      imp[j]  <- mean(dbar[sel])
+      se[j]   <- stats::sd(dbar[sel]) / sqrt(sum(sel))
       z[j]    <- imp[j] / se[j]
       pval[j] <- stats::pnorm(z[j], lower.tail = FALSE)
       ci.lo[j] <- imp[j] - zc * se[j]
       ci.hi[j] <- Inf
     }
+    if (length(degen)) {
+      warning("cf_perm: covariate(s) ", paste(degen, collapse = ", "),
+              " had fewer than the minimum observed values to permute; ",
+              "importance set to 0 and p-value to 1.", call. = FALSE)
+    }
   } else {
-    cv <- .cf_perm_cv(c.forest, X, Y, W, keep, n.perm, num.folds, conf.level, seed, verbose)
+    cv <- .cf_perm_cv(c.forest, X, Y, W, keep, n.perm, num.folds, conf.level,
+                      seed, verbose, use.obs = use.obs, scope = scope)
     imp <- cv$imp; se <- cv$se; z <- cv$z
     pval <- cv$pval; ci.lo <- cv$ci.lo; ci.hi <- cv$ci.hi
   }
@@ -270,7 +407,8 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   structure(
     list(vimp = vimp, loss = loss, cross.fit = cross.fit, n.perm = n.perm,
          num.folds = if (cross.fit) num.folds else NA_integer_,
-         normalized = normalize, conf.level = conf.level, n = n, p = p),
+         normalized = normalize, conf.level = conf.level, n = n, p = p,
+         miss.rate = miss.rate, miss.scope = scope),
     class = "cf_perm"
   )
 }
@@ -293,7 +431,8 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
 
 # Cross-fit PermuCATE (R-loss). Returns named list of per-covariate vectors.
 .cf_perm_cv <- function(c.forest, X, Y, W, keep, n.perm, num.folds,
-                        conf.level, seed, verbose = TRUE) {
+                        conf.level, seed, verbose = TRUE,
+                        use.obs = FALSE, scope = NA_character_) {
   n <- nrow(X)
   p <- ncol(X)
   fold <- .cf_perm_folds(W, num.folds)
@@ -332,7 +471,14 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
     Xte <- X[te, , drop = FALSE]
     Xtr <- X[tr, , drop = FALSE]
     for (j in which(keep)) {
-      Xperm <- .cf_perm_cp_sample(j, Xtr, Xte, n.perm, seed = seed)
+      Xperm <- .cf_perm_cp_sample(j, Xtr, Xte, n.perm, seed = seed,
+                                  obs.support = use.obs)
+      if (all(is.na(Xperm))) {
+        # Too few observed train labels for j in this fold: leave NA, aggregate
+        # with na.rm. A covariate degenerate in every fold is handled below.
+        Psi[f, j] <- NA_real_
+        next
+      }
       dbar  <- numeric(length(te))
       for (k in seq_len(n.perm)) {
         Xk <- Xte
@@ -341,15 +487,23 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
         Lk    <- .cf_perm_risk(tau.k, Y[te], m.te, W[te], pi.te, NULL, "R")
         dbar  <- dbar + (Lk - L0.te) / 2
       }
-      Psi[f, j] <- mean(dbar / n.perm)
+      # Scope-aware averaging over the test fold (only matters when use.obs).
+      sel.te <- if (identical(scope, "observed")) {
+        !is.na(Xte[, j])
+      } else {
+        rep(TRUE, length(te))
+      }
+      Psi[f, j] <- if (any(sel.te)) mean((dbar / n.perm)[sel.te]) else NA_real_
     }
   }
 
-  imp <- colMeans(Psi)
+  # na.rm honors fold-degenerate covariates under observed-support. With complete
+  # data no kept column carries NA, so this reduces to colMeans(Psi)/var(Psi).
+  imp <- colMeans(Psi, na.rm = TRUE)
   # Nadeau-Bengio corrected variance of the cross-validated mean. The corrected
   # resampled statistic is a t with (num.folds - 1) df, so reference t, not normal.
   rho <- mean(n2) / mean(n1)
-  s2  <- apply(Psi, 2L, stats::var)
+  s2  <- apply(Psi, 2L, stats::var, na.rm = TRUE)
   se  <- sqrt((1 / num.folds + rho) * s2)
   z   <- imp / se
   zero.se <- !is.na(se) & se == 0
@@ -365,6 +519,22 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   ci.lo <- imp - tc * se
   ci.hi <- rep(Inf, length(imp))
   ci.hi[is.na(se)] <- NA_real_
+
+  # Covariate degenerate in EVERY fold (all-NA Psi column among kept) -> 0 / p 1.
+  vn <- colnames(X)
+  if (is.null(vn)) vn <- paste0("V", seq_len(ncol(X)))
+  degen <- which(keep & apply(Psi, 2L, function(col) all(is.na(col))))
+  if (length(degen)) {
+    warning("cf_perm: covariate(s) ", paste(vn[degen], collapse = ", "),
+            " had fewer than the minimum observed values in every fold; ",
+            "importance set to 0 and p-value to 1.", call. = FALSE)
+    imp[degen]   <- 0
+    pval[degen]  <- 1
+    se[degen]    <- NA_real_
+    z[degen]     <- NA_real_
+    ci.lo[degen] <- NA_real_
+    ci.hi[degen] <- NA_real_
+  }
 
   list(imp = imp, se = se, z = z, pval = pval, ci.lo = ci.lo, ci.hi = ci.hi)
 }
