@@ -24,6 +24,27 @@ print.cf_perm <- function(x, ...) {
   }
   v$Importance <- round(v$Importance, 6)
   print(v, row.names = FALSE)
+
+  # Per-covariate missingness table, shown only when X carried NAs. Guarded with
+  # is.null() so objects from older versions (without miss.rate) print unchanged.
+  mr <- x$miss.rate
+  if (!is.null(mr) && any(mr > 0)) {
+    scope <- if (!is.null(x$miss.scope) && !is.na(x$miss.scope)) {
+      x$miss.scope
+    } else {
+      "observed"
+    }
+    idx <- which(mr > 0)
+    tab <- data.frame(
+      Variable  = names(mr)[idx],
+      Miss.rate = round(unname(mr[idx]), 3),
+      n.missing = round(unname(mr[idx]) * x$n),
+      stringsAsFactors = FALSE
+    )
+    cat("\nMissing covariate values (observed-support permutation; scope = ",
+        scope, "):\n", sep = "")
+    print(tab, row.names = FALSE)
+  }
   invisible(x)
 }
 

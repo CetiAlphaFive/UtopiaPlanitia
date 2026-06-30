@@ -135,3 +135,14 @@ test_that("T-API: plot_pdp formals unchanged", {
                         "x.limits", "y.limits", "color.var", "color.cat",
                         "color.lab", "xlab", "num.threads", "subgroup"))
 })
+
+test_that("T-API: cf_perm formals unchanged", {
+  fn <- names(formals(cf_perm))
+  expect_setequal(fn,
+                  c("c.forest", "loss", "n.perm", "cross.fit", "num.folds",
+                    "screen", "normalize", "conf.level", "seed", "verbose",
+                    "allow.missing"))
+  # allow.missing must be appended LAST and default to FALSE.
+  expect_identical(fn[length(fn)], "allow.missing")
+  expect_identical(eval(formals(cf_perm)$allow.missing), FALSE)
+})

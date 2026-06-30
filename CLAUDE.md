@@ -61,6 +61,8 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 |------|--------|---------|
 | `cf_loco.R` + `compute_vimp.R` | `cf_loco()` | LOCO variable importance for causal forests |
 | `cf_loco_methods.R` | `print.cf_loco`, `summary.cf_loco`, `plot.cf_loco` | S3 methods for LOCO objects |
+| `cf_perm.R` | `cf_perm()` | PermuCATE conditional-permutation variable importance (Paillard et al., 2025) — permutes rather than refits, reports one-sided p-values + CIs. `loss = "R"` (default, Robinson residual, uses forest `Y.hat`/`W.hat`) or `loss = "AIPW"` (`grf::get_scores()`); light path (default) scores forest in place, `cross.fit = TRUE` opts into K-fold refit with Nadeau-Bengio inference (R-loss only). Complements `cf_loco()` |
+| `cf_perm_methods.R` | `print.cf_perm`, `summary.cf_perm`, `plot.cf_perm` | S3 methods for PermuCATE objects |
 | `loco.R` | `loco()` | LOCO variable importance for ranger AND grf outcome forests (regression/probability/boosted); auto-detects backend from model class |
 | `omni_hetero.R` | `omni_hetero()` | Omnibus HTE test battery (calibration, high/low CATE, RATE) |
 
@@ -85,11 +87,13 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 - **NAMESPACE is generated** by roxygen2 — never hand-edit it; edit roxygen blocks and run `devtools::document()`.
 - `grf` and `rlang` are the only hard `Imports`. Everything else (ggplot2, ranger, glmnet, xgboost, TabPFN, mlr3 stack, etc.) is `Suggests` — guard usage with `requireNamespace()` and keep examples/tests skippable when a suggested package is absent. `future` provides optional parallelism for `tabcf()`/`autocf()`/`setup_tabpfn_token()`; `MLbalance` backs a `plot_diag.R` calibration panel; `survival` and `conformalInference` are used by `loco.R`; `dbarts` is the `bart` candidate in `autocf()`.
 - Markdown roxygen is enabled (`Roxygen: list(markdown = TRUE)`).
+- **R 4.1+ is the floor** (`Depends: R (>= 4.1.0)`), so the native pipe `|>` is always available — use it (as in `tools/blp_smoke.R`) rather than adding a `magrittr` dependency for `%>%`.
 
 ## Dev Conventions
 
 - **Documentation:** roxygen2 (markdown enabled)
 - **Feature workflow.** Non-trivial features are built plan-first: a dated `dev/plans/YYYY-MM-DD-<feature>.md` (what/why) paired with a `dev/specs/YYYY-MM-DD-<feature>-design.md` (design), then a dedicated `tests/testthat/test-<feature>.R` and a `NEWS.md` entry under the development-version heading. `dev/` and `runs/` are tracked scratch dirs, build-ignored via `.Rbuildignore` (alongside `CLAUDE.md`, `tools/`, `docs/`, `pkgdown/`).
+- **Git workflow.** Work lands on `main` from short-lived `feat/<feature>` branches via merge commits (e.g. `feat/cf_perm`, `feat/pdp-subgroup-ate`); the merge message names the feature. Don't commit feature work straight to `main`.
 - **Tests:** testthat edition 3; snapshots in `tests/testthat/_snaps/`. Slow Monte Carlo correctness tests (e.g. `test-h2-crossfit-typeI.R`, which checks the cross-fit High/Low test holds its nominal Type I rate) are gated behind `UTOPIA_RUN_SLOW_TESTS=1` and `skip_on_cran()` — set the env var to run them locally
 - **Site:** pkgdown (`_pkgdown.yml`)
 - **CRAN prep:** `cran-comments.md` tracks submission notes

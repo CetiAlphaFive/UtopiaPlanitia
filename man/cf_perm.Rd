@@ -14,7 +14,8 @@ cf_perm(
   normalize = FALSE,
   conf.level = 0.95,
   seed = 1995,
-  verbose = TRUE
+  verbose = TRUE,
+  allow.missing = FALSE
 )
 }
 \arguments{
@@ -55,13 +56,29 @@ not survive normalization). Default \code{FALSE}.}
 
 \item{verbose}{Logical; if \code{TRUE} (default) emit progress/screening
 messages.}
+
+\item{allow.missing}{Controls how missing covariate values are handled.
+\code{FALSE} (default) errors if \code{X} contains any \code{NA}, instructing
+the user to choose a scope; with complete data it is inert and the function
+runs exactly as before. Set to \code{"observed"} or \code{"marginal"} to
+opt into observed-support conditional permutation: each covariate is scored
+on its observed rows (rows with \code{NA} in \eqn{X_j} pass through the
+forest's MIA routing and contribute a per-row loss delta of exactly zero).
+The two scopes differ only in the estimand: \code{"observed"} averages the
+per-row importance over observed rows only (importance conditional on
+\eqn{X_j} observed, no missingness discount), while \code{"marginal"}
+averages over all \eqn{n} rows so the score is auto-discounted by the
+covariate's missingness rate. With complete data the two scopes coincide and
+reproduce the default behavior.}
 }
 \value{
 An object of class \code{"cf_perm"} with components \code{vimp} (a data
 frame with columns \code{Variable}, \code{Importance}, \code{SE}, \code{z},
 \code{p.value}, \code{CI.lower}, \code{CI.upper}), \code{loss},
 \code{cross.fit}, \code{n.perm}, \code{num.folds}, \code{normalized},
-\code{conf.level}, \code{n}, and \code{p}.
+\code{conf.level}, \code{n}, \code{p}, and \code{miss.rate} (a named numeric
+vector of length \code{p} giving the per-covariate missingness rate,
+\code{colMeans(is.na(X))}; all zeros when \code{X} is complete).
 }
 \description{
 Computes conditional-permutation variable importance (PermuCATE; Paillard et
@@ -85,6 +102,36 @@ reference).
 \strong{Unsupported designs.} Clustered causal forests are not yet supported
 (an error is raised); \code{sample.weights} are ignored and importances are
 computed unweighted (a warning is raised).
+
+\strong{Missing covariate values.} \code{grf} forests route \code{NA} natively via
+MIA (Missingness Incorporated in Attributes), but the conditional-permutation
+nuisance \eqn{\hat\nu_j = E[X_j \mid X_{-j}]} cannot use an \code{NA} as its
+regression \emph{label}. With \code{allow.missing} set to \code{"observed"} or
+\code{"marginal"}, \eqn{\hat\nu_j} is fit on the observed-label rows only
+(\eqn{X_{-j}} missingness is still routed via MIA, never imputed), and
+perturbed values are spliced back into observed rows. A unit with \code{NA} in
+\eqn{X_j} has a CATE prediction that is invariant to permuting \eqn{X_j} (MIA
+routes it identically regardless of the imputed value), so its true importance
+contribution is exactly zero in \emph{both} paths: naturally under
+\code{cross.fit = TRUE} (baseline and permuted risks both come from the
+held-out-fold forest, so the per-row delta cancels), and by construction in
+the light path (where the OOB-vs-in-sample baseline artifact is zeroed out for
+those rows). Consequently \code{"observed"} reports the undiscounted
+observed-support importance, while \code{"marginal"} is exactly that importance
+discounted by the covariate's missingness rate. On this branch (and only on
+this branch) the discrete conditional model switches from a
+\code{probability_forest} to a \code{regression_forest}: a binary covariate
+draws \eqn{\mathrm{Bernoulli}(\hat p)} on its two observed levels, while
+continuous or multi-level supports residual-shuffle. This switch is scoped
+entirely to the opt-in missingness branch, so complete-data results are
+byte-for-byte unchanged. A covariate with fewer than \code{min.obs} (5)
+observed values degrades to importance 0 / p-value 1 with a warning. The
+light-path standard errors remain an influence-function approximation (see
+above); under \code{"marginal"} the exact-zero \code{NA} rows additionally
+shrink the SE, so those p-values are importance-conditional-on-design. Because
+cross-variable magnitude comparison is only fair after accounting for
+per-variable missingness, \code{print}/\code{summary} render a per-covariate
+missingness table whenever any covariate has missing values.
 }
 \note{
 AIPW importance magnitudes (\code{loss = "AIPW"}) are not on a scale

@@ -51,11 +51,11 @@ test_that("cf_perm light path returns a cf_perm object with signal detected", {
   expect_gt(p[["X3"]], 0.05)
 })
 
-test_that("cf_perm rejects covariates containing NA", {
+test_that("cf_perm rejects covariates containing NA at default allow.missing", {
   cf <- make_test_cf()
   cf$X.orig[1, 1] <- NA
   expect_error(cf_perm(cf, verbose = FALSE),
-               "does not support missing values")
+               "allow.missing")
 })
 
 test_that("cf_perm AIPW loss runs and agrees in sign on the signal variable", {
