@@ -20,7 +20,8 @@ cf_perm(
   normalize = FALSE,
   conf.level = 0.95,
   seed = 1995,
-  verbose = TRUE
+  verbose = TRUE,
+  allow.missing = FALSE
 )
 ```
 
@@ -84,12 +85,30 @@ cf_perm(
 
   Logical; if `TRUE` (default) emit progress/screening messages.
 
+- allow.missing:
+
+  Controls how missing covariate values are handled. `FALSE` (default)
+  errors if `X` contains any `NA`, instructing the user to choose a
+  scope; with complete data it is inert and the function runs exactly as
+  before. Set to `"observed"` or `"marginal"` to opt into
+  observed-support conditional permutation: each covariate is scored on
+  its observed rows (rows with `NA` in \\X_j\\ pass through the forest's
+  MIA routing and contribute a per-row loss delta of exactly zero). The
+  two scopes differ only in the estimand: `"observed"` averages the
+  per-row importance over observed rows only (importance conditional on
+  \\X_j\\ observed, no missingness discount), while `"marginal"`
+  averages over all \\n\\ rows so the score is auto-discounted by the
+  covariate's missingness rate. With complete data the two scopes
+  coincide and reproduce the default behavior.
+
 ## Value
 
 An object of class `"cf_perm"` with components `vimp` (a data frame with
 columns `Variable`, `Importance`, `SE`, `z`, `p.value`, `CI.lower`,
 `CI.upper`), `loss`, `cross.fit`, `n.perm`, `num.folds`, `normalized`,
-`conf.level`, `n`, and `p`.
+`conf.level`, `n`, `p`, and `miss.rate` (a named numeric vector of
+length `p` giving the per-covariate missingness rate,
+`colMeans(is.na(X))`; all zeros when `X` is complete).
 
 ## Details
 
@@ -107,6 +126,38 @@ less conservative reference).
 **Unsupported designs.** Clustered causal forests are not yet supported
 (an error is raised); `sample.weights` are ignored and importances are
 computed unweighted (a warning is raised).
+
+**Missing covariate values.** `grf` forests route `NA` natively via MIA
+(Missingness Incorporated in Attributes), but the
+conditional-permutation nuisance \\\hat\nu_j = E\[X_j \mid X\_{-j}\]\\
+cannot use an `NA` as its regression *label*. With `allow.missing` set
+to `"observed"` or `"marginal"`, \\\hat\nu_j\\ is fit on the
+observed-label rows only (\\X\_{-j}\\ missingness is still routed via
+MIA, never imputed), and perturbed values are spliced back into observed
+rows. A unit with `NA` in \\X_j\\ has a CATE prediction that is
+invariant to permuting \\X_j\\ (MIA routes it identically regardless of
+the imputed value), so its true importance contribution is exactly zero
+in *both* paths: naturally under `cross.fit = TRUE` (baseline and
+permuted risks both come from the held-out-fold forest, so the per-row
+delta cancels), and by construction in the light path (where the
+OOB-vs-in-sample baseline artifact is zeroed out for those rows).
+Consequently `"observed"` reports the undiscounted observed-support
+importance, while `"marginal"` is exactly that importance discounted by
+the covariate's missingness rate. On this branch (and only on this
+branch) the discrete conditional model switches from a
+`probability_forest` to a `regression_forest`: a binary covariate draws
+\\\mathrm{Bernoulli}(\hat p)\\ on its two observed levels, while
+continuous or multi-level supports residual-shuffle. This switch is
+scoped entirely to the opt-in missingness branch, so complete-data
+results are byte-for-byte unchanged. A covariate with fewer than
+`min.obs` (5) observed values degrades to importance 0 / p-value 1 with
+a warning. The light-path standard errors remain an influence-function
+approximation (see above); under `"marginal"` the exact-zero `NA` rows
+additionally shrink the SE, so those p-values are
+importance-conditional-on-design. Because cross-variable magnitude
+comparison is only fair after accounting for per-variable missingness,
+`print`/`summary` render a per-covariate missingness table whenever any
+covariate has missing values.
 
 ## Note
 

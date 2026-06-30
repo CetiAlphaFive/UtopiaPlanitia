@@ -2,6 +2,35 @@
 
 ## UtopiaPlanitia (development version)
 
+### `cf_perm()` gains opt-in missing-covariate handling
+
+- **New `allow.missing` argument (default `FALSE`, appended last).**
+  With complete data it is inert and results are byte-for-byte
+  unchanged. When `X` contains `NA`, `allow.missing = FALSE` now errors
+  with a user-confronting message that names the two scopes and explains
+  the estimand choice (previously a terse “does not support missing
+  values”). Setting `allow.missing = "observed"` or `"marginal"` opts
+  into **observed-support conditional permutation**: the
+  conditional-permutation nuisance is fit on observed-label rows only
+  (`X_{-j}` missingness is still routed via grf’s MIA, never imputed),
+  perturbed values are spliced back into observed rows, and rows with
+  `NA` in `X_j` are left unchanged so their per-row loss delta is
+  exactly zero. `"observed"` averages over observed rows (importance
+  conditional on `X_j` observed); `"marginal"` averages over all rows
+  (auto-discounted by the missingness rate).
+- **The discrete conditional model switches `probability_forest` -\>
+  `regression_forest` only on the opt-in missingness branch** (binary
+  covariates draw `Bernoulli(p_hat)` on their two observed levels; other
+  supports residual-shuffle). This switch is scoped entirely to the
+  missingness branch, so **complete-data results are unchanged**.
+  Covariates with too few observed values degrade to importance 0 /
+  p-value 1 with a warning.
+- **New `miss.rate` element on the returned object** (named numeric,
+  length `p`) and a per-covariate **missingness table** in
+  `print`/`summary`, shown only when some covariate has missing values
+  (the header names the active scope). The `vimp` data frame structure
+  is unchanged.
+
 ### New function `cf_perm()` — PermuCATE variable importance
 
 - **[`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)

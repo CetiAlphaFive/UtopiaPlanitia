@@ -67,7 +67,8 @@ with p-values and confidence intervals.</p>
 <span>  normalize <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  conf.level <span class="op">=</span> <span class="fl">0.95</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">1995</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  allow.missing <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -132,6 +133,22 @@ not survive normalization). Default <code>FALSE</code>.</p></dd>
 <dd><p>Logical; if <code>TRUE</code> (default) emit progress/screening
 messages.</p></dd>
 
+
+<dt id="arg-allow-missing">allow.missing<a class="anchor" aria-label="anchor" href="#arg-allow-missing"></a></dt>
+<dd><p>Controls how missing covariate values are handled.
+<code>FALSE</code> (default) errors if <code>X</code> contains any <code>NA</code>, instructing
+the user to choose a scope; with complete data it is inert and the function
+runs exactly as before. Set to <code>"observed"</code> or <code>"marginal"</code> to
+opt into observed-support conditional permutation: each covariate is scored
+on its observed rows (rows with <code>NA</code> in \(X_j\) pass through the
+forest's MIA routing and contribute a per-row loss delta of exactly zero).
+The two scopes differ only in the estimand: <code>"observed"</code> averages the
+per-row importance over observed rows only (importance conditional on
+\(X_j\) observed, no missingness discount), while <code>"marginal"</code>
+averages over all \(n\) rows so the score is auto-discounted by the
+covariate's missingness rate. With complete data the two scopes coincide and
+reproduce the default behavior.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -139,7 +156,9 @@ messages.</p></dd>
 frame with columns <code>Variable</code>, <code>Importance</code>, <code>SE</code>, <code>z</code>,
 <code>p.value</code>, <code>CI.lower</code>, <code>CI.upper</code>), <code>loss</code>,
 <code>cross.fit</code>, <code>n.perm</code>, <code>num.folds</code>, <code>normalized</code>,
-<code>conf.level</code>, <code>n</code>, and <code>p</code>.</p>
+<code>conf.level</code>, <code>n</code>, <code>p</code>, and <code>miss.rate</code> (a named numeric
+vector of length <code>p</code> giving the per-covariate missingness rate,
+<code>colMeans(is.na(X))</code>; all zeros when <code>X</code> is complete).</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -156,6 +175,35 @@ reference).</p>
 <p><strong>Unsupported designs.</strong> Clustered causal forests are not yet supported
 (an error is raised); <code>sample.weights</code> are ignored and importances are
 computed unweighted (a warning is raised).</p>
+<p><strong>Missing covariate values.</strong> <code>grf</code> forests route <code>NA</code> natively via
+MIA (Missingness Incorporated in Attributes), but the conditional-permutation
+nuisance \(\hat\nu_j = E[X_j \mid X_{-j}]\) cannot use an <code>NA</code> as its
+regression <em>label</em>. With <code>allow.missing</code> set to <code>"observed"</code> or
+<code>"marginal"</code>, \(\hat\nu_j\) is fit on the observed-label rows only
+(\(X_{-j}\) missingness is still routed via MIA, never imputed), and
+perturbed values are spliced back into observed rows. A unit with <code>NA</code> in
+\(X_j\) has a CATE prediction that is invariant to permuting \(X_j\) (MIA
+routes it identically regardless of the imputed value), so its true importance
+contribution is exactly zero in <em>both</em> paths: naturally under
+<code>cross.fit = TRUE</code> (baseline and permuted risks both come from the
+held-out-fold forest, so the per-row delta cancels), and by construction in
+the light path (where the OOB-vs-in-sample baseline artifact is zeroed out for
+those rows). Consequently <code>"observed"</code> reports the undiscounted
+observed-support importance, while <code>"marginal"</code> is exactly that importance
+discounted by the covariate's missingness rate. On this branch (and only on
+this branch) the discrete conditional model switches from a
+<code>probability_forest</code> to a <code>regression_forest</code>: a binary covariate
+draws \(\mathrm{Bernoulli}(\hat p)\) on its two observed levels, while
+continuous or multi-level supports residual-shuffle. This switch is scoped
+entirely to the opt-in missingness branch, so complete-data results are
+byte-for-byte unchanged. A covariate with fewer than <code>min.obs</code> (5)
+observed values degrades to importance 0 / p-value 1 with a warning. The
+light-path standard errors remain an influence-function approximation (see
+above); under <code>"marginal"</code> the exact-zero <code>NA</code> rows additionally
+shrink the SE, so those p-values are importance-conditional-on-design. Because
+cross-variable magnitude comparison is only fair after accounting for
+per-variable missingness, <code>print</code>/<code>summary</code> render a per-covariate
+missingness table whenever any covariate has missing values.</p>
     </div>
     <div class="section level2">
     <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
