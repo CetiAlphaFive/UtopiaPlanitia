@@ -4,13 +4,13 @@
 \alias{plot.cf_perm}
 \title{Plot PermuCATE Variable Importance}
 \usage{
-\method{plot}{cf_perm}(x, fill.sig = "#1f78b4", ...)
+\method{plot}{cf_perm}(x, fill.sig = "darkorange", ...)
 }
 \arguments{
 \item{x}{An object of class \code{"cf_perm"} returned by \code{\link[=cf_perm]{cf_perm()}}.}
 
-\item{fill.sig}{Bar fill for significant covariates (default \code{"#1f78b4"},
-the house blue). Non-significant covariates use \code{"gray70"}.}
+\item{fill.sig}{Bar fill for significant covariates (default
+\code{"darkorange"}). Non-significant covariates use \code{"gray70"}.}
 
 \item{...}{Additional arguments (currently unused).}
 }

@@ -9,7 +9,7 @@
   the x-axis hugged to the data, instead of the old lollipop. Variables are sorted
   descending with the most important at the top.
 * **`cf_perm` keeps its inference**, restyled into the new theme: bars are filled
-  by significance (significant covariates in the house blue, others gray), the
+  by significance (significant covariates in `darkorange`, others gray), the
   one-sided lower confidence bound is drawn as a horizontal whisker, and
   normalized objects (no confidence bounds) drop the whisker and take the
   non-significant fill.

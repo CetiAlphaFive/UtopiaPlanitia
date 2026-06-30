@@ -66,8 +66,8 @@ summary.cf_perm <- function(object, ...) {
 #' sorted from most to least important (largest at the top).
 #'
 #' @param x An object of class `"cf_perm"` returned by [cf_perm()].
-#' @param fill.sig Bar fill for significant covariates (default `"#1f78b4"`,
-#'   the house blue). Non-significant covariates use `"gray70"`.
+#' @param fill.sig Bar fill for significant covariates (default
+#'   `"darkorange"`). Non-significant covariates use `"gray70"`.
 #' @param ... Additional arguments (currently unused).
 #' @return A `ggplot` object.
 #'
@@ -92,7 +92,7 @@ summary.cf_perm <- function(object, ...) {
 #' @importFrom rlang .data
 #' @method plot cf_perm
 #' @export
-plot.cf_perm <- function(x, fill.sig = "#1f78b4", ...) {
+plot.cf_perm <- function(x, fill.sig = "darkorange", ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed.")
   }
