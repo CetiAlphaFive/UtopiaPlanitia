@@ -1,13 +1,13 @@
 # Plot LOCO Variable Importance
 
-Draws a horizontal lollipop chart of LOCO variable importance scores,
-sorted from least to most important (bottom to top).
+Draws a horizontal variable-importance bar chart of LOCO scores, sorted
+from most to least important (largest at the top).
 
 ## Usage
 
 ``` r
 # S3 method for class 'cf_loco'
-plot(x, ...)
+plot(x, fill = "#1f78b4", ...)
 ```
 
 ## Arguments
@@ -16,6 +16,10 @@ plot(x, ...)
 
   An object of class `"cf_loco"` returned by
   [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md).
+
+- fill:
+
+  Bar fill color (default `"#1f78b4"`, the house blue).
 
 - ...:
 
@@ -27,10 +31,16 @@ A `ggplot` object.
 
 ## Details
 
-Variables are displayed as horizontal segments ending in points, with
-length proportional to importance. When `normalize = TRUE` was used in
+Shares the package house styling with
+[`plot_pdp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.md)
+(serif type, gray panel, centered title, legend at the bottom). The mark
+is a colored horizontal bar (`alpha = 0.75`) ending in a black tip
+point, over a gray zero reference line, with the x-axis hugged to the
+data. Variables are sorted descending so the most important sits at the
+top. When `normalize = TRUE` was used in
 [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md),
-the y-axis label changes to "Importance (normalized)".
+the title becomes "LOCO Variable Importance (normalized)". The bar color
+is controlled by `fill`.
 
 ## See also
 

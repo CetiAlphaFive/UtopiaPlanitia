@@ -41,6 +41,16 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
 <div class="section level3">
+<h3 id="plotcf_loco-and-plotcf_perm-restyled-to-the-house-vi-look-development-version">
+<code>plot.cf_loco()</code> and <code>plot.cf_perm()</code> restyled to the house VI look<a class="anchor" aria-label="anchor" href="#plotcf_loco-and-plotcf_perm-restyled-to-the-house-vi-look-development-version"></a></h3>
+<ul><li>
+<strong>Visual change only — not an API change.</strong> Both <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods now render in the same house style as <code><a href="../reference/plot_pdp.html">plot_pdp()</a></code> (shared <code>.utopia_pdp_theme()</code>: serif type, gray panel, centered title), with a colored horizontal bar (<code>alpha = 0.75</code>) ending in a black tip point, a gray zero reference line, and the x-axis hugged to the data, instead of the old lollipop. Variables are sorted descending with the most important at the top.</li>
+<li>
+<strong><code>cf_perm</code> keeps its inference</strong>, restyled into the new theme: bars are filled by significance (significant covariates in <code>darkorange</code>, others gray), the one-sided lower confidence bound is drawn as a horizontal whisker, and normalized objects (no confidence bounds) drop the whisker and take the non-significant fill.</li>
+<li>
+<strong>New appended arguments</strong> <code>plot.cf_loco(x, fill = "#1f78b4", ...)</code> and <code>plot.cf_perm(x, fill.sig = "#1f78b4", ...)</code> let callers recolor; defaults reproduce the new house look. Both methods still return a <code>ggplot</code> object, so signatures and return types remain backwards compatible. <code><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary()</a></code> / <code><a href="https://rdrr.io/r/base/print.html" class="external-link">print()</a></code> output for both classes is unchanged.</li>
+</ul></div>
+<div class="section level3">
 <h3 id="cf_perm-gains-opt-in-missing-covariate-handling-development-version">
 <code>cf_perm()</code> gains opt-in missing-covariate handling<a class="anchor" aria-label="anchor" href="#cf_perm-gains-opt-in-missing-covariate-handling-development-version"></a></h3>
 <ul><li>
