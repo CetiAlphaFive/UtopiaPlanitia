@@ -3,11 +3,10 @@
 ## `plot.cf_loco()` and `plot.cf_perm()` restyled to the house VI look
 
 * **Visual change only — not an API change.** Both `plot()` methods now render
-  in the package's house variable-importance style (a `theme_few()`-style white
-  panel hand-rolled from `ggplot2::theme_bw()` with no new dependency, a colored
-  horizontal bar with `alpha = 0.75` ending in a black tip point, a gray zero
-  reference line, inward serif x-axis ticks, faint x-only gridlines, and a bold
-  centered title) instead of the old gray-panel lollipop. Variables are sorted
+  in the same house style as `plot_pdp()` (shared `.utopia_pdp_theme()`: serif
+  type, gray panel, centered title, bottom legend), with a colored horizontal bar
+  (`alpha = 0.75`) ending in a black tip point, a gray zero reference line, and
+  the x-axis hugged to the data, instead of the old lollipop. Variables are sorted
   descending with the most important at the top.
 * **`cf_perm` keeps its inference**, restyled into the new theme: bars are filled
   by significance (significant covariates in the house blue, others gray), the

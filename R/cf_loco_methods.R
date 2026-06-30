@@ -54,14 +54,13 @@ print.cf_loco <- function(x, ...) {
 #' @return A `ggplot` object.
 #'
 #' @details
-#' Styled to the package's house variable-importance look: a white
-#' `theme_few()`-equivalent panel (hand-rolled from [ggplot2::theme_bw()], no
-#' `ggthemes` dependency), a colored horizontal bar (`alpha = 0.75`) ending in
-#' a black tip point, a gray zero reference line, inward serif x-axis ticks,
-#' and faint x-only gridlines. Variables are sorted descending so the most
-#' important sits at the top. When `normalize = TRUE` was used in [cf_loco()],
-#' the title becomes "LOCO Variable Importance (normalized)" (axis titles are
-#' blank in this style). The bar color is controlled by `fill`.
+#' Shares the package house styling with [plot_pdp()] (serif type, gray panel,
+#' centered title, legend at the bottom). The mark is a colored horizontal bar
+#' (`alpha = 0.75`) ending in a black tip point, over a gray zero reference
+#' line, with the x-axis hugged to the data. Variables are sorted descending so
+#' the most important sits at the top. When `normalize = TRUE` was used in
+#' [cf_loco()], the title becomes "LOCO Variable Importance (normalized)". The
+#' bar color is controlled by `fill`.
 #'
 #' @seealso [cf_loco()] to compute the scores, [summary.cf_loco()] for
 #'   tabular output.
@@ -108,5 +107,5 @@ plot.cf_loco <- function(x, fill = "#1f78b4", ...) {
       breaks = xb$breaks, limits = xb$limits,
       expand = ggplot2::expansion(mult = c(0, 0.02))) +
     ggplot2::labs(title = title, x = NULL, y = NULL) +
-    .utopia_theme_vi()
+    .utopia_pdp_theme()
 }

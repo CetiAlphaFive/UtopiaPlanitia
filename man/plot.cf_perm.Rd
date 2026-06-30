@@ -22,11 +22,11 @@ Draws a horizontal variable-importance bar chart of PermuCATE scores,
 sorted from most to least important (largest at the top).
 }
 \details{
-Styled to the package's house variable-importance look: a white
-\code{theme_few()}-equivalent panel (hand-rolled from \code{\link[ggplot2:theme_bw]{ggplot2::theme_bw()}}, no
-\code{ggthemes} dependency), colored horizontal bars (\code{alpha = 0.75}) ending in a
-black tip point, a gray zero reference line, inward serif x-axis ticks, and
-faint x-only gridlines. Bars are filled by significance at the object's
+Shares the package house styling with \code{\link[=plot_pdp]{plot_pdp()}} (serif type, gray panel,
+centered title, legend at the bottom). Colored horizontal bars
+(\code{alpha = 0.75}) end in a black tip point over a gray zero reference line,
+with the x-axis hugged to the data. Bars are filled by significance at the
+object's
 \code{conf.level} (a covariate is significant when its lower confidence bound
 exceeds zero): significant bars use \code{fill.sig}, others \code{"gray70"}. When
 confidence bounds are available (not normalized), a one-sided lower

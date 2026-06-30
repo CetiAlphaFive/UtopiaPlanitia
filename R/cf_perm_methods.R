@@ -72,11 +72,11 @@ summary.cf_perm <- function(object, ...) {
 #' @return A `ggplot` object.
 #'
 #' @details
-#' Styled to the package's house variable-importance look: a white
-#' `theme_few()`-equivalent panel (hand-rolled from [ggplot2::theme_bw()], no
-#' `ggthemes` dependency), colored horizontal bars (`alpha = 0.75`) ending in a
-#' black tip point, a gray zero reference line, inward serif x-axis ticks, and
-#' faint x-only gridlines. Bars are filled by significance at the object's
+#' Shares the package house styling with [plot_pdp()] (serif type, gray panel,
+#' centered title, legend at the bottom). Colored horizontal bars
+#' (`alpha = 0.75`) end in a black tip point over a gray zero reference line,
+#' with the x-axis hugged to the data. Bars are filled by significance at the
+#' object's
 #' `conf.level` (a covariate is significant when its lower confidence bound
 #' exceeds zero): significant bars use `fill.sig`, others `"gray70"`. When
 #' confidence bounds are available (not normalized), a one-sided lower
@@ -130,10 +130,12 @@ plot.cf_perm <- function(x, fill.sig = "#1f78b4", ...) {
   g +
     ggplot2::geom_point(size = 2, shape = 16, color = "black") +
     ggplot2::scale_fill_manual(
-      values = c(`FALSE` = "gray70", `TRUE` = fill.sig)) +
+      name = "Significant",
+      values = c(`FALSE` = "gray70", `TRUE` = fill.sig),
+      labels = c(`FALSE` = "No", `TRUE` = "Yes")) +
     ggplot2::scale_x_continuous(
       breaks = xb$breaks, limits = xb$limits,
       expand = ggplot2::expansion(mult = c(0, 0.02))) +
     ggplot2::labs(title = title, x = NULL, y = NULL) +
-    .utopia_theme_vi()
+    .utopia_pdp_theme()
 }

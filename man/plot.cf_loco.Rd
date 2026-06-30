@@ -21,14 +21,13 @@ Draws a horizontal variable-importance bar chart of LOCO scores, sorted
 from most to least important (largest at the top).
 }
 \details{
-Styled to the package's house variable-importance look: a white
-\code{theme_few()}-equivalent panel (hand-rolled from \code{\link[ggplot2:theme_bw]{ggplot2::theme_bw()}}, no
-\code{ggthemes} dependency), a colored horizontal bar (\code{alpha = 0.75}) ending in
-a black tip point, a gray zero reference line, inward serif x-axis ticks,
-and faint x-only gridlines. Variables are sorted descending so the most
-important sits at the top. When \code{normalize = TRUE} was used in \code{\link[=cf_loco]{cf_loco()}},
-the title becomes "LOCO Variable Importance (normalized)" (axis titles are
-blank in this style). The bar color is controlled by \code{fill}.
+Shares the package house styling with \code{\link[=plot_pdp]{plot_pdp()}} (serif type, gray panel,
+centered title, legend at the bottom). The mark is a colored horizontal bar
+(\code{alpha = 0.75}) ending in a black tip point, over a gray zero reference
+line, with the x-axis hugged to the data. Variables are sorted descending so
+the most important sits at the top. When \code{normalize = TRUE} was used in
+\code{\link[=cf_loco]{cf_loco()}}, the title becomes "LOCO Variable Importance (normalized)". The
+bar color is controlled by \code{fill}.
 }
 \examples{
 \dontshow{if (rlang::is_installed("ggplot2")) withAutoprint(\{ # examplesIf}
