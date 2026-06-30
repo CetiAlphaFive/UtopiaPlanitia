@@ -124,15 +124,16 @@ plot.cf_perm <- function(x, fill.sig = "#1f78b4", ...) {
       ggplot2::aes(x = .data[["CI.lower"]], xend = .data[["Importance"]],
                    y = .data[["Variable"]], yend = .data[["Variable"]]),
       data = v[is.finite(v$CI.lower), , drop = FALSE],
-      color = "grey40", linewidth = 0.5)
+      color = "black", linewidth = 0.5)
   }
 
   g +
-    ggplot2::geom_point(size = 2, shape = 16, color = "black") +
+    ggplot2::geom_point(size = 4, shape = 18, color = "black") +
     ggplot2::scale_fill_manual(
       name = "Significant",
       values = c(`FALSE` = "gray70", `TRUE` = fill.sig),
       labels = c(`FALSE` = "No", `TRUE` = "Yes")) +
+    ggplot2::guides(fill = "none") +
     ggplot2::scale_x_continuous(
       breaks = xb$breaks, limits = xb$limits,
       expand = ggplot2::expansion(mult = c(0, 0.02))) +

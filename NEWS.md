@@ -4,7 +4,7 @@
 
 * **Visual change only — not an API change.** Both `plot()` methods now render
   in the same house style as `plot_pdp()` (shared `.utopia_pdp_theme()`: serif
-  type, gray panel, centered title, bottom legend), with a colored horizontal bar
+  type, gray panel, centered title), with a colored horizontal bar
   (`alpha = 0.75`) ending in a black tip point, a gray zero reference line, and
   the x-axis hugged to the data, instead of the old lollipop. Variables are sorted
   descending with the most important at the top.

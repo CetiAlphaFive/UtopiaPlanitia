@@ -102,7 +102,7 @@ plot.cf_loco <- function(x, fill = "#1f78b4", ...) {
                                      y = .data[["Variable"]])) +
     ggplot2::geom_vline(xintercept = 0, color = "gray60", linewidth = 0.4) +
     ggplot2::geom_col(alpha = 0.75, fill = fill, width = 0.65) +
-    ggplot2::geom_point(size = 2, shape = 16, color = "black") +
+    ggplot2::geom_point(size = 4, shape = 18, color = "black") +
     ggplot2::scale_x_continuous(
       breaks = xb$breaks, limits = xb$limits,
       expand = ggplot2::expansion(mult = c(0, 0.02))) +
