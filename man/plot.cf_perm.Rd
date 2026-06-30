@@ -4,10 +4,13 @@
 \alias{plot.cf_perm}
 \title{Plot PermuCATE Variable Importance}
 \usage{
-\method{plot}{cf_perm}(x, ...)
+\method{plot}{cf_perm}(x, fill.sig = "#1f78b4", ...)
 }
 \arguments{
 \item{x}{An object of class \code{"cf_perm"} returned by \code{\link[=cf_perm]{cf_perm()}}.}
+
+\item{fill.sig}{Bar fill for significant covariates (default \code{"#1f78b4"},
+the house blue). Non-significant covariates use \code{"gray70"}.}
 
 \item{...}{Additional arguments (currently unused).}
 }
@@ -15,10 +18,25 @@
 A \code{ggplot} object.
 }
 \description{
-Draws a horizontal lollipop chart of PermuCATE importance scores. When
-confidence bounds are available (not normalized), a one-sided lower
-confidence bound is drawn as a whisker (the upper bound is unbounded by
-construction). Points are colored by significance at the object's
+Draws a horizontal variable-importance bar chart of PermuCATE scores,
+sorted from most to least important (largest at the top).
+}
+\details{
+Styled to the package's house variable-importance look: a white
+\code{theme_few()}-equivalent panel (hand-rolled from \code{\link[ggplot2:theme_bw]{ggplot2::theme_bw()}}, no
+\code{ggthemes} dependency), colored horizontal bars (\code{alpha = 0.75}) ending in a
+black tip point, a gray zero reference line, inward serif x-axis ticks, and
+faint x-only gridlines. Bars are filled by significance at the object's
 \code{conf.level} (a covariate is significant when its lower confidence bound
-exceeds zero).
+exceeds zero): significant bars use \code{fill.sig}, others \code{"gray70"}. When
+confidence bounds are available (not normalized), a one-sided lower
+confidence bound is drawn as a horizontal whisker from \code{CI.lower} to the
+importance tip (the upper bound is \code{+Inf} by construction, so there is no
+upper whisker). For normalized objects the bounds are \code{NA}, so no whisker is
+drawn, all bars take the non-significant fill, and the title gains
+"(normalized)".
+}
+\seealso{
+\code{\link[=cf_perm]{cf_perm()}} to compute the scores, \code{\link[=summary.cf_perm]{summary.cf_perm()}} for tabular
+output.
 }

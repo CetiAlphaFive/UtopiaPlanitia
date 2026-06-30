@@ -4,10 +4,12 @@
 \alias{plot.cf_loco}
 \title{Plot LOCO Variable Importance}
 \usage{
-\method{plot}{cf_loco}(x, ...)
+\method{plot}{cf_loco}(x, fill = "#1f78b4", ...)
 }
 \arguments{
 \item{x}{An object of class \code{"cf_loco"} returned by \code{\link[=cf_loco]{cf_loco()}}.}
+
+\item{fill}{Bar fill color (default \code{"#1f78b4"}, the house blue).}
 
 \item{...}{Additional arguments (currently unused).}
 }
@@ -15,13 +17,18 @@
 A \code{ggplot} object.
 }
 \description{
-Draws a horizontal lollipop chart of LOCO variable importance scores,
-sorted from least to most important (bottom to top).
+Draws a horizontal variable-importance bar chart of LOCO scores, sorted
+from most to least important (largest at the top).
 }
 \details{
-Variables are displayed as horizontal segments ending in points, with
-length proportional to importance. When \code{normalize = TRUE} was used in
-\code{\link[=cf_loco]{cf_loco()}}, the y-axis label changes to "Importance (normalized)".
+Styled to the package's house variable-importance look: a white
+\code{theme_few()}-equivalent panel (hand-rolled from \code{\link[ggplot2:theme_bw]{ggplot2::theme_bw()}}, no
+\code{ggthemes} dependency), a colored horizontal bar (\code{alpha = 0.75}) ending in
+a black tip point, a gray zero reference line, inward serif x-axis ticks,
+and faint x-only gridlines. Variables are sorted descending so the most
+important sits at the top. When \code{normalize = TRUE} was used in \code{\link[=cf_loco]{cf_loco()}},
+the title becomes "LOCO Variable Importance (normalized)" (axis titles are
+blank in this style). The bar color is controlled by \code{fill}.
 }
 \examples{
 \dontshow{if (rlang::is_installed("ggplot2")) withAutoprint(\{ # examplesIf}
