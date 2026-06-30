@@ -62,20 +62,37 @@ summary.cf_perm <- function(object, ...) {
 
 #' Plot PermuCATE Variable Importance
 #'
-#' Draws a horizontal lollipop chart of PermuCATE importance scores. When
-#' confidence bounds are available (not normalized), a one-sided lower
-#' confidence bound is drawn as a whisker (the upper bound is unbounded by
-#' construction). Points are colored by significance at the object's
-#' `conf.level` (a covariate is significant when its lower confidence bound
-#' exceeds zero).
+#' Draws a horizontal variable-importance bar chart of PermuCATE scores,
+#' sorted from most to least important (largest at the top).
 #'
 #' @param x An object of class `"cf_perm"` returned by [cf_perm()].
+#' @param fill.sig Bar fill for significant covariates (default
+#'   `"darkorange"`). Non-significant covariates use `"gray70"`.
 #' @param ... Additional arguments (currently unused).
 #' @return A `ggplot` object.
+#'
+#' @details
+#' Shares the package house styling with [plot_pdp()] (serif type, gray panel,
+#' centered title, legend at the bottom). Colored horizontal bars
+#' (`alpha = 0.75`) end in a black tip point over a gray zero reference line,
+#' with the x-axis hugged to the data. Bars are filled by significance at the
+#' object's
+#' `conf.level` (a covariate is significant when its lower confidence bound
+#' exceeds zero): significant bars use `fill.sig`, others `"gray70"`. When
+#' confidence bounds are available (not normalized), a one-sided lower
+#' confidence bound is drawn as a horizontal whisker from `CI.lower` to the
+#' importance tip (the upper bound is `+Inf` by construction, so there is no
+#' upper whisker). For normalized objects the bounds are `NA`, so no whisker is
+#' drawn, all bars take the non-significant fill, and the title gains
+#' "(normalized)".
+#'
+#' @seealso [cf_perm()] to compute the scores, [summary.cf_perm()] for tabular
+#'   output.
+#'
 #' @importFrom rlang .data
 #' @method plot cf_perm
 #' @export
-plot.cf_perm <- function(x, ...) {
+plot.cf_perm <- function(x, fill.sig = "darkorange", ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed.")
   }
@@ -83,29 +100,43 @@ plot.cf_perm <- function(x, ...) {
   v$Variable <- factor(v$Variable, levels = v$Variable[order(v$Importance)])
   v$Significant <- !is.na(v$CI.lower) & v$CI.lower > 0
 
-  g <- ggplot2::ggplot(v, ggplot2::aes(x = .data[["Variable"]],
-                                       y = .data[["Importance"]])) +
-    ggplot2::geom_segment(ggplot2::aes(xend = .data[["Variable"]], y = 0,
-                                       yend = .data[["Importance"]]),
-                          linewidth = 0.8, color = "grey50") +
-    ggplot2::geom_point(ggplot2::aes(color = .data[["Significant"]]), size = 3) +
-    ggplot2::coord_flip() +
-    ggplot2::labs(x = NULL, y = "PermuCATE importance",
-                  title = "PermuCATE Variable Importance") +
-    ggplot2::theme(
-      text = ggplot2::element_text(size = 12, family = "serif"),
-      panel.background = ggplot2::element_rect(fill = "#e6e6e6"),
-      plot.title = ggplot2::element_text(hjust = 0.5),
-      panel.border = ggplot2::element_blank(),
-      complete = TRUE
-    )
+  # Span x-breaks over importances and any finite lower bounds so the whisker
+  # is never clipped.
+  finite.lower <- v$CI.lower[is.finite(v$CI.lower)]
+  xb <- .utopia_vi_xbreaks(c(v$Importance, finite.lower))
 
-  # One-sided lower confidence bound (CI.upper is +Inf by construction).
-  if (!x$normalized && any(is.finite(v$CI.lower))) {
-    g <- g + ggplot2::geom_linerange(
-      ggplot2::aes(ymin = .data[["CI.lower"]], ymax = .data[["Importance"]]),
-      data = v[is.finite(v$CI.lower), , drop = FALSE],
-      color = "grey40")
+  title <- if (x$normalized) {
+    "PermuCATE Variable Importance (normalized)"
+  } else {
+    "PermuCATE Variable Importance"
   }
-  g
+
+  g <- ggplot2::ggplot(v, ggplot2::aes(x = .data[["Importance"]],
+                                       y = .data[["Variable"]])) +
+    ggplot2::geom_vline(xintercept = 0, color = "gray60", linewidth = 0.4) +
+    ggplot2::geom_col(ggplot2::aes(fill = .data[["Significant"]]),
+                      alpha = 0.75, width = 0.65)
+
+  # One-sided lower confidence bound (CI.upper is +Inf by construction), drawn
+  # over the bar so the inferential whisker stays visible.
+  if (!x$normalized && any(is.finite(v$CI.lower))) {
+    g <- g + ggplot2::geom_segment(
+      ggplot2::aes(x = .data[["CI.lower"]], xend = .data[["Importance"]],
+                   y = .data[["Variable"]], yend = .data[["Variable"]]),
+      data = v[is.finite(v$CI.lower), , drop = FALSE],
+      color = "black", linewidth = 0.5)
+  }
+
+  g +
+    ggplot2::geom_point(size = 4, shape = 18, color = "black") +
+    ggplot2::scale_fill_manual(
+      name = "Significant",
+      values = c(`FALSE` = "gray70", `TRUE` = fill.sig),
+      labels = c(`FALSE` = "No", `TRUE` = "Yes")) +
+    ggplot2::guides(fill = "none") +
+    ggplot2::scale_x_continuous(
+      breaks = xb$breaks, limits = xb$limits,
+      expand = ggplot2::expansion(mult = c(0, 0.02))) +
+    ggplot2::labs(title = title, x = NULL, y = NULL) +
+    .utopia_pdp_theme()
 }

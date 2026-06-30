@@ -45,17 +45,22 @@ print.cf_loco <- function(x, ...) {
 
 #' Plot LOCO Variable Importance
 #'
-#' Draws a horizontal lollipop chart of LOCO variable importance scores,
-#' sorted from least to most important (bottom to top).
+#' Draws a horizontal variable-importance bar chart of LOCO scores, sorted
+#' from most to least important (largest at the top).
 #'
 #' @param x An object of class `"cf_loco"` returned by [cf_loco()].
+#' @param fill Bar fill color (default `"#1f78b4"`, the house blue).
 #' @param ... Additional arguments (currently unused).
 #' @return A `ggplot` object.
 #'
 #' @details
-#' Variables are displayed as horizontal segments ending in points, with
-#' length proportional to importance. When `normalize = TRUE` was used in
-#' [cf_loco()], the y-axis label changes to "Importance (normalized)".
+#' Shares the package house styling with [plot_pdp()] (serif type, gray panel,
+#' centered title, legend at the bottom). The mark is a colored horizontal bar
+#' (`alpha = 0.75`) ending in a black tip point, over a gray zero reference
+#' line, with the x-axis hugged to the data. Variables are sorted descending so
+#' the most important sits at the top. When `normalize = TRUE` was used in
+#' [cf_loco()], the title becomes "LOCO Variable Importance (normalized)". The
+#' bar color is controlled by `fill`.
 #'
 #' @seealso [cf_loco()] to compute the scores, [summary.cf_loco()] for
 #'   tabular output.
@@ -75,7 +80,7 @@ print.cf_loco <- function(x, ...) {
 #' @importFrom rlang .data
 #' @method plot cf_loco
 #' @export
-plot.cf_loco <- function(x, ...) {
+plot.cf_loco <- function(x, fill = "#1f78b4", ...) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed.")
@@ -85,25 +90,22 @@ plot.cf_loco <- function(x, ...) {
   vimp$Variable <- factor(vimp$Variable,
                           levels = vimp$Variable[order(vimp$Importance)])
 
-  y.lab <- if (x$normalized) "Importance (normalized)" else "Importance"
+  xb <- .utopia_vi_xbreaks(vimp$Importance)
 
-  ggplot2::ggplot(vimp, ggplot2::aes(x = .data[["Variable"]],
-                                     y = .data[["Importance"]])) +
-    ggplot2::geom_segment(ggplot2::aes(xend = .data[["Variable"]], y = 0,
-                                       yend = .data[["Importance"]]),
-                          linewidth = 0.8, color = "grey50") +
-    ggplot2::geom_point(size = 3, color = "#5ab0c0") +
-    ggplot2::coord_flip() +
-    ggplot2::labs(x = NULL, y = y.lab,
-                  title = "LOCO Variable Importance") +
-    ggplot2::theme(
-      text = ggplot2::element_text(size = 12, family = "serif"),
-      panel.background = ggplot2::element_rect(fill = "#e6e6e6"),
-      plot.title = ggplot2::element_text(hjust = 0.5),
-      panel.border = ggplot2::element_blank(),
-      axis.text = ggplot2::element_text(),
-      axis.title = ggplot2::element_text(size = ggplot2::rel(1.2)),
-      legend.key = ggplot2::element_blank(),
-      complete = TRUE
-    )
+  title <- if (x$normalized) {
+    "LOCO Variable Importance (normalized)"
+  } else {
+    "LOCO Variable Importance"
+  }
+
+  ggplot2::ggplot(vimp, ggplot2::aes(x = .data[["Importance"]],
+                                     y = .data[["Variable"]])) +
+    ggplot2::geom_vline(xintercept = 0, color = "gray60", linewidth = 0.4) +
+    ggplot2::geom_col(alpha = 0.75, fill = fill, width = 0.65) +
+    ggplot2::geom_point(size = 4, shape = 18, color = "black") +
+    ggplot2::scale_x_continuous(
+      breaks = xb$breaks, limits = xb$limits,
+      expand = ggplot2::expansion(mult = c(0, 0.02))) +
+    ggplot2::labs(title = title, x = NULL, y = NULL) +
+    .utopia_pdp_theme()
 }

@@ -4,10 +4,13 @@
 \alias{plot.cf_perm}
 \title{Plot PermuCATE Variable Importance}
 \usage{
-\method{plot}{cf_perm}(x, ...)
+\method{plot}{cf_perm}(x, fill.sig = "darkorange", ...)
 }
 \arguments{
 \item{x}{An object of class \code{"cf_perm"} returned by \code{\link[=cf_perm]{cf_perm()}}.}
+
+\item{fill.sig}{Bar fill for significant covariates (default
+\code{"darkorange"}). Non-significant covariates use \code{"gray70"}.}
 
 \item{...}{Additional arguments (currently unused).}
 }
@@ -15,10 +18,25 @@
 A \code{ggplot} object.
 }
 \description{
-Draws a horizontal lollipop chart of PermuCATE importance scores. When
-confidence bounds are available (not normalized), a one-sided lower
-confidence bound is drawn as a whisker (the upper bound is unbounded by
-construction). Points are colored by significance at the object's
+Draws a horizontal variable-importance bar chart of PermuCATE scores,
+sorted from most to least important (largest at the top).
+}
+\details{
+Shares the package house styling with \code{\link[=plot_pdp]{plot_pdp()}} (serif type, gray panel,
+centered title, legend at the bottom). Colored horizontal bars
+(\code{alpha = 0.75}) end in a black tip point over a gray zero reference line,
+with the x-axis hugged to the data. Bars are filled by significance at the
+object's
 \code{conf.level} (a covariate is significant when its lower confidence bound
-exceeds zero).
+exceeds zero): significant bars use \code{fill.sig}, others \code{"gray70"}. When
+confidence bounds are available (not normalized), a one-sided lower
+confidence bound is drawn as a horizontal whisker from \code{CI.lower} to the
+importance tip (the upper bound is \code{+Inf} by construction, so there is no
+upper whisker). For normalized objects the bounds are \code{NA}, so no whisker is
+drawn, all bars take the non-significant fill, and the title gains
+"(normalized)".
+}
+\seealso{
+\code{\link[=cf_perm]{cf_perm()}} to compute the scores, \code{\link[=summary.cf_perm]{summary.cf_perm()}} for tabular
+output.
 }

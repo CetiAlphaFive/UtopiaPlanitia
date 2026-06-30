@@ -1,5 +1,24 @@
 # UtopiaPlanitia (development version)
 
+## `plot.cf_loco()` and `plot.cf_perm()` restyled to the house VI look
+
+* **Visual change only — not an API change.** Both `plot()` methods now render
+  in the same house style as `plot_pdp()` (shared `.utopia_pdp_theme()`: serif
+  type, gray panel, centered title), with a colored horizontal bar
+  (`alpha = 0.75`) ending in a black tip point, a gray zero reference line, and
+  the x-axis hugged to the data, instead of the old lollipop. Variables are sorted
+  descending with the most important at the top.
+* **`cf_perm` keeps its inference**, restyled into the new theme: bars are filled
+  by significance (significant covariates in `darkorange`, others gray), the
+  one-sided lower confidence bound is drawn as a horizontal whisker, and
+  normalized objects (no confidence bounds) drop the whisker and take the
+  non-significant fill.
+* **New appended arguments** `plot.cf_loco(x, fill = "#1f78b4", ...)` and
+  `plot.cf_perm(x, fill.sig = "#1f78b4", ...)` let callers recolor; defaults
+  reproduce the new house look. Both methods still return a `ggplot` object, so
+  signatures and return types remain backwards compatible. `summary()` / `print()`
+  output for both classes is unchanged.
+
 ## `cf_perm()` gains opt-in missing-covariate handling
 
 * **New `allow.missing` argument (default `FALSE`, appended last).** With complete
