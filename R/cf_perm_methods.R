@@ -115,7 +115,7 @@ plot.cf_perm <- function(x, fill.sig = "#1f78b4", ...) {
                                        y = .data[["Variable"]])) +
     ggplot2::geom_vline(xintercept = 0, color = "gray60", linewidth = 0.4) +
     ggplot2::geom_col(ggplot2::aes(fill = .data[["Significant"]]),
-                      alpha = 0.75)
+                      alpha = 0.75, width = 0.65)
 
   # One-sided lower confidence bound (CI.upper is +Inf by construction), drawn
   # over the bar so the inferential whisker stays visible.
@@ -128,7 +128,7 @@ plot.cf_perm <- function(x, fill.sig = "#1f78b4", ...) {
   }
 
   g +
-    ggplot2::geom_point(size = 2.5, shape = 16, color = "black") +
+    ggplot2::geom_point(size = 2, shape = 16, color = "black") +
     ggplot2::scale_fill_manual(
       values = c(`FALSE` = "gray70", `TRUE` = fill.sig)) +
     ggplot2::scale_x_continuous(

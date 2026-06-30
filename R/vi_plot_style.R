@@ -36,20 +36,25 @@
 
 #' Pretty x-axis breaks for VI bars
 #'
-#' Internal helper. Builds `pretty(n = 3)` breaks over a span that always
-#' includes 0 (so LOCO panels with negatives get a zero break), padded ~2% so
-#' bars/whiskers are not clipped. Ported verbatim from the Dem-Sat appendix
-#' `generate_vi_plot()` recipe.
+#' Internal helper. The axis is hugged to the data: limits span the values
+#' together with 0 (so a zero reference is always in frame and LOCO/PermuCATE
+#' negatives are shown), padded ~4%; tick breaks are `pretty(n = 4)` filtered to
+#' that range. Hugging (rather than `range(pretty())`) avoids large dead margins
+#' when one covariate dominates the importances.
 #'
 #' @param v Numeric vector of values to span (e.g. importances, CI bounds).
-#' @return A list with `breaks` (numeric) and `limits` (`range(breaks)`).
+#' @return A list with `breaks` (numeric, in-range pretty ticks) and `limits`
+#'   (the padded data span including 0).
 #' @keywords internal
 #' @noRd
 .utopia_vi_xbreaks <- function(v) {
-  xspan <- range(c(0, v), na.rm = TRUE)
-  pad   <- diff(xspan) * 0.02
-  if (xspan[1] < 0) xspan[1] <- xspan[1] - pad
-  xspan[2] <- xspan[2] + pad
-  brks <- pretty(xspan, n = 3)
-  list(breaks = brks, limits = range(brks))
+  v     <- v[is.finite(v)]
+  xspan <- range(c(0, v))                            # always include 0
+  pad   <- diff(xspan) * 0.04
+  if (pad == 0) pad <- 0.04
+  lims  <- c(xspan[1] - if (xspan[1] < 0) pad else 0,
+             xspan[2] + pad)
+  brks  <- pretty(xspan, n = 4)
+  brks  <- brks[brks >= lims[1] & brks <= lims[2]]   # keep only in-range ticks
+  list(breaks = brks, limits = lims)
 }
