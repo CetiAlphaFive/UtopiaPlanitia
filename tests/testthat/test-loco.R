@@ -750,6 +750,12 @@ test_that("no install-time or run-time dependency on conformalInference (fresh s
 
   script_file <- tempfile(fileext = ".R")
   writeLines(c(
+    # Propagate the parent process's library paths so the child can find
+    # pkgload/ranger/grf/rlang even under --vanilla (which implies
+    # --no-environ and drops R_LIBS_USER/R_LIBS) -- notably under R CMD
+    # check, where the package and its dependencies live in a temporary
+    # check library that is not on the child's default libPaths().
+    sprintf(".libPaths(%s)", paste(deparse(.libPaths()), collapse = " ")),
     sprintf("pkgload::load_all(%s, quiet = TRUE)", deparse(root)),
     "stopifnot(!('conformalInference' %in% loadedNamespaces()))",
     "set.seed(20260706)",
