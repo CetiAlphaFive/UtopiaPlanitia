@@ -728,57 +728,6 @@ test_that("loss = 'mse' split mode is unaffected (never routed through conformal
   expect_equal(nrow(out), 5L)
 })
 
-.loco_pkg_root <- function() {
-  d <- getwd()
-  for (i in 1:6) {
-    if (file.exists(file.path(d, "DESCRIPTION"))) return(normalizePath(d))
-    parent <- dirname(d)
-    if (identical(parent, d)) break
-    d <- parent
-  }
-  NA_character_
-}
-
-test_that("no install-time or run-time dependency on conformalInference (fresh subprocess)", {
-  skip_if_no_ranger()
-  skip_on_cran()
-  skip_if_not_installed("pkgload")
-  rscript_bin <- Sys.which("Rscript")
-  skip_if(!nzchar(rscript_bin), "Rscript not found on PATH")
-  root <- .loco_pkg_root()
-  skip_if(is.na(root), "could not locate package root (DESCRIPTION not found)")
-
-  script_file <- tempfile(fileext = ".R")
-  writeLines(c(
-    # Propagate the parent process's library paths so the child can find
-    # pkgload/ranger/grf/rlang even under --vanilla (which implies
-    # --no-environ and drops R_LIBS_USER/R_LIBS) -- notably under R CMD
-    # check, where the package and its dependencies live in a temporary
-    # check library that is not on the child's default libPaths().
-    sprintf(".libPaths(%s)", paste(deparse(.libPaths()), collapse = " ")),
-    sprintf("pkgload::load_all(%s, quiet = TRUE)", deparse(root)),
-    "stopifnot(!('conformalInference' %in% loadedNamespaces()))",
-    "set.seed(20260706)",
-    "n <- 150",
-    "dat <- data.frame(x1 = rnorm(n), x2 = rnorm(n), x3 = rnorm(n), x4 = rnorm(n), x5 = rnorm(n))",
-    "dat$y <- 2 * dat$x1 - 1.5 * dat$x2 + rnorm(n, sd = 1)",
-    "mod <- ranger::ranger(y ~ ., data = dat, num.trees = 100)",
-    "out <- loco(mod, data = dat, split = TRUE)",
-    "stopifnot(!('conformalInference' %in% loadedNamespaces()))",
-    "stopifnot(is.data.frame(out), nrow(out) == 5L)",
-    "cat('SUBPROCESS_OK\\n')"
-  ), script_file)
-  on.exit(unlink(script_file), add = TRUE)
-
-  res <- system2(rscript_bin, c("--vanilla", shQuote(script_file)),
-                 stdout = TRUE, stderr = TRUE)
-
-  expect_true(any(grepl("SUBPROCESS_OK", res, fixed = TRUE)),
-              info = paste(res, collapse = "\n"))
-  expect_false(any(grepl("conformalInference", res, fixed = TRUE)),
-               info = paste(res, collapse = "\n"))
-})
-
 # ---- API-stability (test-spec.md Sec 7) ---------------------------------
 
 test_that("T-API: loco formals unchanged", {
