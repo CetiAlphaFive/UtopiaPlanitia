@@ -105,37 +105,23 @@ vectors naming the members of each group.}
 }
 }
 \description{
-Computes leave-one-covariate-out (LOCO) variable importance for
-outcome (non-causal) forests. Two backends are supported:
+Measures how much each covariate contributes to an outcome
+(non-causal) forest by dropping it and seeing how much prediction
+error grows. Works with \code{ranger} regression, probability, and
+classification forests, and with \code{grf} regression, boosted
+regression, and probability forests. For a \code{grf::causal_forest()}
+use \code{\link[=cf_loco]{cf_loco()}} instead; other model types are rejected.
 }
 \details{
+Two modes:
 \itemize{
-\item \code{ranger} regression, probability, and classification forests
-(\code{\link[ranger:ranger]{ranger::ranger()}}).
-\item \code{grf} outcome forests: \code{\link[grf:regression_forest]{grf::regression_forest()}},
-\code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}}, and
-\code{\link[grf:probability_forest]{grf::probability_forest()}}. Causal, survival, quantile,
-instrumental, multi-arm, and \code{lm_forest} objects are rejected --
-for \code{grf::causal_forest()} use \code{\link[=cf_loco]{cf_loco()}}.
-}
-
-Two modes are available:
-\itemize{
-\item \strong{Split-sample}: valid asymptotic confidence intervals and
-p-values from either a normal-theory Z-test or a Wilcoxon
-signed-rank test on loss-residual differences. For ranger
-regression forests with per-variable LOCO and \code{loss = "abs"},
-\code{\link[conformalInference:loco]{conformalInference::loco()}} is used as a fast path; all other
-ranger split-mode cases and \strong{all grf split-mode cases} go
-through an internal custom split loop. Slower than OOB (data is
-split in half).
-\item \strong{OOB}: refits the original model once per variable (or per
-group), dropping the relevant predictors each time, and compares
-OOB prediction error to the full-model baseline. Faster, point
-estimates only. \strong{No formal inference.} Naive Wald-style tests
-on per-observation OOB error differences are anti-conservative
-because OOB residuals are dependent across trees; we therefore
-do not provide them. For valid p-values use \code{split = TRUE}.
+\item \strong{Split-sample} (\code{split = TRUE}, default): splits the data,
+refits, and reports importance scores with confidence intervals
+and one-sided p-values. Slower, but gives valid inference.
+\item \strong{OOB} (\code{split = FALSE}): refits once per covariate (or group)
+and compares out-of-bag error to the full model. Faster, but
+returns point estimates only -- no confidence intervals or
+p-values.
 }
 
 \strong{One-sided p-values.} The split-mode tests are one-sided against

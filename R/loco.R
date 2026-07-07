@@ -1,33 +1,21 @@
 #' LOCO Variable Importance for Outcome Models
 #'
-#' Computes leave-one-covariate-out (LOCO) variable importance for
-#' outcome (non-causal) forests. Two backends are supported:
+#' Measures how much each covariate contributes to an outcome
+#' (non-causal) forest by dropping it and seeing how much prediction
+#' error grows. Works with `ranger` regression, probability, and
+#' classification forests, and with `grf` regression, boosted
+#' regression, and probability forests. For a `grf::causal_forest()`
+#' use [cf_loco()] instead; other model types are rejected.
 #'
-#' * `ranger` regression, probability, and classification forests
-#'   ([ranger::ranger()]).
-#' * `grf` outcome forests: [grf::regression_forest()],
-#'   [grf::boosted_regression_forest()], and
-#'   [grf::probability_forest()]. Causal, survival, quantile,
-#'   instrumental, multi-arm, and `lm_forest` objects are rejected --
-#'   for `grf::causal_forest()` use [cf_loco()].
+#' Two modes:
 #'
-#' Two modes are available:
-#'
-#' * **Split-sample**: valid asymptotic confidence intervals and
-#'   p-values from either a normal-theory Z-test or a Wilcoxon
-#'   signed-rank test on loss-residual differences. For ranger
-#'   regression forests with per-variable LOCO and `loss = "abs"`,
-#'   [conformalInference::loco()] is used as a fast path; all other
-#'   ranger split-mode cases and **all grf split-mode cases** go
-#'   through an internal custom split loop. Slower than OOB (data is
-#'   split in half).
-#' * **OOB**: refits the original model once per variable (or per
-#'   group), dropping the relevant predictors each time, and compares
-#'   OOB prediction error to the full-model baseline. Faster, point
-#'   estimates only. **No formal inference.** Naive Wald-style tests
-#'   on per-observation OOB error differences are anti-conservative
-#'   because OOB residuals are dependent across trees; we therefore
-#'   do not provide them. For valid p-values use `split = TRUE`.
+#' * **Split-sample** (`split = TRUE`, default): splits the data,
+#'   refits, and reports importance scores with confidence intervals
+#'   and one-sided p-values. Slower, but gives valid inference.
+#' * **OOB** (`split = FALSE`): refits once per covariate (or group)
+#'   and compares out-of-bag error to the full model. Faster, but
+#'   returns point estimates only -- no confidence intervals or
+#'   p-values.
 #'
 #' @param model A fitted outcome forest. Supported classes:
 #'   [ranger::ranger()] (regression, probability, or classification),
