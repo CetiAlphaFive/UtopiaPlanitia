@@ -1,5 +1,42 @@
 # UtopiaPlanitia (development version)
 
+## Breaking changes
+
+* **`loco()` no longer depends on `conformalInference`.** The one code path
+  that used to delegate to the non-CRAN, GitHub-only `conformalInference::loco()`
+  (split-mode, per-variable, ranger regression, `loss = "abs"`) now routes
+  through the package's own `loco_custom_split()` sample-splitting + Z/Wilcoxon
+  inference machinery, which already handled every other split-mode
+  configuration. `conformalInference` has been removed from `Suggests` and no
+  longer appears anywhere in `R/`, `DESCRIPTION`, or generated docs.
+* **`method = "z"` output on the migrated path is numerically unchanged**
+  (verified to floating-point machine epsilon against the prior
+  `conformalInference`-based output as gold, across 8 dataset/seed/parameter
+  scenarios): both implementations perform the identical
+  `set.seed(seed); sample(seq_len(n), floor(n/2))` split and, because
+  `ranger::ranger()` draws exactly one RNG value per call when not given an
+  explicit `seed=`, produce bit-identical model refits and an algebraically
+  identical Z-test formula.
+* **`method = "wilcox"` output on the migrated path may differ slightly**
+  from prior versions: the in-package Wilcoxon computation uses
+  `stats::wilcox.test(..., exact = FALSE)`, whereas the removed
+  `conformalInference` path used `exact = TRUE`. This is a pre-existing,
+  already-shipped choice in `loco_custom_split()` (used identically by every
+  other split-mode Wilcoxon case already) — not a new approximation
+  introduced by this change. Empirically the gap is small (observed max
+  absolute difference on point estimates/CI bounds: ~0.003-0.005 at n = 150,
+  ~0.03-0.04 at n = 32) and does not change any significance decision or the
+  ranking of clearly-separated signal variables.
+* **`verbose` is retained but is now an inert no-op.** It previously only
+  ever controlled progress printing inside the removed `conformalInference`
+  code path; it remains in the same position with the same default
+  (`FALSE`) for backwards compatibility, but no longer affects computation
+  or output on any path.
+* No other `loco()` behavior changes: formals (names, order, defaults),
+  return-frame shape, and every non-migrated configuration (any `groups`,
+  any non-regression treetype, `loss = "mse"`, all `grf` models) are
+  unaffected.
+
 ## `plot.cf_loco()` and `plot.cf_perm()` restyled to the house VI look
 
 * **Visual change only — not an API change.** Both `plot()` methods now render
