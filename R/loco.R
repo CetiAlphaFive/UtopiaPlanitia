@@ -45,8 +45,7 @@
 #'   `"zero_one"`, or `"log"`. Loss function used to define the
 #'   per-observation residual. `"auto"` resolves at runtime based on
 #'   the forest type:
-#'   * Regression (ranger or grf) -> `"abs"` (absolute deviation,
-#'     historic conformal-LOCO default).
+#'   * Regression (ranger or grf) -> `"abs"` (absolute deviation).
 #'   * Probability estimation (ranger or grf) -> `"brier"` (multi-class
 #'     Brier score).
 #'   * Classification (ranger only) -> `"zero_one"` (misclassification).
@@ -65,10 +64,11 @@
 #'   variables / groups.
 #' @param seed Integer seed for reproducibility. Default is `1995`.
 #'   Honored in both split and OOB modes.
-#' @param verbose Logical. Print progress from conformal inference?
-#'   Default is `FALSE`. Only meaningful when `split = TRUE` with
-#'   `groups = NULL` on a ranger regression forest with `loss = "abs"`
-#'   (the path that delegates to [conformalInference::loco()]).
+#' @param verbose Logical. Retained for backward compatibility; no
+#'   longer used. Default is `FALSE`. Formerly controlled progress
+#'   printing from a conformal-inference code path that has been
+#'   removed; any value is accepted and has no effect on the
+#'   computation or the return value.
 #'
 #' @return A data frame sorted by descending importance with columns:
 #'   \describe{
@@ -491,66 +491,7 @@ loco <- function(model,
       }
       y_levels <- if (is.factor(y_train)) levels(y_train) else NULL
 
-      ## Per-variable, regression, abs loss -> historic conformalInference path.
-      use_conformal <- (!group_mode) && tt == "Regression" && loss == "abs"
-
-      if (use_conformal) {
-        if (!requireNamespace("conformalInference", quietly = TRUE)) {
-          stop("Install conformalInference: ",
-               "devtools::install_github('ryantibs/conformal', ",
-               "subdir = 'conformalInference')",
-               call. = FALSE)
-        }
-        y_for_ci <- as.numeric(train.data[[resp.name]])
-        train.fun <- function(x, y, out = NULL) {
-          args <- hp.args
-          args$x <- x
-          args$y <- y
-          if (!is.null(args$mtry)) args$mtry <- min(as.integer(args$mtry), ncol(x))
-          do.call(ranger::ranger, args)
-        }
-        predict.fun <- function(out, newx) {
-          stats::predict(out, data = as.data.frame(newx))$predictions
-        }
-        active.fun <- function(out) {
-          list(seq_len(length(out$forest$independent.variable.names)))
-        }
-
-        lo <- conformalInference::loco(
-          x, y_for_ci,
-          train.fun    = train.fun,
-          predict.fun  = predict.fun,
-          active.fun   = active.fun,
-          alpha        = alpha,
-          bonf.correct = bonf.correct,
-          seed         = seed,
-          verbose      = verbose
-        )
-
-        inf <- switch(method,
-                      z      = lo$inf.z[[1L]],
-                      wilcox = lo$inf.wilcox[[1L]])
-        vars <- lo$active[[1L]]
-
-        importance <- (inf[, "LowConfPt"] + inf[, "UpConfPt"]) / 2
-
-        out <- data.frame(
-          variable   = pred.names[vars],
-          importance = as.numeric(importance),
-          ci.lower   = as.numeric(inf[, "LowConfPt"]),
-          ci.upper   = as.numeric(inf[, "UpConfPt"]),
-          p.value    = as.numeric(inf[, "P-value"]),
-          method     = method,
-          loss       = loss,
-          row.names  = NULL,
-          stringsAsFactors = FALSE
-        )
-        out <- out[order(-out$importance), , drop = FALSE]
-        row.names(out) <- NULL
-        return(out)
-      }
-
-      ## All other ranger split-mode cases use the custom split loop.
+      ## All ranger split-mode cases use the custom split loop.
       return(loco_custom_split(
         x = x, y_train = y_train, y_levels = y_levels,
         pred.names = pred.names, targets = targets,
@@ -841,11 +782,12 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
 }
 
 
-## Custom split-sample LOCO loop used for any non-(ranger+regression+abs+per-var)
-## case in split mode, and for ALL grf split-mode cases. Mirrors
-## conformalInference::loco()'s sample-splitting + one-sided inference
-## logic, generalized to drop SETS of columns and to operate on
-## user-defined per-observation loss residuals.
+## Custom split-sample LOCO loop used for every ranger split-mode case
+## (including per-variable regression with `loss = "abs"`) and for ALL
+## grf split-mode cases. Implements sample-splitting + one-sided Z /
+## Wilcoxon inference (Lei et al. 2018; Rinaldo et al. 2019),
+## generalized to drop SETS of columns and to operate on user-defined
+## per-observation loss residuals.
 loco_custom_split <- function(x, y_train, y_levels, pred.names,
                               targets, target.names, group_mode,
                               hp.args, loss, tt,

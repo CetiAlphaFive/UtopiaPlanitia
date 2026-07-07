@@ -32,6 +32,10 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          # ryantibs/conformal/conformalInference (GitHub-only) -- gold oracle for
+          # loco()'s GOLD-vs-NEW verification tests; NOT a package dependency. This
+          # job does not run the test suite, so installing it here has no functional
+          # effect; left in place pending a dedicated cleanup pass.
           extra-packages: any::pkgdown, local::., ryantibs/conformal/conformalInference, CetiAlphaFive/MLbalance
           needs: website
 

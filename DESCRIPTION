@@ -1,6 +1,6 @@
 Package: UtopiaPlanitia
 Title: Variable Importance, Heterogeneity Tests, and Visualization for Causal Forests
-Version: 0.3.1
+Version: 0.4.0
 Authors@R: person("Jack T.", "Rametta", , "jtrametta@gmail.com", role = c("aut", "cre", "cph"),
            comment = c(ORCID = "0000-0002-9841-146X"))
 Maintainer: Jack T. Rametta <jtrametta@gmail.com>
@@ -26,7 +26,6 @@ Suggests:
   gridExtra (>= 2.3),
   MLbalance (>= 0.1.0),
   ranger,
-  conformalInference,
   tabpfn,
   glmnet,
   xgboost,
