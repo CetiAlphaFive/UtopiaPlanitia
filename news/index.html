@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">UtopiaPlanitia</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,6 +40,19 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="utopiaplanitia-development-version">UtopiaPlanitia (development version)<a class="anchor" aria-label="anchor" href="#utopiaplanitia-development-version"></a></h2>
+<div class="section level3">
+<h3 id="locos-split-mode-inference-is-fully-in-package-no-conformalinference-dependency-development-version">
+<code>loco()</code>’s split-mode inference is fully in-package (no <code>conformalInference</code> dependency)<a class="anchor" aria-label="anchor" href="#locos-split-mode-inference-is-fully-in-package-no-conformalinference-dependency-development-version"></a></h3>
+<ul><li>
+<strong><code><a href="../reference/loco.html">loco()</a></code> has never been released, and its split-mode inference has no dependency on <code>conformalInference</code>.</strong> Earlier development snapshots of this still-unreleased function routed the per-variable / ranger / regression / <code>loss = "abs"</code> case through the non-CRAN, GitHub-only <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code>; that path was removed during development, and every split-mode configuration — including this one — now routes through the package’s own <code>loco_custom_split()</code> sample-splitting + Z/Wilcoxon inference machinery. <code>conformalInference</code> is not referenced anywhere in <code>R/</code>, <code>DESCRIPTION</code>, or generated docs. Because <code><a href="../reference/loco.html">loco()</a></code> ships for the first time in this release (0.4.0), this is not a change to any released behavior — it is simply how the function ships.</li>
+<li>
+<strong><code>method = "z"</code> is bit-for-bit reproducible</strong> against a <code>conformalInference</code>-based computation used during development as a correctness oracle (verified to floating-point machine epsilon across 8 dataset/seed/parameter scenarios): both computations perform the identical <code>set.seed(seed); sample(seq_len(n), floor(n/2))</code> split and, because <code><a href="http://imbs-hl.github.io/ranger/reference/ranger.html" class="external-link">ranger::ranger()</a></code> draws exactly one RNG value per call when not given an explicit <code>seed=</code>, produce bit-identical model refits and an algebraically identical Z-test formula.</li>
+<li>
+<strong><code>method = "wilcox"</code> uses <code>stats::wilcox.test(..., exact = FALSE)</code></strong>, the same approximation used by every other split-mode Wilcoxon case in the package. Compared against an <code>exact = TRUE</code> reference computation, the gap is small (observed max absolute difference on point estimates/CI bounds: ~0.003-0.005 at n = 150, ~0.03-0.04 at n = 32) and never changes a significance decision or the ranking of clearly-separated signal variables.</li>
+<li>
+<strong><code>verbose</code> is present in the formals but is an inert no-op.</strong> It ships at the same position with the same default (<code>FALSE</code>) used by earlier development snapshots, but does not affect computation or output on any path.</li>
+<li>No other <code><a href="../reference/loco.html">loco()</a></code> behavior is affected: formals (names, order, defaults), return-frame shape, and every configuration other than the one described above (any <code>groups</code>, any non-regression treetype, <code>loss = "mse"</code>, all <code>grf</code> models) are unchanged from the other development-cycle entries for this function described elsewhere in this section.</li>
+</ul></div>
 <div class="section level3">
 <h3 id="plotcf_loco-and-plotcf_perm-restyled-to-the-house-vi-look-development-version">
 <code>plot.cf_loco()</code> and <code>plot.cf_perm()</code> restyled to the house VI look<a class="anchor" aria-label="anchor" href="#plotcf_loco-and-plotcf_perm-restyled-to-the-house-vi-look-development-version"></a></h3>
@@ -108,7 +121,7 @@
 <li>Hyperparameters are replayed off the fitted grf object (<code>tunable.params</code> plus <code>num.trees</code>, <code>ci.group.size</code>, <code>clusters</code>, <code>equalize.cluster.weights</code>). For <code><a href="https://rdrr.io/pkg/grf/man/boosted_regression_forest.html" class="external-link">grf::boosted_regression_forest()</a></code>, <code>boost.steps</code> is replayed as <code>length(model$forests)</code>; <code>boost.error.reduction</code> reverts to grf’s default. <code>sample.weights</code> and <code>honesty</code> flags are not preserved.</li>
 <li>
 <code>data = ...</code> is ignored for grf models with a one-shot warning; grf forests store their training data internally.</li>
-<li>Split-mode for grf models always uses the internal custom split loop (the <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code> fast path remains ranger-only).</li>
+<li>Split-mode for grf models always uses the internal custom split loop — the same split-sample inference machinery used for every ranger split-mode case.</li>
 <li>New tests in <code>tests/testthat/test-loco-grf.R</code>.</li>
 </ul></div>
 <div class="section level3">
@@ -117,7 +130,7 @@
 <ul><li>
 <strong>Classification / probability forests are now first-class.</strong> The <code>treetype</code> guard has been relaxed: regression, probability estimation, and (hard) classification ranger forests are all supported. Survival forests remain rejected.</li>
 <li>
-<strong>New <code>loss</code> argument</strong> (<code>"auto"</code>, <code>"abs"</code>, <code>"mse"</code>, <code>"brier"</code>, <code>"zero_one"</code>, <code>"log"</code>). Defaults to <code>"auto"</code> which resolves to <code>"abs"</code> for regression (back-compat with the historic conformal-LOCO convention), <code>"brier"</code> for probability forests, and <code>"zero_one"</code> for classification forests. Disallowed combinations (e.g. <code>"brier"</code> on a hard-classification forest) raise an informative error pointing the user to refit with <code>probability = TRUE</code>.</li>
+<strong>New <code>loss</code> argument</strong> (<code>"auto"</code>, <code>"abs"</code>, <code>"mse"</code>, <code>"brier"</code>, <code>"zero_one"</code>, <code>"log"</code>). Defaults to <code>"auto"</code> which resolves to <code>"abs"</code> for regression, <code>"brier"</code> for probability forests, and <code>"zero_one"</code> for classification forests. Disallowed combinations (e.g. <code>"brier"</code> on a hard-classification forest) raise an informative error pointing the user to refit with <code>probability = TRUE</code>.</li>
 <li>
 <strong>New <code>groups</code> argument</strong> for group-LOCO. Pass <code>NULL</code> (default) for per-variable behavior; pass a character vector for a single unnamed group; pass a named list of character vectors for multiple groups dropped jointly. Validates non-overlap, known names, non-emptiness, and that at least one predictor remains after the drop.</li>
 <li>
@@ -125,7 +138,7 @@
 <li>
 <strong>New <code>loss</code> column</strong> is added unconditionally to the output so downstream consumers can tell which residual flavor produced the row.</li>
 <li>
-<strong>Split mode dispatch:</strong> when <code>groups = NULL</code> and the model is a regression forest with <code>loss = "abs"</code>, we still delegate to [conformalInference::loco()] (bit-for-bit back-compat with the prior split-mode results). Every other split-mode configuration (classification, probability, custom loss, or any group LOCO) is handled by a new in-package custom split loop that mirrors conformalInference’s sample-splitting + one-sided Z and Wilcoxon inference but drops <em>sets</em> of columns and computes user-defined per-observation loss residuals.</li>
+<strong>Split mode dispatch:</strong> every split-mode configuration — per-variable regression with <code>loss = "abs"</code>, classification, probability, custom loss, or any group LOCO (<code>groups</code> supplied) — is handled by the same in-package custom split loop (<code>loco_custom_split()</code>), implementing sample-splitting + one-sided Z and Wilcoxon inference, generalized to drop <em>sets</em> of columns and to compute user-defined per-observation loss residuals.</li>
 </ul><div class="section level4">
 <h4 id="backward-compatibility-for-the-classification--group-features-development-version">Backward compatibility for the classification + group features<a class="anchor" aria-label="anchor" href="#backward-compatibility-for-the-classification--group-features-development-version"></a></h4>
 <p>The default-argument call signature <code>loco(model)</code> is unchanged. Existing per-variable regression callers see the same <code>variable</code>, <code>importance</code>, (<code>ci.lower</code>, <code>ci.upper</code>, <code>p.value</code>,) <code>method</code> columns; the only output diff is the new <code>loss</code> column (always <code>"abs"</code> on existing regression calls).</p>
@@ -147,7 +160,7 @@
 <h3 id="loco-overhaul-correctness-audit--p-values-development-version">
 <code>loco()</code> overhaul (correctness audit + p-values)<a class="anchor" aria-label="anchor" href="#loco-overhaul-correctness-audit--p-values-development-version"></a></h3>
 <ul><li>
-<strong>New <code>method = c("z", "wilcox")</code> argument</strong> for <code>split = TRUE</code>. Both tests are computed by <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code> already; the Wilcoxon signed-rank variant is more robust to heavy-tailed residual distributions than the default normal-theory Z-test.</li>
+<strong>New <code>method = c("z", "wilcox")</code> argument</strong> for <code>split = TRUE</code>. Both tests are computed by the package’s own split-sample inference machinery (<code>loco_custom_split()</code>); the Wilcoxon signed-rank variant is more robust to heavy-tailed residual distributions than the default normal-theory Z-test.</li>
 <li>
 <strong>New <code>bonf.correct</code> argument</strong> (default <code>TRUE</code> to match the old hidden behavior) exposes Bonferroni correction explicitly.</li>
 <li>
@@ -171,7 +184,7 @@
 <li>
 <strong>Single-predictor models are rejected early</strong> with a clear message instead of crashing inside ranger.</li>
 <li>
-<strong>Factor predictors:</strong> allowed in OOB mode (ranger handles them natively); rejected in split mode with a clear message because <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code> requires a numeric matrix.</li>
+<strong>Factor predictors:</strong> allowed in OOB mode (ranger handles them natively); rejected in split mode with a clear message because split-mode LOCO requires a numeric predictor matrix.</li>
 <li>
 <strong>x / y interface guard.</strong> Models fit with <code>ranger(x = X, y = y)</code> but no <code>dependent.variable.name</code> previously silently failed deep inside <code>train.data[[""]]</code>. They now error early with a workaround pointer.</li>
 </ul></div>

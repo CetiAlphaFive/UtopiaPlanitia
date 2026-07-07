@@ -77,8 +77,7 @@ loco(
   or `"log"`. Loss function used to define the per-observation residual.
   `"auto"` resolves at runtime based on the forest type:
 
-  - Regression (ranger or grf) -\> `"abs"` (absolute deviation, historic
-    conformal-LOCO default).
+  - Regression (ranger or grf) -\> `"abs"` (absolute deviation).
 
   - Probability estimation (ranger or grf) -\> `"brier"` (multi-class
     Brier score).
@@ -110,10 +109,10 @@ loco(
 
 - verbose:
 
-  Logical. Print progress from conformal inference? Default is `FALSE`.
-  Only meaningful when `split = TRUE` with `groups = NULL` on a ranger
-  regression forest with `loss = "abs"` (the path that delegates to
-  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)).
+  Logical. Retained for backward compatibility; no longer used. Default
+  is `FALSE`. Formerly controlled progress printing from a
+  conformal-inference code path that has been removed; any value is
+  accepted and has no effect on the computation or the return value.
 
 ## Value
 

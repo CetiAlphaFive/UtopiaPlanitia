@@ -11,13 +11,13 @@ Source:
 [`DESCRIPTION`](https://github.com/CetiAlphaFive/UtopiaPlanitia/blob/main/DESCRIPTION)
 
 Rametta J (2026). *UtopiaPlanitia: Variable Importance, Heterogeneity
-Tests, and Visualization for Causal Forests*. R package version 0.3.1,
+Tests, and Visualization for Causal Forests*. R package version 0.4.0,
 <https://github.com/CetiAlphaFive/UtopiaPlanitia>.
 
     @Manual{,
       title = {UtopiaPlanitia: Variable Importance, Heterogeneity Tests, and Visualization for Causal Forests},
       author = {Jack T. Rametta},
       year = {2026},
-      note = {R package version 0.3.1},
+      note = {R package version 0.4.0},
       url = {https://github.com/CetiAlphaFive/UtopiaPlanitia},
     }

@@ -2,6 +2,51 @@
 
 ## UtopiaPlanitia (development version)
 
+### `loco()`’s split-mode inference is fully in-package (no `conformalInference` dependency)
+
+- **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  has never been released, and its split-mode inference has no
+  dependency on `conformalInference`.** Earlier development snapshots of
+  this still-unreleased function routed the per-variable / ranger /
+  regression / `loss = "abs"` case through the non-CRAN, GitHub-only
+  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html);
+  that path was removed during development, and every split-mode
+  configuration — including this one — now routes through the package’s
+  own `loco_custom_split()` sample-splitting + Z/Wilcoxon inference
+  machinery. `conformalInference` is not referenced anywhere in `R/`,
+  `DESCRIPTION`, or generated docs. Because
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  ships for the first time in this release (0.4.0), this is not a change
+  to any released behavior — it is simply how the function ships.
+- **`method = "z"` is bit-for-bit reproducible** against a
+  `conformalInference`-based computation used during development as a
+  correctness oracle (verified to floating-point machine epsilon across
+  8 dataset/seed/parameter scenarios): both computations perform the
+  identical `set.seed(seed); sample(seq_len(n), floor(n/2))` split and,
+  because
+  [`ranger::ranger()`](http://imbs-hl.github.io/ranger/reference/ranger.md)
+  draws exactly one RNG value per call when not given an explicit
+  `seed=`, produce bit-identical model refits and an algebraically
+  identical Z-test formula.
+- **`method = "wilcox"` uses `stats::wilcox.test(..., exact = FALSE)`**,
+  the same approximation used by every other split-mode Wilcoxon case in
+  the package. Compared against an `exact = TRUE` reference computation,
+  the gap is small (observed max absolute difference on point
+  estimates/CI bounds: ~0.003-0.005 at n = 150, ~0.03-0.04 at n = 32)
+  and never changes a significance decision or the ranking of
+  clearly-separated signal variables.
+- **`verbose` is present in the formals but is an inert no-op.** It
+  ships at the same position with the same default (`FALSE`) used by
+  earlier development snapshots, but does not affect computation or
+  output on any path.
+- No other
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  behavior is affected: formals (names, order, defaults), return-frame
+  shape, and every configuration other than the one described above (any
+  `groups`, any non-regression treetype, `loss = "mse"`, all `grf`
+  models) are unchanged from the other development-cycle entries for
+  this function described elsewhere in this section.
+
 ### `plot.cf_loco()` and `plot.cf_perm()` restyled to the house VI look
 
 - **Visual change only — not an API change.** Both
@@ -150,10 +195,9 @@
   `honesty` flags are not preserved.
 - `data = ...` is ignored for grf models with a one-shot warning; grf
   forests store their training data internally.
-- Split-mode for grf models always uses the internal custom split loop
-  (the
-  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
-  fast path remains ranger-only).
+- Split-mode for grf models always uses the internal custom split loop —
+  the same split-sample inference machinery used for every ranger
+  split-mode case.
 - New tests in `tests/testthat/test-loco-grf.R`.
 
 ### `loco()` gains classification DV support and group-LOCO
@@ -164,10 +208,9 @@
   forests remain rejected.
 - **New `loss` argument** (`"auto"`, `"abs"`, `"mse"`, `"brier"`,
   `"zero_one"`, `"log"`). Defaults to `"auto"` which resolves to `"abs"`
-  for regression (back-compat with the historic conformal-LOCO
-  convention), `"brier"` for probability forests, and `"zero_one"` for
-  classification forests. Disallowed combinations (e.g. `"brier"` on a
-  hard-classification forest) raise an informative error pointing the
+  for regression, `"brier"` for probability forests, and `"zero_one"`
+  for classification forests. Disallowed combinations (e.g. `"brier"` on
+  a hard-classification forest) raise an informative error pointing the
   user to refit with `probability = TRUE`.
 - **New `groups` argument** for group-LOCO. Pass `NULL` (default) for
   per-variable behavior; pass a character vector for a single unnamed
@@ -179,15 +222,13 @@
   members.
 - **New `loss` column** is added unconditionally to the output so
   downstream consumers can tell which residual flavor produced the row.
-- **Split mode dispatch:** when `groups = NULL` and the model is a
-  regression forest with `loss = "abs"`, we still delegate to
-  \[conformalInference::loco()\] (bit-for-bit back-compat with the prior
-  split-mode results). Every other split-mode configuration
-  (classification, probability, custom loss, or any group LOCO) is
-  handled by a new in-package custom split loop that mirrors
-  conformalInference’s sample-splitting + one-sided Z and Wilcoxon
-  inference but drops *sets* of columns and computes user-defined
-  per-observation loss residuals.
+- **Split mode dispatch:** every split-mode configuration — per-variable
+  regression with `loss = "abs"`, classification, probability, custom
+  loss, or any group LOCO (`groups` supplied) — is handled by the same
+  in-package custom split loop (`loco_custom_split()`), implementing
+  sample-splitting + one-sided Z and Wilcoxon inference, generalized to
+  drop *sets* of columns and to compute user-defined per-observation
+  loss residuals.
 
 #### Backward compatibility for the classification + group features
 
@@ -226,11 +267,10 @@ calls).
 ### `loco()` overhaul (correctness audit + p-values)
 
 - **New `method = c("z", "wilcox")` argument** for `split = TRUE`. Both
-  tests are computed by
-  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
-  already; the Wilcoxon signed-rank variant is more robust to
-  heavy-tailed residual distributions than the default normal-theory
-  Z-test.
+  tests are computed by the package’s own split-sample inference
+  machinery (`loco_custom_split()`); the Wilcoxon signed-rank variant is
+  more robust to heavy-tailed residual distributions than the default
+  normal-theory Z-test.
 - **New `bonf.correct` argument** (default `TRUE` to match the old
   hidden behavior) exposes Bonferroni correction explicitly.
 - **New `data` argument** lets callers pass the training frame directly.
@@ -268,8 +308,7 @@ calls).
   instead of crashing inside ranger.
 - **Factor predictors:** allowed in OOB mode (ranger handles them
   natively); rejected in split mode with a clear message because
-  [`conformalInference::loco()`](https://rdrr.io/pkg/conformalInference/man/loco.html)
-  requires a numeric matrix.
+  split-mode LOCO requires a numeric predictor matrix.
 - **x / y interface guard.** Models fit with `ranger(x = X, y = y)` but
   no `dependent.variable.name` previously silently failed deep inside
   `train.data[[""]]`. They now error early with a workaround pointer.

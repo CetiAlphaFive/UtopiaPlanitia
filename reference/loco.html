@@ -17,7 +17,7 @@ use cf_loco() instead; other model types are rejected."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">UtopiaPlanitia</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.3.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -121,8 +121,7 @@ test on the same differences.</p></dd>
 <dd><p>One of <code>"auto"</code> (default), <code>"abs"</code>, <code>"mse"</code>, <code>"brier"</code>,
 <code>"zero_one"</code>, or <code>"log"</code>. Loss function used to define the
 per-observation residual. <code>"auto"</code> resolves at runtime based on
-the forest type:</p><ul><li><p>Regression (ranger or grf) -&gt; <code>"abs"</code> (absolute deviation,
-historic conformal-LOCO default).</p></li>
+the forest type:</p><ul><li><p>Regression (ranger or grf) -&gt; <code>"abs"</code> (absolute deviation).</p></li>
 <li><p>Probability estimation (ranger or grf) -&gt; <code>"brier"</code> (multi-class
 Brier score).</p></li>
 <li><p>Classification (ranger only) -&gt; <code>"zero_one"</code> (misclassification).</p></li>
@@ -152,10 +151,11 @@ Honored in both split and OOB modes.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
-<dd><p>Logical. Print progress from conformal inference?
-Default is <code>FALSE</code>. Only meaningful when <code>split = TRUE</code> with
-<code>groups = NULL</code> on a ranger regression forest with <code>loss = "abs"</code>
-(the path that delegates to <code><a href="https://rdrr.io/pkg/conformalInference/man/loco.html" class="external-link">conformalInference::loco()</a></code>).</p></dd>
+<dd><p>Logical. Retained for backward compatibility; no
+longer used. Default is <code>FALSE</code>. Formerly controlled progress
+printing from a conformal-inference code path that has been
+removed; any value is accepted and has no effect on the
+computation or the return value.</p></dd>
 
 </dl></div>
     <div class="section level2">
