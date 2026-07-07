@@ -138,7 +138,6 @@ test_that("OOB mode accepts factor predictors (ranger handles them natively)", {
 
 test_that("split mode rejects factor predictors with a clear message", {
   skip_if_no_ranger()
-  skip_if_no_conformal()
   set.seed(6)
   dat <- data.frame(
     y  = rnorm(80), x1 = rnorm(80),
@@ -219,7 +218,6 @@ test_that("x/y interface works when dependent.variable.name is supplied", {
 
 test_that("split mode returns the expected columns and method tag", {
   skip_if_no_ranger()
-  skip_if_no_conformal()
   bundle <- make_reg_model(n = 120, trees = 100)
   out <- suppressWarnings(loco(bundle$mod, data = bundle$dat,
                                split = TRUE, seed = 1, method = "z"))
@@ -235,7 +233,6 @@ test_that("split mode returns the expected columns and method tag", {
 
 test_that("split mode supports method = 'wilcox'", {
   skip_if_no_ranger()
-  skip_if_no_conformal()
   bundle <- make_reg_model(n = 120, trees = 100)
   out <- suppressWarnings(loco(bundle$mod, data = bundle$dat,
                                split = TRUE, seed = 1, method = "wilcox"))
@@ -246,7 +243,6 @@ test_that("split mode supports method = 'wilcox'", {
 
 test_that("bonf.correct = TRUE produces p-values at least as large as raw", {
   skip_if_no_ranger()
-  skip_if_no_conformal()
   bundle <- make_reg_model(n = 120, trees = 100)
   oA <- suppressWarnings(loco(bundle$mod, data = bundle$dat, split = TRUE,
                               seed = 1, method = "z", bonf.correct = TRUE))
@@ -259,7 +255,6 @@ test_that("bonf.correct = TRUE produces p-values at least as large as raw", {
 
 test_that("alpha controls CI width monotonically", {
   skip_if_no_ranger()
-  skip_if_no_conformal()
   bundle <- make_reg_model(n = 120, trees = 100)
   w_wide   <- suppressWarnings(loco(bundle$mod, data = bundle$dat, split = TRUE,
                                     seed = 1, method = "z", alpha = 0.20))
@@ -509,4 +504,290 @@ test_that("group-LOCO + classification + split mode is wired end-to-end", {
                       "p.value","method","loss","members"))
   expect_true(all(out$loss == "brier"))
   expect_true(all(out$ci.lower <= out$ci.upper))
+})
+
+# ---- GOLD-vs-NEW verification: conformalInference migration ------------
+#
+# Permanent regression coverage for the removal of the conformalInference
+# hard-path from loco()'s split-mode code (per-variable, ranger, regression,
+# loss = "abs"). GOLD = conformalInference::loco() run as an independent
+# oracle (recipe below mirrors, using only conformalInference's own public
+# entry point plus the fitted ranger model's own hyperparameters, the exact
+# fit/predict wiring loco() used pre-migration). NEW = the migrated
+# loco_custom_split() fallthrough path exercised via the public loco().
+#
+# Tolerances/assertions are taken verbatim from this run's test-spec.md
+# (2026-07-06-loco-drop-conformal) -- do not widen without re-deriving them.
+
+make_fake_gold_data <- function() {
+  set.seed(20260706)
+  n <- 150
+  dat <- data.frame(
+    x1 = rnorm(n), x2 = rnorm(n), x3 = rnorm(n), x4 = rnorm(n), x5 = rnorm(n)
+  )
+  dat$y <- 2 * dat$x1 - 1.5 * dat$x2 + rnorm(n, sd = 1)
+  mod <- ranger::ranger(y ~ ., data = dat, num.trees = 100)
+  list(dat = dat, mod = mod,
+       pred.names = c("x1", "x2", "x3", "x4", "x5"), resp.name = "y")
+}
+
+make_real_gold_data <- function() {
+  predictors_real <- c("cyl", "disp", "hp", "drat", "wt", "qsec")
+  dat <- datasets::mtcars[, c("mpg", predictors_real)]
+  mod <- ranger::ranger(
+    mpg ~ cyl + disp + hp + drat + wt + qsec,
+    data = dat, num.trees = 100
+  )
+  list(dat = dat, mod = mod, pred.names = predictors_real, resp.name = "mpg")
+}
+
+## GOLD recipe (test-spec.md Sec 2.3): calls conformalInference::loco()
+## directly, wiring train.fun/predict.fun/active.fun from the fitted
+## ranger model's own hyperparameters -- no access to package internals.
+make_gold_loco_raw <- function(bundle, seed, alpha, bonf.correct) {
+  mod <- bundle$mod
+  hp.args <- list(
+    num.trees     = mod$num.trees,
+    mtry          = mod$mtry,
+    min.node.size = mod$min.node.size,
+    splitrule     = mod$splitrule,
+    replace       = mod$replace,
+    max.depth     = mod$max.depth,
+    importance    = "none"
+  )
+
+  train.fun <- function(x, y, out = NULL) {
+    args <- hp.args
+    args$x <- x
+    args$y <- y
+    if (!is.null(args$mtry)) args$mtry <- min(as.integer(args$mtry), ncol(x))
+    do.call(ranger::ranger, args)
+  }
+  predict.fun <- function(out, newx) {
+    stats::predict(out, data = as.data.frame(newx))$predictions
+  }
+  active.fun <- function(out) {
+    list(seq_len(length(out$forest$independent.variable.names)))
+  }
+
+  x <- as.matrix(bundle$dat[, bundle$pred.names, drop = FALSE])
+  y <- as.numeric(bundle$dat[[bundle$resp.name]])
+
+  conformalInference::loco(
+    x, y,
+    train.fun = train.fun, predict.fun = predict.fun, active.fun = active.fun,
+    alpha = alpha, bonf.correct = bonf.correct, seed = seed, verbose = FALSE
+  )
+}
+
+gold_frame <- function(gold_raw, pred.names, method = c("z", "wilcox")) {
+  method <- match.arg(method)
+  inf <- switch(method, z = gold_raw$inf.z[[1L]], wilcox = gold_raw$inf.wilcox[[1L]])
+  vars <- pred.names[gold_raw$active[[1L]]]
+  out <- data.frame(
+    variable   = vars,
+    importance = as.numeric((inf[, "LowConfPt"] + inf[, "UpConfPt"]) / 2),
+    ci.lower   = as.numeric(inf[, "LowConfPt"]),
+    ci.upper   = as.numeric(inf[, "UpConfPt"]),
+    p.value    = as.numeric(inf[, "P-value"]),
+    stringsAsFactors = FALSE
+  )
+  out[order(out$variable), ]
+}
+
+## The 8 required GOLD-vs-NEW scenarios (test-spec.md Sec 2.5): 2 datasets x
+## 3 seeds at the alpha/bonf.correct defaults, plus 2 extra FAKE-only runs
+## that vary bonf.correct / alpha to confirm the Bonferroni/alpha bookkeeping
+## travels identically through both implementations.
+gold_vs_new_scenarios <- function() {
+  fake <- make_fake_gold_data()
+  real <- make_real_gold_data()
+  list(
+    list(label = "FAKE seed=1",             dataset = "fake", bundle = fake,
+         seed = 1,    alpha = 0.10, bonf.correct = TRUE),
+    list(label = "FAKE seed=42",            dataset = "fake", bundle = fake,
+         seed = 42,   alpha = 0.10, bonf.correct = TRUE),
+    list(label = "FAKE seed=2026",          dataset = "fake", bundle = fake,
+         seed = 2026, alpha = 0.10, bonf.correct = TRUE),
+    list(label = "REAL seed=1",             dataset = "real", bundle = real,
+         seed = 1,    alpha = 0.10, bonf.correct = TRUE),
+    list(label = "REAL seed=42",            dataset = "real", bundle = real,
+         seed = 42,   alpha = 0.10, bonf.correct = TRUE),
+    list(label = "REAL seed=2026",          dataset = "real", bundle = real,
+         seed = 2026, alpha = 0.10, bonf.correct = TRUE),
+    list(label = "FAKE seed=42 bonf=FALSE", dataset = "fake", bundle = fake,
+         seed = 42,   alpha = 0.10, bonf.correct = FALSE),
+    list(label = "FAKE seed=42 alpha=0.05", dataset = "fake", bundle = fake,
+         seed = 42,   alpha = 0.05, bonf.correct = TRUE)
+  )
+}
+
+test_that("GOLD-vs-NEW: method = 'z' exact match vs conformalInference (tolerance 1e-6)", {
+  skip_if_no_ranger()
+  skip_if_no_conformal()
+  skip_on_cran()
+
+  for (sc in gold_vs_new_scenarios()) {
+    gold_raw <- make_gold_loco_raw(sc$bundle, seed = sc$seed, alpha = sc$alpha,
+                                   bonf.correct = sc$bonf.correct)
+    gold <- gold_frame(gold_raw, sc$bundle$pred.names, method = "z")
+
+    new_out <- suppressWarnings(loco(
+      sc$bundle$mod, data = sc$bundle$dat, split = TRUE, method = "z",
+      alpha = sc$alpha, bonf.correct = sc$bonf.correct, seed = sc$seed
+    ))
+    new_out <- new_out[order(new_out$variable), ]
+
+    expect_equal(new_out$importance, gold$importance, tolerance = 1e-6,
+                 info = sc$label)
+    expect_equal(new_out$ci.lower, gold$ci.lower, tolerance = 1e-6,
+                 info = sc$label)
+    expect_equal(new_out$ci.upper, gold$ci.upper, tolerance = 1e-6,
+                 info = sc$label)
+    expect_equal(new_out$p.value, gold$p.value, tolerance = 1e-6,
+                 info = sc$label)
+  }
+})
+
+test_that("GOLD-vs-NEW: method = 'wilcox' equivalence bar vs conformalInference", {
+  skip_if_no_ranger()
+  skip_if_no_conformal()
+  skip_on_cran()
+
+  ## Sec 2.6 uses only the 6 dataset x seed combinations at the defaults
+  ## (alpha = 0.10, bonf.correct = TRUE) -- the 2 extra Bonferroni/alpha
+  ## combos are z-tier-only (Sec 2.5) and are not part of the wilcox grid.
+  wilcox_scenarios <- gold_vs_new_scenarios()[1:6]
+
+  for (sc in wilcox_scenarios) {
+    gold_raw <- make_gold_loco_raw(sc$bundle, seed = sc$seed, alpha = sc$alpha,
+                                   bonf.correct = sc$bonf.correct)
+    gold_w <- gold_frame(gold_raw, sc$bundle$pred.names, method = "wilcox")
+
+    new_out <- suppressWarnings(loco(
+      sc$bundle$mod, data = sc$bundle$dat, split = TRUE, method = "wilcox",
+      alpha = sc$alpha, bonf.correct = sc$bonf.correct, seed = sc$seed
+    ))
+    new_out <- new_out[order(new_out$variable), ]
+
+    ## 1. Significance-decision agreement (exact).
+    sig_new  <- new_out$variable[new_out$p.value < 0.10]
+    sig_gold <- gold_w$variable[gold_w$p.value < 0.10]
+    expect_setequal(sig_new, sig_gold)
+
+    ## 2. Ranking agreement (Spearman >= 0.9).
+    rho <- cor(new_out$importance, gold_w$importance, method = "spearman")
+    expect_gte(rho, 0.9)
+
+    ## 3. Point-estimate / CI tolerance, calibrated by dataset size:
+    ## FAKE (n=150) <= 0.02, REAL/mtcars (n=32) <= 0.08.
+    tol <- if (identical(sc$dataset, "fake")) 0.02 else 0.08
+    max_diff <- max(
+      abs(new_out$importance - gold_w$importance),
+      abs(new_out$ci.lower - gold_w$ci.lower),
+      abs(new_out$ci.upper - gold_w$ci.upper)
+    )
+    expect_lte(max_diff, tol)
+  }
+})
+
+# ---- Edge cases (test-spec.md Sec 3) ------------------------------------
+
+test_that("verbose is a true no-op on the migrated split path", {
+  skip_if_no_ranger()
+  fake <- make_fake_gold_data()
+
+  warn_msgs <- character(0)
+  capture_warnings <- function(expr) {
+    withCallingHandlers(
+      expr,
+      warning = function(w) {
+        warn_msgs <<- c(warn_msgs, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      }
+    )
+  }
+
+  out_v  <- capture_warnings(loco(fake$mod, data = fake$dat, split = TRUE,
+                                  method = "z", seed = 1, verbose = TRUE))
+  out_nv <- capture_warnings(loco(fake$mod, data = fake$dat, split = TRUE,
+                                  method = "z", seed = 1, verbose = FALSE))
+
+  expect_equal(out_v, out_nv)
+  expect_false(any(grepl("conformalInference", warn_msgs, fixed = TRUE)))
+})
+
+test_that("loss = 'mse' split mode is unaffected (never routed through conformalInference)", {
+  skip_if_no_ranger()
+  fake <- make_fake_gold_data()
+  out <- loco(fake$mod, data = fake$dat, split = TRUE, loss = "mse", seed = 1)
+  expect_true(is.data.frame(out))
+  expect_named(out, c("variable", "importance", "ci.lower", "ci.upper",
+                      "p.value", "method", "loss"))
+  expect_true(all(out$loss == "mse"))
+  expect_equal(nrow(out), 5L)
+})
+
+.loco_pkg_root <- function() {
+  d <- getwd()
+  for (i in 1:6) {
+    if (file.exists(file.path(d, "DESCRIPTION"))) return(normalizePath(d))
+    parent <- dirname(d)
+    if (identical(parent, d)) break
+    d <- parent
+  }
+  NA_character_
+}
+
+test_that("no install-time or run-time dependency on conformalInference (fresh subprocess)", {
+  skip_if_no_ranger()
+  skip_on_cran()
+  skip_if_not_installed("pkgload")
+  rscript_bin <- Sys.which("Rscript")
+  skip_if(!nzchar(rscript_bin), "Rscript not found on PATH")
+  root <- .loco_pkg_root()
+  skip_if(is.na(root), "could not locate package root (DESCRIPTION not found)")
+
+  script_file <- tempfile(fileext = ".R")
+  writeLines(c(
+    sprintf("pkgload::load_all(%s, quiet = TRUE)", deparse(root)),
+    "stopifnot(!('conformalInference' %in% loadedNamespaces()))",
+    "set.seed(20260706)",
+    "n <- 150",
+    "dat <- data.frame(x1 = rnorm(n), x2 = rnorm(n), x3 = rnorm(n), x4 = rnorm(n), x5 = rnorm(n))",
+    "dat$y <- 2 * dat$x1 - 1.5 * dat$x2 + rnorm(n, sd = 1)",
+    "mod <- ranger::ranger(y ~ ., data = dat, num.trees = 100)",
+    "out <- loco(mod, data = dat, split = TRUE)",
+    "stopifnot(!('conformalInference' %in% loadedNamespaces()))",
+    "stopifnot(is.data.frame(out), nrow(out) == 5L)",
+    "cat('SUBPROCESS_OK\\n')"
+  ), script_file)
+  on.exit(unlink(script_file), add = TRUE)
+
+  res <- system2(rscript_bin, c("--vanilla", shQuote(script_file)),
+                 stdout = TRUE, stderr = TRUE)
+
+  expect_true(any(grepl("SUBPROCESS_OK", res, fixed = TRUE)),
+              info = paste(res, collapse = "\n"))
+  expect_false(any(grepl("conformalInference", res, fixed = TRUE)),
+               info = paste(res, collapse = "\n"))
+})
+
+# ---- API-stability (test-spec.md Sec 7) ---------------------------------
+
+test_that("T-API: loco formals unchanged", {
+  expect_identical(
+    names(formals(loco)),
+    c("model", "data", "alpha", "split", "method", "loss",
+      "groups", "bonf.correct", "seed", "verbose")
+  )
+  expect_identical(eval(formals(loco)$alpha), 0.1)
+  expect_identical(eval(formals(loco)$split), TRUE)
+  expect_identical(eval(formals(loco)$method), c("z", "wilcox"))
+  expect_identical(eval(formals(loco)$loss),
+                    c("auto", "abs", "mse", "brier", "zero_one", "log"))
+  expect_identical(eval(formals(loco)$groups), NULL)
+  expect_identical(eval(formals(loco)$bonf.correct), TRUE)
+  expect_identical(eval(formals(loco)$seed), 1995)
+  expect_identical(eval(formals(loco)$verbose), FALSE)
 })
