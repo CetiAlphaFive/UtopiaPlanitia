@@ -52,8 +52,7 @@ test on the same differences.}
 per-observation residual. \code{"auto"} resolves at runtime based on
 the forest type:
 \itemize{
-\item Regression (ranger or grf) -> \code{"abs"} (absolute deviation,
-historic conformal-LOCO default).
+\item Regression (ranger or grf) -> \code{"abs"} (absolute deviation).
 \item Probability estimation (ranger or grf) -> \code{"brier"} (multi-class
 Brier score).
 \item Classification (ranger only) -> \code{"zero_one"} (misclassification).
@@ -77,10 +76,11 @@ variables / groups.}
 \item{seed}{Integer seed for reproducibility. Default is \code{1995}.
 Honored in both split and OOB modes.}
 
-\item{verbose}{Logical. Print progress from conformal inference?
-Default is \code{FALSE}. Only meaningful when \code{split = TRUE} with
-\code{groups = NULL} on a ranger regression forest with \code{loss = "abs"}
-(the path that delegates to \code{\link[conformalInference:loco]{conformalInference::loco()}}).}
+\item{verbose}{Logical. Retained for backward compatibility; no
+longer used. Default is \code{FALSE}. Formerly controlled progress
+printing from a conformal-inference code path that has been
+removed; any value is accepted and has no effect on the
+computation or the return value.}
 }
 \value{
 A data frame sorted by descending importance with columns:
