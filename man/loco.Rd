@@ -14,7 +14,9 @@ loco(
   groups = NULL,
   bonf.correct = TRUE,
   seed = 1995,
-  verbose = FALSE
+  verbose = FALSE,
+  cross.fit = FALSE,
+  num.folds = 5L
 )
 }
 \arguments{
@@ -81,6 +83,29 @@ longer used. Default is \code{FALSE}. Formerly controlled progress
 printing from a conformal-inference code path that has been
 removed; any value is accepted and has no effect on the
 computation or the return value.}
+
+\item{cross.fit}{Logical. If \code{TRUE}, uses K-fold cross-fitting
+instead of a single 50/50 split, so every observation contributes
+to the importance estimate exactly once (across the \code{num.folds}
+held-out folds) rather than only the held-out half. Default
+\code{FALSE} (single split, exactly as before). Only used when
+\code{split = TRUE}; requires \code{method = "z"} (errors otherwise --
+Wilcoxon signed-rank validity assumes independent,
+symmetric-under-null differences, which cross-fitted folds
+violate) and errors if \code{split = FALSE} (cross-fitting only applies
+to split-sample LOCO, not OOB mode). Inference uses the
+Nadeau-Bengio corrected t-test at \code{num.folds - 1} degrees of
+freedom (mirroring \code{\link[=cf_perm]{cf_perm()}}'s \code{cross.fit = TRUE} path), because
+the \code{num.folds} per-fold statistics are not independent (models
+share overlapping training folds). Note the extra compute cost:
+\code{num.folds * (p + 1)} model refits instead of \code{p + 1}.}
+
+\item{num.folds}{Integer. Number of cross-fit folds used when
+\code{cross.fit = TRUE}; ignored otherwise. Default \code{5}. Must satisfy
+\verb{2 <= num.folds < n}; in probability/classification mode, folds
+are additionally stratified by class and \code{num.folds} must not
+exceed the smallest class count (plain random folds in regression
+mode).}
 }
 \value{
 An object of class \code{"loco_vimp"} with components:
@@ -104,6 +129,11 @@ groups, when \code{groups} is supplied).}
 \item{backend}{The detected model backend
 (\code{"ranger"}, \code{"grf_reg"}, \code{"grf_brf"}, or \code{"grf_prob"}).}
 \item{group}{Logical; whether group-LOCO was used.}
+\item{cross.fit}{Logical; whether K-fold cross-fitting was used
+(always \code{FALSE} unless explicitly requested via
+\code{cross.fit = TRUE}).}
+\item{num.folds}{Integer number of cross-fit folds, or \code{NA} when
+\code{cross.fit} is \code{FALSE}.}
 }
 }
 \description{
@@ -140,6 +170,15 @@ log-likelihood, clipped at 1e-12).}
 Brier or log-loss, refit with \code{probability = TRUE} (ranger) or
 use \code{\link[grf:probability_forest]{grf::probability_forest()}}.}
 }
+
+\strong{Cross-fit LOCO (\code{cross.fit = TRUE}).} Only applies to split-sample
+mode (\code{split = TRUE}); \code{split = FALSE} (OOB) errors, since
+cross-fitting is a refinement of split-sample inference, not of OOB
+scoring. \code{method = "wilcox"} also errors under \code{cross.fit = TRUE}:
+the Wilcoxon signed-rank test's validity assumes independent,
+symmetric-under-null differences, an assumption cross-fitted folds
+(which share overlapping training data) violate. Use
+\code{method = "z"} (the default) instead.
 
 \strong{Group LOCO.} When \code{groups} is supplied, importance is computed
 jointly for each group: the reduced model omits all members of the
@@ -221,6 +260,11 @@ if (requireNamespace("grf", quietly = TRUE)) {
   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
   pf <- grf::probability_forest(X, Yf, num.trees = 100)
   loco(pf, split = FALSE)                  # auto -> "brier"
+
+  # K-fold cross-fit split-sample LOCO: uses every observation once
+  # (across folds) instead of only the held-out half of a single
+  # split, at the cost of num.folds * (p + 1) model refits.
+  loco(rf, split = TRUE, cross.fit = TRUE, num.folds = 5)
 }
 }
 }

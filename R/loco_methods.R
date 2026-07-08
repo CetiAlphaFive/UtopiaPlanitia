@@ -28,7 +28,11 @@ summary.loco_vimp <- function(object, ...) {
 print.loco_vimp <- function(x, ...) {
   cat("LOCO Variable Importance\n")
   cat("  n =", x$n, " p =", x$p, " method =", x$method, " loss =", x$loss, "\n")
-  cat("  Mode:", if (x$split) "split-sample" else "OOB (no inference)", "\n\n")
+  cat("  Mode:", if (x$split) "split-sample" else "OOB (no inference)", "\n")
+  if (isTRUE(x$cross.fit)) {
+    cat("  (cross-fit, num.folds =", x$num.folds, ")\n")
+  }
+  cat("\n")
 
   v <- x$vimp[order(-x$vimp$Importance), ]
   rownames(v) <- NULL
