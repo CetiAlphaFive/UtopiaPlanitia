@@ -69,6 +69,35 @@
 #'   printing from a conformal-inference code path that has been
 #'   removed; any value is accepted and has no effect on the
 #'   computation or the return value.
+#' @param cross.fit Logical. If `TRUE`, uses K-fold cross-fitting
+#'   instead of a single 50/50 split, so every observation contributes
+#'   to the importance estimate exactly once (across the `num.folds`
+#'   held-out folds) rather than only the held-out half. Default
+#'   `FALSE` (single split, exactly as before). Only used when
+#'   `split = TRUE`; requires `method = "z"` (errors otherwise --
+#'   Wilcoxon signed-rank validity assumes independent,
+#'   symmetric-under-null differences, which cross-fitted folds
+#'   violate) and errors if `split = FALSE` (cross-fitting only applies
+#'   to split-sample LOCO, not OOB mode). Inference uses the
+#'   Nadeau-Bengio corrected standard error (because the `num.folds`
+#'   per-fold statistics are not independent -- models share overlapping
+#'   training folds) referenced against the standard normal (z), *not*
+#'   Student-t at `num.folds - 1` degrees of freedom. This deliberately
+#'   differs from [cf_perm()]'s `cross.fit = TRUE` path, which keeps the
+#'   `t_{K-1}` reference: a simulation study found that reference
+#'   stacked additional, avoidable conservatism on top of the NB SE's
+#'   own inherent inflation, suppressing the power/data-efficiency gain
+#'   cross-fitting is meant to deliver while Type-I error remained
+#'   comfortably under nominal either way; dropping only the reference
+#'   distribution (holding the NB SE formula fixed) preserves Type-I
+#'   control and recovers the power gain. Note the extra compute cost:
+#'   `num.folds * (p + 1)` model refits instead of `p + 1`.
+#' @param num.folds Integer. Number of cross-fit folds used when
+#'   `cross.fit = TRUE`; ignored otherwise. Default `5`. Must satisfy
+#'   `2 <= num.folds < n`; in probability/classification mode, folds
+#'   are additionally stratified by class and `num.folds` must not
+#'   exceed the smallest class count (plain random folds in regression
+#'   mode).
 #'
 #' @return An object of class `"loco_vimp"` with components:
 #'   \describe{
@@ -91,6 +120,11 @@
 #'     \item{backend}{The detected model backend
 #'       (`"ranger"`, `"grf_reg"`, `"grf_brf"`, or `"grf_prob"`).}
 #'     \item{group}{Logical; whether group-LOCO was used.}
+#'     \item{cross.fit}{Logical; whether K-fold cross-fitting was used
+#'       (always `FALSE` unless explicitly requested via
+#'       `cross.fit = TRUE`).}
+#'     \item{num.folds}{Integer number of cross-fit folds, or `NA` when
+#'       `cross.fit` is `FALSE`.}
 #'   }
 #'
 #' @details
@@ -108,6 +142,22 @@
 #'     Brier or log-loss, refit with `probability = TRUE` (ranger) or
 #'     use [grf::probability_forest()].}
 #' }
+#'
+#' **Cross-fit LOCO (`cross.fit = TRUE`).** Only applies to split-sample
+#' mode (`split = TRUE`); `split = FALSE` (OOB) errors, since
+#' cross-fitting is a refinement of split-sample inference, not of OOB
+#' scoring. `method = "wilcox"` also errors under `cross.fit = TRUE`:
+#' the Wilcoxon signed-rank test's validity assumes independent,
+#' symmetric-under-null differences, an assumption cross-fitted folds
+#' (which share overlapping training data) violate. Use
+#' `method = "z"` (the default) instead. Inference uses the
+#' Nadeau-Bengio corrected standard error referenced against the
+#' standard normal (z) rather than Student-t at `num.folds - 1` degrees
+#' of freedom -- a deliberate difference from [cf_perm()]'s
+#' `cross.fit = TRUE` path (which keeps the `t_{K-1}` reference): a
+#' simulation study found the `t_{K-1}` reference over-corrected on top
+#' of the NB SE's own inherent inflation, suppressing power without a
+#' meaningful further gain in Type-I control.
 #'
 #' **Group LOCO.** When `groups` is supplied, importance is computed
 #' jointly for each group: the reduced model omits all members of the
@@ -211,6 +261,11 @@
 #'   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
 #'   pf <- grf::probability_forest(X, Yf, num.trees = 100)
 #'   loco(pf, split = FALSE)                  # auto -> "brier"
+#'
+#'   # K-fold cross-fit split-sample LOCO: uses every observation once
+#'   # (across folds) instead of only the held-out half of a single
+#'   # split, at the cost of num.folds * (p + 1) model refits.
+#'   loco(rf, split = TRUE, cross.fit = TRUE, num.folds = 5)
 #' }
 #' }
 loco <- function(model,
@@ -222,12 +277,26 @@ loco <- function(model,
                  groups = NULL,
                  bonf.correct = TRUE,
                  seed = 1995,
-                 verbose = FALSE) {
+                 verbose = FALSE,
+                 cross.fit = FALSE,
+                 num.folds = 5L) {
 
   ## -- backend dispatch --------------------------------------------------
   backend <- detect_backend(model)
 
   method <- match.arg(method)
+  if (cross.fit && identical(method, "wilcox")) {
+    stop("loco(): cross.fit = TRUE does not support method = \"wilcox\" ",
+         "(Wilcoxon signed-rank validity assumes independent, symmetric-under-null ",
+         "differences, which cross-fitted folds violate). Use method = \"z\".",
+         call. = FALSE)
+  }
+  if (cross.fit && !split) {
+    stop("loco(): cross.fit = TRUE requires split = TRUE ",
+         "(cross-fitting only applies to split-sample LOCO, not OOB mode). ",
+         "Use split = TRUE, or cross.fit = FALSE for OOB mode.",
+         call. = FALSE)
+  }
   loss   <- match.arg(loss)
   stopifnot(is.logical(split), length(split) == 1L, !is.na(split))
   stopifnot(is.logical(bonf.correct), length(bonf.correct) == 1L,
@@ -235,6 +304,8 @@ loco <- function(model,
   stopifnot(is.numeric(alpha), length(alpha) == 1L,
             alpha > 0, alpha < 1)
   stopifnot(is.numeric(seed), length(seed) == 1L, !is.na(seed))
+  stopifnot(is.logical(cross.fit), length(cross.fit) == 1L, !is.na(cross.fit))
+  stopifnot(is.numeric(num.folds), length(num.folds) == 1L, !is.na(num.folds))
 
   if (backend == "ranger") {
     rlang::check_installed("ranger",
@@ -496,6 +567,29 @@ loco <- function(model,
       }
       y_levels <- if (is.factor(y_train)) levels(y_train) else NULL
 
+      if (cross.fit) {
+        n <- nrow(x)
+        if (num.folds < 2L || num.folds >= n) {
+          stop("loco(): num.folds must be between 2 and n - 1 when cross.fit = TRUE ",
+               "(n = ", n, ", num.folds = ", num.folds, ").", call. = FALSE)
+        }
+        if (tt %in% c("Probability estimation", "Classification")) {
+          class_tab <- table(y_train)
+          if (num.folds > min(class_tab)) {
+            stop("loco(): num.folds (", num.folds, ") cannot exceed the smallest class ",
+                 "size (", min(class_tab), ") for stratified cross-fitting.",
+                 call. = FALSE)
+          }
+        }
+        return(.loco_cv(
+          x = x, y_train = y_train, y_levels = y_levels,
+          pred.names = pred.names, targets = targets,
+          target.names = target.names, group_mode = group_mode,
+          hp.args = hp.args, loss = loss, tt = tt,
+          alpha = alpha, bonf.correct = bonf.correct,
+          seed = seed, backend = backend, num.folds = num.folds
+        ))
+      }
       ## All ranger split-mode cases use the custom split loop.
       return(loco_custom_split(
         x = x, y_train = y_train, y_levels = y_levels,
@@ -516,6 +610,29 @@ loco <- function(model,
     }
     y_levels <- if (is.factor(y_train)) levels(y_train) else NULL
 
+    if (cross.fit) {
+      n <- nrow(x)
+      if (num.folds < 2L || num.folds >= n) {
+        stop("loco(): num.folds must be between 2 and n - 1 when cross.fit = TRUE ",
+             "(n = ", n, ", num.folds = ", num.folds, ").", call. = FALSE)
+      }
+      if (tt %in% c("Probability estimation", "Classification")) {
+        class_tab <- table(y_train)
+        if (num.folds > min(class_tab)) {
+          stop("loco(): num.folds (", num.folds, ") cannot exceed the smallest class ",
+               "size (", min(class_tab), ") for stratified cross-fitting.",
+               call. = FALSE)
+        }
+      }
+      return(.loco_cv(
+        x = x, y_train = y_train, y_levels = y_levels,
+        pred.names = pred.names, targets = targets,
+        target.names = target.names, group_mode = group_mode,
+        hp.args = hp.args, loss = loss, tt = tt,
+        alpha = alpha, bonf.correct = bonf.correct,
+        seed = seed, backend = backend, num.folds = num.folds
+      ))
+    }
     return(loco_custom_split(
       x = x, y_train = y_train, y_levels = y_levels,
       pred.names = pred.names, targets = targets,
@@ -601,7 +718,8 @@ loco <- function(model,
                       ci.lower = NA_real_, ci.upper = NA_real_,
                       p.value = NA_real_, members = NULL,
                       n, p, method, loss, split, alpha, bonf.correct,
-                      backend, group) {
+                      backend, group,
+                      cross.fit = FALSE, num.folds = NA_integer_) {
   vimp <- data.frame(
     Variable   = variable,
     Importance = as.numeric(importance),
@@ -622,7 +740,9 @@ loco <- function(model,
       n = as.integer(n), p = as.integer(p),
       method = method, loss = loss,
       split = isTRUE(split), alpha = alpha, bonf.correct = isTRUE(bonf.correct),
-      backend = backend, group = isTRUE(group)
+      backend = backend, group = isTRUE(group),
+      cross.fit = isTRUE(cross.fit),
+      num.folds = if (isTRUE(cross.fit)) as.integer(num.folds) else NA_integer_
     ),
     class = "loco_vimp"
   )
@@ -816,6 +936,254 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
 }
 
 
+## --- Cross-fit (K-fold) internal helpers ---------------------------------
+##
+## `.loco_fit_one()` / `.loco_predict_one()` / `.loco_residuals_one()` are
+## index-parameterized versions of `loco_custom_split()`'s original
+## `fit_one()` / `predict_one()` / `residuals_one()` closures (which closed
+## over the single split's `i1`/`i2`). Taking `train_idx`/`test_idx`
+## explicitly lets both `loco_custom_split()` (single split) and `.loco_cv()`
+## (K-fold cross-fit) share the identical fit/predict/residual arithmetic;
+## substituting explicit arguments for closure variables does not change
+## floating-point evaluation order, so this refactor is bit-identical to the
+## original closures for `loco_custom_split()`.
+
+## Fit the full or a reduced model on `train_idx`, keeping only `keep_cols`.
+.loco_fit_one <- function(x, y_train, keep_cols, train_idx, hp.args, backend,
+                          seed) {
+  if (backend == "ranger") {
+    args <- hp.args
+    args$x <- x[train_idx, keep_cols, drop = FALSE]
+    args$y <- y_train[train_idx]
+    if (!is.null(args$mtry)) {
+      args$mtry <- min(as.integer(args$mtry), length(keep_cols))
+    }
+    return(do.call(ranger::ranger, args))
+  }
+  grf_refit(backend, hp.args,
+            X = x[train_idx, keep_cols, drop = FALSE],
+            Y = y_train[train_idx],
+            seed = seed)
+}
+
+## Predict on `test_idx` from a fitted `.loco_fit_one()` model.
+.loco_predict_one <- function(fit, x, keep_cols, test_idx, backend) {
+  if (backend == "ranger") {
+    x_test <- as.data.frame(x[test_idx, keep_cols, drop = FALSE])
+    return(stats::predict(fit, data = x_test)$predictions)
+  }
+  ## grf predict returns a list with $predictions
+  stats::predict(fit, newdata = x[test_idx, keep_cols, drop = FALSE])$predictions
+}
+
+## Per-observation loss residual on `test_idx` for a fitted model. Body is
+## copied verbatim from loco_custom_split()'s original residuals_one(),
+## substituting the explicit predict()/index arguments for the
+## closure-captured predict_one()/y_train[i2].
+.loco_residuals_one <- function(fit, x, y_train, keep_cols, test_idx,
+                                y_levels, tt, loss, backend) {
+  p    <- .loco_predict_one(fit, x, keep_cols, test_idx, backend)
+  y_te <- y_train[test_idx]
+
+  if (tt == "Regression") {
+    yhat <- as.numeric(p)
+    yv   <- as.numeric(y_te)
+    if (loss == "abs") return(abs(yv - yhat))
+    if (loss == "mse") return((yv - yhat)^2)
+  }
+  if (tt == "Probability estimation") {
+    P <- p
+    if (is.null(dim(P))) {
+      stop("Probability forest predict() did not return a matrix.",
+           call. = FALSE)
+    }
+    classes <- colnames(P)
+    if (is.null(classes)) classes <- y_levels
+    y_ch <- as.character(y_te)
+    Y_oh <- matrix(0, nrow = nrow(P), ncol = ncol(P))
+    for (k in seq_along(classes)) Y_oh[, k] <- as.integer(y_ch == classes[k])
+    if (loss == "brier") {
+      return(rowSums((Y_oh - P)^2))
+    }
+    if (loss == "zero_one") {
+      argmax <- max.col(P, ties.method = "first")
+      yhat_lab <- classes[argmax]
+      return(as.numeric(yhat_lab != y_ch))
+    }
+    if (loss == "log") {
+      eps <- 1e-12
+      P_clipped <- pmax(P, eps)
+      idx <- cbind(seq_len(nrow(P)), match(y_ch, classes))
+      return(-log(P_clipped[idx]))
+    }
+  }
+  if (tt == "Classification") {
+    yhat <- as.character(p)
+    y_ch <- as.character(y_te)
+    if (loss == "zero_one") return(as.numeric(yhat != y_ch))
+  }
+  stop("internal: unreachable (tt=", tt, ", loss=", loss, ")",
+       call. = FALSE)
+}
+
+## Fold assignment for K-fold cross-fit LOCO. Mirrors `.cf_perm_folds()`'s
+## per-level stratified-sampling algorithm exactly
+## (`sample(rep_len(seq_len(K), length(idx)))`), gated on `tt` (Probability
+## estimation / Classification stratify by class; Regression is plain
+## random) rather than a cardinality heuristic, per Jack's locked
+## stratification rule.
+.loco_assign_folds <- function(y, num.folds, tt) {
+  n <- length(y)
+  fold <- integer(n)
+  if (tt %in% c("Probability estimation", "Classification")) {
+    for (lev in levels(as.factor(y))) {
+      idx <- which(as.character(y) == lev)
+      fold[idx] <- sample(rep_len(seq_len(num.folds), length(idx)))
+    }
+  } else {
+    fold <- sample(rep_len(seq_len(num.folds), n))
+  }
+  fold
+}
+
+## Nadeau-Bengio corrected t-test aggregation core, shared by `.loco_cv()`
+## and the refactored `.cf_perm_cv()`. Pure arithmetic only: no CI
+## construction, no warnings, no degenerate-covariate zeroing -- callers
+## build CIs and emit warnings themselves (their conventions differ).
+##
+## `Psi` is a `num.folds x G` matrix of per-fold mean statistics; `n1`/`n2`
+## are per-fold train/test set sizes (length `num.folds`). The NB-corrected
+## standard error (`se`, via the `(1/K + rho)` inflation) does not depend on
+## `reference` -- only the reference distribution used for the one-sided
+## p-value (and, by callers, the CI half-width) changes.
+##
+## `reference = "t"` (the default) references the test statistic against
+## Student-t at `K - 1` df, exactly as originally derived (Nadeau & Bengio,
+## 2003). This default reproduces the pre-existing (pre-parameterization)
+## behavior bit-for-bit, so `cf_perm()`'s `.cf_perm_cv()` call site does not
+## need to change to keep its `t_{K-1}` reference.
+##
+## `reference = "z"` references the same test statistic against the
+## standard normal instead; `.loco_cv()` (below) uses this. A simulation
+## investigation found the NB SE is itself inflated by a K-invariant factor
+## (here `rho = 1/(K-1)` exactly, since fold sizes divide evenly; the
+## inflation converges to sqrt(2) as `K -> Inf`) that already guards against
+## between-fold dependence -- stacking the additionally heavy-tailed
+## `t_{K-1}` critical value on top of that SE inflation made cross-fit
+## LOCO's Type-I error far under nominal (0.2%-1.0% observed vs. a 10%
+## target across the cells tested) and suppressed the power / data-
+## efficiency gain that motivates cross-fitting in the first place.
+## Dropping only the reference distribution to z -- holding the NB SE
+## formula exactly fixed -- remains Type-I valid in every cell re-examined
+## (<= 1.0% observed) and recovers the power gain (FAIL -> PASS vs.
+## single-split LOCO in all cells re-examined). `cf_perm()` deliberately
+## keeps the `t_{K-1}` reference for its own `cross.fit = TRUE` path -- the
+## two functions intentionally diverge here; this is not an oversight.
+.nb_ttest <- function(Psi, n1, n2, reference = c("t", "z")) {
+  reference <- match.arg(reference)
+  K    <- nrow(Psi)
+  imp  <- colMeans(Psi, na.rm = TRUE)
+  rho  <- mean(n2) / mean(n1)
+  s2   <- apply(Psi, 2L, stats::var, na.rm = TRUE)
+  se   <- sqrt((1 / K + rho) * s2)
+  t    <- imp / se
+  zero.se <- !is.na(se) & se == 0
+  t[zero.se] <- NA_real_
+  df   <- K - 1L
+  pval <- if (reference == "z") {
+    stats::pnorm(t, lower.tail = FALSE)
+  } else {
+    stats::pt(t, df = df, lower.tail = FALSE)
+  }
+  list(imp = imp, se = se, t = t, pval = pval, df = df, zero.se = zero.se,
+       reference = reference)
+}
+
+## K-fold cross-fit split-sample LOCO (`cross.fit = TRUE`). For each fold,
+## the full and each reduced model are trained on the other K-1 folds and
+## evaluated on the held-out fold, so every observation contributes to the
+## importance estimate exactly once (across all folds combined), at the
+## cost of `num.folds * (p + 1)` model refits instead of `p + 1`. The K
+## per-fold statistics are not independent (models share overlapping
+## training folds), so inference uses the Nadeau-Bengio corrected standard
+## error -- but referenced against the standard normal (z), not
+## Student-t at `num.folds - 1` degrees of freedom. This deliberately
+## differs from `cf_perm()`'s `cross.fit = TRUE` path (which keeps the
+## `t_{K-1}` reference): a simulation investigation found the t_{K-1}
+## reference stacks extra, avoidable conservatism on top of the NB SE's own
+## inherent inflation, suppressing power while Type-I stayed comfortably
+## under nominal either way. See `.nb_ttest()`'s comment above for the full
+## rationale.
+.loco_cv <- function(x, y_train, y_levels, pred.names, targets, target.names,
+                     group_mode, hp.args, loss, tt, alpha, bonf.correct, seed,
+                     backend, num.folds) {
+  n <- nrow(x)
+  set.seed(seed)
+  fold <- .loco_assign_folds(y_train, num.folds, tt)
+
+  full_keep <- seq_along(pred.names)
+  G <- length(targets)
+  Psi <- matrix(NA_real_, nrow = num.folds, ncol = G,
+                dimnames = list(NULL, target.names))
+  n1 <- n2 <- numeric(num.folds)
+
+  for (f in seq_len(num.folds)) {
+    tr <- which(fold != f)
+    te <- which(fold == f)
+    n1[f] <- length(tr)
+    n2[f] <- length(te)
+
+    full_fit_f <- .loco_fit_one(x, y_train, full_keep, tr, hp.args, backend,
+                                seed + f * 10000L + length(full_keep))
+    res_full_f <- .loco_residuals_one(full_fit_f, x, y_train, full_keep, te,
+                                      y_levels, tt, loss, backend)
+
+    for (g in seq_len(G)) {
+      members  <- as.character(targets[[g]])
+      drop_idx <- match(members, pred.names)
+      keep_idx <- setdiff(full_keep, drop_idx)
+
+      fit_g_f <- .loco_fit_one(x, y_train, keep_idx, tr, hp.args, backend,
+                               seed + f * 10000L + length(keep_idx))
+      res_g_f <- .loco_residuals_one(fit_g_f, x, y_train, keep_idx, te,
+                                     y_levels, tt, loss, backend)
+
+      d_f_g <- res_g_f - res_full_f
+      Psi[f, g] <- mean(d_f_g)
+    }
+  }
+
+  agg <- .nb_ttest(Psi, n1, n2, reference = "z")
+  if (any(agg$zero.se)) {
+    warning("loco(): zero cross-fit standard error for some variable(s)/group(s) ",
+            "(identical fold importances); their p-values are set to NA. Use more ",
+            "folds or a larger sample.", call. = FALSE)
+  }
+
+  ## Reference is z/Normal (not t_{K-1}), holding the NB SE formula fixed --
+  ## see the rationale above `.loco_cv()` and in `.nb_ttest()`'s comment.
+  alpha_eff <- if (bonf.correct) alpha / G else alpha
+  half <- stats::qnorm(1 - alpha_eff / 2) * agg$se
+  ci.lower <- agg$imp - half
+  ci.upper <- agg$imp + half
+  p.value  <- if (bonf.correct) pmin(1, agg$pval * G) else agg$pval
+
+  .new_loco(
+    variable = target.names,
+    importance = as.numeric(agg$imp),
+    ci.lower = as.numeric(ci.lower),
+    ci.upper = as.numeric(ci.upper),
+    p.value = as.numeric(p.value),
+    members = if (group_mode) lapply(targets, as.character) else NULL,
+    n = n, p = length(pred.names),
+    method = "z", loss = loss,
+    split = TRUE, alpha = alpha, bonf.correct = bonf.correct,
+    backend = backend, group = group_mode,
+    cross.fit = TRUE, num.folds = as.integer(num.folds)
+  )
+}
+
+
 ## Custom split-sample LOCO loop used for every ranger split-mode case
 ## (including per-variable regression with `loss = "abs"`) and for ALL
 ## grf split-mode cases. Implements sample-splitting + one-sided Z /
@@ -833,73 +1201,17 @@ loco_custom_split <- function(x, y_train, y_levels, pred.names,
   i2 <- setdiff(seq_len(n), i1)
 
   fit_one <- function(keep_cols) {
-    if (backend == "ranger") {
-      args <- hp.args
-      args$x <- x[i1, keep_cols, drop = FALSE]
-      args$y <- y_train[i1]
-      if (!is.null(args$mtry)) {
-        args$mtry <- min(as.integer(args$mtry), length(keep_cols))
-      }
-      return(do.call(ranger::ranger, args))
-    }
-    grf_refit(backend, hp.args,
-              X = x[i1, keep_cols, drop = FALSE],
-              Y = y_train[i1],
-              seed = seed + length(keep_cols))
+    .loco_fit_one(x, y_train, keep_cols, i1, hp.args, backend,
+                  seed + length(keep_cols))
   }
 
   predict_one <- function(fit, keep_cols) {
-    if (backend == "ranger") {
-      x_test <- as.data.frame(x[i2, keep_cols, drop = FALSE])
-      return(stats::predict(fit, data = x_test)$predictions)
-    }
-    ## grf predict returns a list with $predictions
-    stats::predict(fit, newdata = x[i2, keep_cols, drop = FALSE])$predictions
+    .loco_predict_one(fit, x, keep_cols, i2, backend)
   }
 
   residuals_one <- function(fit, keep_cols) {
-    p <- predict_one(fit, keep_cols)
-    y_te <- y_train[i2]
-
-    if (tt == "Regression") {
-      yhat <- as.numeric(p)
-      yv   <- as.numeric(y_te)
-      if (loss == "abs") return(abs(yv - yhat))
-      if (loss == "mse") return((yv - yhat)^2)
-    }
-    if (tt == "Probability estimation") {
-      P <- p
-      if (is.null(dim(P))) {
-        stop("Probability forest predict() did not return a matrix.",
-             call. = FALSE)
-      }
-      classes <- colnames(P)
-      if (is.null(classes)) classes <- y_levels
-      y_ch <- as.character(y_te)
-      Y_oh <- matrix(0, nrow = nrow(P), ncol = ncol(P))
-      for (k in seq_along(classes)) Y_oh[, k] <- as.integer(y_ch == classes[k])
-      if (loss == "brier") {
-        return(rowSums((Y_oh - P)^2))
-      }
-      if (loss == "zero_one") {
-        argmax <- max.col(P, ties.method = "first")
-        yhat_lab <- classes[argmax]
-        return(as.numeric(yhat_lab != y_ch))
-      }
-      if (loss == "log") {
-        eps <- 1e-12
-        P_clipped <- pmax(P, eps)
-        idx <- cbind(seq_len(nrow(P)), match(y_ch, classes))
-        return(-log(P_clipped[idx]))
-      }
-    }
-    if (tt == "Classification") {
-      yhat <- as.character(p)
-      y_ch <- as.character(y_te)
-      if (loss == "zero_one") return(as.numeric(yhat != y_ch))
-    }
-    stop("internal: unreachable (tt=", tt, ", loss=", loss, ")",
-         call. = FALSE)
+    .loco_residuals_one(fit, x, y_train, keep_cols, i2,
+                        y_levels, tt, loss, backend)
   }
 
   full_keep <- seq_along(pred.names)

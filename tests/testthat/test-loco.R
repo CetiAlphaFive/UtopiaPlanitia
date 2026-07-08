@@ -738,7 +738,8 @@ test_that("T-API: loco formals unchanged", {
   expect_identical(
     names(formals(loco)),
     c("model", "data", "alpha", "split", "method", "loss",
-      "groups", "bonf.correct", "seed", "verbose")
+      "groups", "bonf.correct", "seed", "verbose",
+      "cross.fit", "num.folds")
   )
   expect_identical(eval(formals(loco)$alpha), 0.1)
   expect_identical(eval(formals(loco)$split), TRUE)
@@ -749,4 +750,6 @@ test_that("T-API: loco formals unchanged", {
   expect_identical(eval(formals(loco)$bonf.correct), TRUE)
   expect_identical(eval(formals(loco)$seed), 1995)
   expect_identical(eval(formals(loco)$verbose), FALSE)
+  expect_identical(eval(formals(loco)$cross.fit), FALSE)
+  expect_identical(eval(formals(loco)$num.folds), 5L)
 })
