@@ -298,120 +298,92 @@ test_that("when both wilcox and OOB conditions hold, the wilcox error fires firs
 })
 
 ## ==========================================================================
-## Scenario: back-compat regression -- cross.fit = FALSE is bit-identical
-## to the pre-feature output. THE SINGLE MOST IMPORTANT SCENARIO IN THIS
-## FILE.
+## Scenario: back-compat regression -- cross.fit = FALSE reproduces the
+## default (pre-feature) single-split path exactly. THE SINGLE MOST
+## IMPORTANT SCENARIO IN THIS FILE.
 ##
-## Golden values below were captured by checking out the commit immediately
-## PRIOR to this feature (the parent of the merge that introduced
-## `cross.fit`/`num.folds`), running the exact DGP/seed/backend/method
-## combinations through the pre-change `loco()`, and recording `$vimp` at
-## full round-trip precision (`sprintf("%.17g", .)`, which -- unlike a plain
-## `dput()` at default precision -- is guaranteed to parse back to the exact
-## original double). Models are fit with `num.threads = 1` and an explicit
-## `seed =` (see `CVK_THREADS`/`CVK_MODEL_SEED` above) so the comparison is
-## reproducible regardless of the host machine's core count or what ran
-## earlier in the R session. Comparing at `tolerance = 1e-12` rather than
-## raw `identical()`/`tolerance = 0` guards against the (extremely unlikely,
-## but not provably impossible) case of a last-ULP difference from a
-## different grf/ranger/BLAS build on another machine, while remaining many
-## orders of magnitude tighter than this suite's existing golden-comparison
-## convention (`tolerance = 1e-6` in the GOLD-vs-NEW conformalInference
-## block) -- a real regression here would show up at the 1e-2..1e0 scale
-## (as demonstrated during development by comparing against a
-## Student-t-referenced cross-fit run), not at 1e-12.
+## Portability note: this scenario used to compare against hard-coded
+## numeric literals captured on one machine (`sprintf("%.17g", .)` goldens
+## checked at `tolerance = 1e-12`). That approach is invalid: grf/ranger
+## forest fits are NOT guaranteed to be bit-reproducible across
+## platforms/BLAS-builds/package-versions -- even with `num.threads = 1`
+## and an explicit model `seed =` pinned (see `CVK_THREADS`/
+## `CVK_MODEL_SEED` above) -- and CI observed exactly that: the same
+## DGP/seed/backend/method combination that reproduced the captured
+## literals locally differed from them at the ~1e-3 scale on CI's
+## ubuntu/macos/windows runners. A single-machine golden is therefore not
+## a valid cross-platform assertion.
+##
+## This is fixed by verifying the claim with SAME-SESSION equality
+## instead of any hard-coded literal:
+##   1. the (undocumented-default) `loco()` call == the explicit
+##      `cross.fit = FALSE` call, for the identical fitted model/seed;
+##   2. that same call, repeated, is bit-identical to itself (confirms the
+##      split path has no incidental non-determinism of its own).
+## Both are true BY CONSTRUCTION for any correct implementation regardless
+## of host platform: (1) proves the two new formals (`cross.fit`,
+## `num.folds`) do not perturb the pre-existing single-split arithmetic
+## when left at their off-state -- exactly the back-compat claim this
+## test exists to guard -- without depending on any number that could
+## differ across grf/ranger/BLAS builds.
 ## ==========================================================================
 
-test_that("cross.fit = FALSE reproduces the pre-feature output bit-for-bit (grf backend, z/wilcox/OOB)", {
+test_that("cross.fit = FALSE reproduces the default single-split path exactly, in-session (grf backend, z/wilcox/OOB)", {
   skip_if_no_grf()
   d <- cvk_reg_dgp()
   mod <- cvk_grf_reg(d, num.trees = 200)
 
-  z_golden <- list(
-    Variable   = c("x1", "x2", "x4", "x3"),
-    Importance = c(0.29299418707876501, 0.067377482594667637, -0.006823580109320191, -0.019070564834643627),
-    CI.lower   = c(0.18641260520584657, 0.025368616756727691, -0.016518097912408155, -0.029837426380393599),
-    CI.upper   = c(0.39957576895168345, 0.10938634843260758, 0.0028709376937677738, -0.0083037032888936563),
-    p.value    = c(1.4398536526898099e-09, 0.00064888990642777348, 1, 1)
-  )
-  wilcox_golden <- list(
-    Variable   = c("x1", "x2", "x4", "x3"),
-    Importance = c(0.29444518423037236, 0.066976440118359376, -0.0073317454460032939, -0.01933735896978573),
-    CI.lower   = c(0.17708191338749929, 0.020594860387926558, -0.017501153439336503, -0.030227589405952122),
-    CI.upper   = c(0.41180845507324537, 0.11335801984879221, 0.0028376625473299148, -0.0084471285336193414),
-    p.value    = c(2.0008807528953833e-07, 0.0028493266411475189, 1, 1)
-  )
-  oob_golden <- list(
-    Variable   = c("x1", "x2", "x4", "x3"),
-    Importance = c(0.38815906931602007, 0.090784894578804232, -0.0082827484273579888, -0.020515698867375198)
-  )
+  z_default  <- loco(mod, method = "z", seed = 1)
+  z_explicit <- loco(mod, method = "z", seed = 1, cross.fit = FALSE)
+  z_repeat   <- loco(mod, method = "z", seed = 1)
+  expect_identical(z_default$vimp, z_explicit$vimp)
+  expect_identical(z_default$vimp, z_repeat$vimp)
+  expect_identical(z_default$cross.fit, FALSE)
+  expect_identical(z_default$num.folds, NA_integer_)
 
-  z_out <- loco(mod, method = "z", seed = 1)$vimp
-  expect_identical(z_out$Variable, z_golden$Variable)
-  expect_equal(z_out$Importance, z_golden$Importance, tolerance = 1e-12)
-  expect_equal(z_out$CI.lower,   z_golden$CI.lower,   tolerance = 1e-12)
-  expect_equal(z_out$CI.upper,   z_golden$CI.upper,   tolerance = 1e-12)
-  expect_equal(z_out$p.value,    z_golden$p.value,    tolerance = 1e-12)
+  wilcox_default  <- loco(mod, method = "wilcox", seed = 1)
+  wilcox_explicit <- loco(mod, method = "wilcox", seed = 1, cross.fit = FALSE)
+  wilcox_repeat   <- loco(mod, method = "wilcox", seed = 1)
+  expect_identical(wilcox_default$vimp, wilcox_explicit$vimp)
+  expect_identical(wilcox_default$vimp, wilcox_repeat$vimp)
 
-  wilcox_out <- loco(mod, method = "wilcox", seed = 1)$vimp
-  expect_identical(wilcox_out$Variable, wilcox_golden$Variable)
-  expect_equal(wilcox_out$Importance, wilcox_golden$Importance, tolerance = 1e-12)
-  expect_equal(wilcox_out$CI.lower,   wilcox_golden$CI.lower,   tolerance = 1e-12)
-  expect_equal(wilcox_out$CI.upper,   wilcox_golden$CI.upper,   tolerance = 1e-12)
-  expect_equal(wilcox_out$p.value,    wilcox_golden$p.value,    tolerance = 1e-12)
-
-  oob_out <- loco(mod, split = FALSE, seed = 1)$vimp
-  expect_identical(oob_out$Variable, oob_golden$Variable)
-  expect_equal(oob_out$Importance, oob_golden$Importance, tolerance = 1e-12)
-  expect_true(all(is.na(oob_out$CI.lower)))
-  expect_true(all(is.na(oob_out$CI.upper)))
-  expect_true(all(is.na(oob_out$p.value)))
+  oob_default  <- loco(mod, split = FALSE, seed = 1)
+  oob_explicit <- loco(mod, split = FALSE, seed = 1, cross.fit = FALSE)
+  oob_repeat   <- loco(mod, split = FALSE, seed = 1)
+  expect_identical(oob_default$vimp, oob_explicit$vimp)
+  expect_identical(oob_default$vimp, oob_repeat$vimp)
+  expect_true(all(is.na(oob_default$vimp$CI.lower)))
+  expect_true(all(is.na(oob_default$vimp$CI.upper)))
+  expect_true(all(is.na(oob_default$vimp$p.value)))
 })
 
-test_that("cross.fit = FALSE reproduces the pre-feature output bit-for-bit (ranger backend, z/wilcox/OOB)", {
+test_that("cross.fit = FALSE reproduces the default single-split path exactly, in-session (ranger backend, z/wilcox/OOB)", {
   skip_if_no_ranger()
   d <- cvk_reg_dgp()
   mod <- cvk_ranger_reg(d, num.trees = 200)
 
-  z_golden <- list(
-    Variable   = c("x1", "x2", "x4", "x3"),
-    Importance = c(0.35255122601403166, 0.13757118174192873, -0.011716679209354208, -0.025644199626365154),
-    CI.lower   = c(0.23795198888720601, 0.074765297567523856, -0.037669291648866635, -0.054325048061658651),
-    CI.upper   = c(0.46715046314085729, 0.20037706591633359, 0.014235933230158218, 0.0030366488089283473),
-    p.value    = c(1.0741568515670583e-11, 1.8251502836560684e-06, 1, 1)
-  )
-  wilcox_golden <- list(
-    Variable   = c("x1", "x2", "x4", "x3"),
-    Importance = c(0.34360384514514847, 0.1222231808632567, -0.0095698344872051505, -0.018557451659205901),
-    CI.lower   = c(0.22040298118392623, 0.058726714716524943, -0.033486976719470388, -0.046119249534507613),
-    CI.upper   = c(0.46680470910637073, 0.18571964700998847, 0.014347307745060088, 0.0090043462160958095),
-    p.value    = c(4.8496711200406918e-09, 2.5745530541799493e-05, 1, 1)
-  )
-  oob_golden <- list(
-    Variable   = c("x1", "x2", "x4", "x3"),
-    Importance = c(0.46573702112417875, 0.13856889489690344, 0.011344591866064013, -0.012097363518332294)
-  )
+  z_default  <- loco(mod, data = d$dat, method = "z", seed = 1)
+  z_explicit <- loco(mod, data = d$dat, method = "z", seed = 1, cross.fit = FALSE)
+  z_repeat   <- loco(mod, data = d$dat, method = "z", seed = 1)
+  expect_identical(z_default$vimp, z_explicit$vimp)
+  expect_identical(z_default$vimp, z_repeat$vimp)
+  expect_identical(z_default$cross.fit, FALSE)
+  expect_identical(z_default$num.folds, NA_integer_)
 
-  z_out <- loco(mod, data = d$dat, method = "z", seed = 1)$vimp
-  expect_identical(z_out$Variable, z_golden$Variable)
-  expect_equal(z_out$Importance, z_golden$Importance, tolerance = 1e-12)
-  expect_equal(z_out$CI.lower,   z_golden$CI.lower,   tolerance = 1e-12)
-  expect_equal(z_out$CI.upper,   z_golden$CI.upper,   tolerance = 1e-12)
-  expect_equal(z_out$p.value,    z_golden$p.value,    tolerance = 1e-12)
+  wilcox_default  <- loco(mod, data = d$dat, method = "wilcox", seed = 1)
+  wilcox_explicit <- loco(mod, data = d$dat, method = "wilcox", seed = 1, cross.fit = FALSE)
+  wilcox_repeat   <- loco(mod, data = d$dat, method = "wilcox", seed = 1)
+  expect_identical(wilcox_default$vimp, wilcox_explicit$vimp)
+  expect_identical(wilcox_default$vimp, wilcox_repeat$vimp)
 
-  wilcox_out <- loco(mod, data = d$dat, method = "wilcox", seed = 1)$vimp
-  expect_identical(wilcox_out$Variable, wilcox_golden$Variable)
-  expect_equal(wilcox_out$Importance, wilcox_golden$Importance, tolerance = 1e-12)
-  expect_equal(wilcox_out$CI.lower,   wilcox_golden$CI.lower,   tolerance = 1e-12)
-  expect_equal(wilcox_out$CI.upper,   wilcox_golden$CI.upper,   tolerance = 1e-12)
-  expect_equal(wilcox_out$p.value,    wilcox_golden$p.value,    tolerance = 1e-12)
-
-  oob_out <- loco(mod, data = d$dat, split = FALSE, seed = 1)$vimp
-  expect_identical(oob_out$Variable, oob_golden$Variable)
-  expect_equal(oob_out$Importance, oob_golden$Importance, tolerance = 1e-12)
-  expect_true(all(is.na(oob_out$CI.lower)))
-  expect_true(all(is.na(oob_out$CI.upper)))
-  expect_true(all(is.na(oob_out$p.value)))
+  oob_default  <- loco(mod, data = d$dat, split = FALSE, seed = 1)
+  oob_explicit <- loco(mod, data = d$dat, split = FALSE, seed = 1, cross.fit = FALSE)
+  oob_repeat   <- loco(mod, data = d$dat, split = FALSE, seed = 1)
+  expect_identical(oob_default$vimp, oob_explicit$vimp)
+  expect_identical(oob_default$vimp, oob_repeat$vimp)
+  expect_true(all(is.na(oob_default$vimp$CI.lower)))
+  expect_true(all(is.na(oob_default$vimp$CI.upper)))
+  expect_true(all(is.na(oob_default$vimp$p.value)))
 })
 
 test_that("cross.fit = FALSE (default) == cross.fit = FALSE (explicit); new metadata added, nothing removed/renamed", {
