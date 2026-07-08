@@ -1,7 +1,7 @@
-# Tests for loco()'s S3 methods (print.loco, summary.loco, plot.loco) and
-# the classed "loco" return object. Self-sufficient: does not rely on
-# helpers defined in other test files (test files may be run standalone via
-# testthat::test_file()).
+# Tests for loco()'s S3 methods (print.loco_vimp, summary.loco_vimp,
+# plot.loco_vimp) and the classed "loco_vimp" return object. Self-sufficient:
+# does not rely on helpers defined in other test files (test files may be
+# run standalone via testthat::test_file()).
 
 skip_if_no_ranger <- function() {
   testthat::skip_if_not_installed("ranger")
@@ -32,7 +32,7 @@ test_that("loco() split mode, method='z' returns a loco object with working meth
   b <- make_signal_model()
   vi <- suppressWarnings(loco(b$mod, data = b$dat, split = TRUE, method = "z", seed = 1))
 
-  expect_s3_class(vi, "loco")
+  expect_s3_class(vi, "loco_vimp")
   expect_true(is.list(vi))
   expect_false(is.data.frame(vi))
   expect_named(vi$vimp, c("Variable", "Importance", "CI.lower", "CI.upper", "p.value"))
@@ -134,7 +134,7 @@ test_that("loco() group mode + split mode: whisker renders with group labels", {
   vi <- suppressWarnings(loco(b$mod, data = b$dat, split = TRUE, method = "z", seed = 1,
                               groups = list(gA = c("x1", "x2"), gB = "x3")))
 
-  expect_s3_class(vi, "loco")
+  expect_s3_class(vi, "loco_vimp")
   expect_true(vi$group)
   expect_named(vi$vimp, c("Variable", "Importance", "CI.lower", "CI.upper",
                           "p.value", "Members"))

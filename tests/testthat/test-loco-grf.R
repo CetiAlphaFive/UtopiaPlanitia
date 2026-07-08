@@ -49,7 +49,7 @@ test_that("grf regression_forest + OOB + abs returns expected shape", {
   skip_if_no_grf()
   b <- make_grf_reg()
   out <- loco(b$mod, split = FALSE, seed = 1)
-  expect_s3_class(out, "loco")
+  expect_s3_class(out, "loco_vimp")
   expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper", "p.value"))
   expect_setequal(out$vimp$Variable, paste0("x", 1:4))
   expect_identical(out$method, "oob")
@@ -261,11 +261,11 @@ test_that("loco() works on grf forests fit with a data frame", {
   expect_s3_class(rf$X.orig, "data.frame")
 
   out_oob <- loco(rf, split = FALSE)
-  expect_s3_class(out_oob, "loco")
+  expect_s3_class(out_oob, "loco_vimp")
   expect_setequal(out_oob$vimp$Variable, names(Xdf))
 
   out_split <- loco(rf, split = TRUE)
-  expect_s3_class(out_split, "loco")
+  expect_s3_class(out_split, "loco_vimp")
   expect_setequal(out_split$vimp$Variable, names(Xdf))
 })
 

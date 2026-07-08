@@ -70,7 +70,7 @@
 #'   removed; any value is accepted and has no effect on the
 #'   computation or the return value.
 #'
-#' @return An object of class `"loco"` with components:
+#' @return An object of class `"loco_vimp"` with components:
 #'   \describe{
 #'     \item{vimp}{Data frame sorted by descending importance, with columns
 #'       `Variable` (covariate or group name), `Importance` (LOCO importance
@@ -175,8 +175,8 @@
 #' \doi{10.1080/01621459.2020.1812596}
 #'
 #' @seealso [cf_loco()] for LOCO importance tailored to causal forests;
-#'   [print.loco()], [summary.loco()], [plot.loco()] for the object's S3
-#'   methods; [ranger::ranger()], [grf::regression_forest()],
+#'   [print.loco_vimp()], [summary.loco_vimp()], [plot.loco_vimp()] for the
+#'   object's S3 methods; [ranger::ranger()], [grf::regression_forest()],
 #'   [grf::boosted_regression_forest()],
 #'   [grf::probability_forest()] for supported model fitters.
 #'
@@ -594,7 +594,7 @@ loco <- function(model,
 
 ## --- Internal helpers ---------------------------------------------------
 
-## Build the classed "loco" return object. Single funnel point for both
+## Build the classed "loco_vimp" return object. Single funnel point for both
 ## return sites (OOB loop and loco_custom_split()) so the object shape only
 ## has to be defined once.
 .new_loco <- function(variable, importance,
@@ -624,7 +624,7 @@ loco <- function(model,
       split = isTRUE(split), alpha = alpha, bonf.correct = isTRUE(bonf.correct),
       backend = backend, group = isTRUE(group)
     ),
-    class = "loco"
+    class = "loco_vimp"
   )
 }
 

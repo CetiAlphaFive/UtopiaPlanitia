@@ -83,7 +83,7 @@ removed; any value is accepted and has no effect on the
 computation or the return value.}
 }
 \value{
-An object of class \code{"loco"} with components:
+An object of class \code{"loco_vimp"} with components:
 \describe{
 \item{vimp}{Data frame sorted by descending importance, with columns
 \code{Variable} (covariate or group name), \code{Importance} (LOCO importance
@@ -243,8 +243,8 @@ Association}, 116(536), 1574--1587.
 }
 \seealso{
 \code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests;
-\code{\link[=print.loco]{print.loco()}}, \code{\link[=summary.loco]{summary.loco()}}, \code{\link[=plot.loco]{plot.loco()}} for the object's S3
-methods; \code{\link[ranger:ranger]{ranger::ranger()}}, \code{\link[grf:regression_forest]{grf::regression_forest()}},
+\code{\link[=print.loco_vimp]{print.loco_vimp()}}, \code{\link[=summary.loco_vimp]{summary.loco_vimp()}}, \code{\link[=plot.loco_vimp]{plot.loco_vimp()}} for the
+object's S3 methods; \code{\link[ranger:ranger]{ranger::ranger()}}, \code{\link[grf:regression_forest]{grf::regression_forest()}},
 \code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}},
 \code{\link[grf:probability_forest]{grf::probability_forest()}} for supported model fitters.
 }

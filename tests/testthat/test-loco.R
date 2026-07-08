@@ -61,7 +61,7 @@ test_that("OOB mode returns the expected data-frame shape", {
   skip_if_no_ranger()
   bundle <- make_reg_model()
   out <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 1)
-  expect_s3_class(out, "loco")
+  expect_s3_class(out, "loco_vimp")
   expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper", "p.value"))
   expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
   expect_identical(out$method, "oob")
@@ -92,7 +92,7 @@ test_that("OOB mode handles extra non-predictor columns in `data`", {
   dat$y <- dat$x1 + rnorm(80, sd = 0.5)
   mod <- ranger::ranger(y ~ x1 + x2 + x3, data = dat, num.trees = 50)
   out <- loco(mod, split = FALSE, seed = 1)
-  expect_s3_class(out, "loco")
+  expect_s3_class(out, "loco_vimp")
   expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
@@ -156,7 +156,7 @@ test_that("hyperparameter symbols evaluate in caller environment", {
   ntrees_local <- 40L
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = ntrees_local)
   out <- loco(mod, split = FALSE, seed = 1)
-  expect_s3_class(out, "loco")
+  expect_s3_class(out, "loco_vimp")
   expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
@@ -221,7 +221,7 @@ test_that("split mode returns the expected columns and method tag", {
   bundle <- make_reg_model(n = 120, trees = 100)
   out <- suppressWarnings(loco(bundle$mod, data = bundle$dat,
                                split = TRUE, seed = 1, method = "z"))
-  expect_s3_class(out, "loco")
+  expect_s3_class(out, "loco_vimp")
   expect_named(out$vimp, c("Variable", "Importance",
                       "CI.lower", "CI.upper", "p.value"))
   expect_identical(out$method, "z")
@@ -725,7 +725,7 @@ test_that("loss = 'mse' split mode is unaffected (never routed through conformal
   skip_if_no_ranger()
   fake <- make_fake_gold_data()
   out <- loco(fake$mod, data = fake$dat, split = TRUE, loss = "mse", seed = 1)
-  expect_s3_class(out, "loco")
+  expect_s3_class(out, "loco_vimp")
   expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper",
                       "p.value"))
   expect_identical(out$loss, "mse")

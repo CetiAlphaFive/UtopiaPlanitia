@@ -3,13 +3,13 @@
 #' Prints a formatted summary of `loco()` results. Equivalent to calling
 #' `print()` on the object.
 #'
-#' @param object An object of class `"loco"` returned by [loco()].
-#' @param ... Additional arguments passed to [print.loco()].
-#' @return The `loco` object (invisibly).
-#' @seealso [loco()], [print.loco()], [plot.loco()]
-#' @method summary loco
+#' @param object An object of class `"loco_vimp"` returned by [loco()].
+#' @param ... Additional arguments passed to [print.loco_vimp()].
+#' @return The `loco_vimp` object (invisibly).
+#' @seealso [loco()], [print.loco_vimp()], [plot.loco_vimp()]
+#' @method summary loco_vimp
 #' @export
-summary.loco <- function(object, ...) {
+summary.loco_vimp <- function(object, ...) {
   print(object, ...)
 }
 
@@ -19,13 +19,13 @@ summary.loco <- function(object, ...) {
 #' to least important. Shows sample size, number of covariates, test method,
 #' loss, and whether the result came from split-sample or OOB mode.
 #'
-#' @param x An object of class `"loco"` returned by [loco()].
+#' @param x An object of class `"loco_vimp"` returned by [loco()].
 #' @param ... Additional arguments (currently unused).
-#' @return The `loco` object (invisibly).
-#' @seealso [loco()], [summary.loco()], [plot.loco()]
-#' @method print loco
+#' @return The `loco_vimp` object (invisibly).
+#' @seealso [loco()], [summary.loco_vimp()], [plot.loco_vimp()]
+#' @method print loco_vimp
 #' @export
-print.loco <- function(x, ...) {
+print.loco_vimp <- function(x, ...) {
   cat("LOCO Variable Importance\n")
   cat("  n =", x$n, " p =", x$p, " method =", x$method, " loss =", x$loss, "\n")
   cat("  Mode:", if (x$split) "split-sample" else "OOB (no inference)", "\n\n")
@@ -54,7 +54,7 @@ print.loco <- function(x, ...) {
 #' Draws a horizontal variable-importance bar chart of `loco()` scores,
 #' sorted from most to least important (largest at the top).
 #'
-#' @param x An object of class `"loco"` returned by [loco()].
+#' @param x An object of class `"loco_vimp"` returned by [loco()].
 #' @param fill.sig Bar fill for significant covariates (default
 #'   `"darkorange"`). Non-significant covariates use `"gray70"`.
 #' @param ... Additional arguments (currently unused).
@@ -74,8 +74,8 @@ print.loco <- function(x, ...) {
 #' call) there is no confidence interval or p-value, so no whisker is drawn,
 #' every bar takes the non-significant fill, and the title gains "(OOB)".
 #'
-#' @seealso [loco()] to compute the scores, [summary.loco()] for tabular
-#'   output.
+#' @seealso [loco()] to compute the scores, [summary.loco_vimp()] for
+#'   tabular output.
 #'
 #' @examplesIf rlang::is_installed(c("ggplot2", "ranger"))
 #' set.seed(1995)
@@ -88,9 +88,9 @@ print.loco <- function(x, ...) {
 #' summary(vi)
 #'
 #' @importFrom rlang .data
-#' @method plot loco
+#' @method plot loco_vimp
 #' @export
-plot.loco <- function(x, fill.sig = "darkorange", ...) {
+plot.loco_vimp <- function(x, fill.sig = "darkorange", ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package 'ggplot2' is required but not installed.")
   }
