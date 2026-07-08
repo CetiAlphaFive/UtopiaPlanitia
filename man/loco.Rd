@@ -83,25 +83,27 @@ removed; any value is accepted and has no effect on the
 computation or the return value.}
 }
 \value{
-A data frame sorted by descending importance with columns:
+An object of class \code{"loco"} with components:
 \describe{
-\item{variable}{Covariate name, or group name when \code{groups} is
-supplied.}
-\item{importance}{LOCO importance score. Split mode: mean (or
-Hodges-Lehmann pseudo-median for Wilcoxon) of loss-residual
-differences \code{L(reduced) - L(full)}. OOB mode: reduced-model
-OOB error minus full-model OOB error.}
-\item{ci.lower, ci.upper}{Confidence interval bounds (split
-mode only).}
-\item{p.value}{\strong{One-sided} p-value testing
-H0: importance \eqn{\le} 0 vs H1: importance \eqn{>} 0
-(split mode only). Bonferroni-corrected when
-\code{bonf.correct = TRUE}.}
+\item{vimp}{Data frame sorted by descending importance, with columns
+\code{Variable} (covariate or group name), \code{Importance} (LOCO importance
+score), \code{CI.lower}, \code{CI.upper} (confidence interval bounds; \code{NA} in
+OOB mode), \code{p.value} (one-sided p-value testing H0: importance
+\eqn{\le} 0; \code{NA} in OOB mode), and, only when \code{groups} is supplied,
+\code{Members} (list-column of character vectors naming each group's
+members).}
+\item{n}{Sample size.}
+\item{p}{Number of covariates in the fitted model (not the number of
+groups, when \code{groups} is supplied).}
 \item{method}{\code{"z"}, \code{"wilcox"}, or \code{"oob"}.}
 \item{loss}{Loss function used (\code{"abs"}, \code{"mse"}, \code{"brier"},
 \code{"zero_one"}, or \code{"log"}).}
-\item{members}{(group mode only) list-column of character
-vectors naming the members of each group.}
+\item{split}{Logical; whether split-sample mode was used.}
+\item{alpha}{The \code{alpha} argument value.}
+\item{bonf.correct}{The \code{bonf.correct} argument value.}
+\item{backend}{The detected model backend
+(\code{"ranger"}, \code{"grf_reg"}, \code{"grf_brf"}, or \code{"grf_prob"}).}
+\item{group}{Logical; whether group-LOCO was used.}
 }
 }
 \description{
@@ -213,7 +215,9 @@ if (requireNamespace("grf", quietly = TRUE)) {
   colnames(X) <- c("x1", "x2", "x3")
   Y <- X[, 1] + 0.5 * X[, 2] + rnorm(100, sd = 0.5)
   rf <- grf::regression_forest(X, Y, num.trees = 100)
-  loco(rf, split = FALSE)                  # auto -> "abs"
+  vi <- loco(rf, split = FALSE)            # auto -> "abs"
+  summary(vi)
+  if (requireNamespace("ggplot2", quietly = TRUE)) plot(vi)
   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
   pf <- grf::probability_forest(X, Yf, num.trees = 100)
   loco(pf, split = FALSE)                  # auto -> "brier"
@@ -239,7 +243,8 @@ Association}, 116(536), 1574--1587.
 }
 \seealso{
 \code{\link[=cf_loco]{cf_loco()}} for LOCO importance tailored to causal forests;
-\code{\link[ranger:ranger]{ranger::ranger()}}, \code{\link[grf:regression_forest]{grf::regression_forest()}},
+\code{\link[=print.loco]{print.loco()}}, \code{\link[=summary.loco]{summary.loco()}}, \code{\link[=plot.loco]{plot.loco()}} for the object's S3
+methods; \code{\link[ranger:ranger]{ranger::ranger()}}, \code{\link[grf:regression_forest]{grf::regression_forest()}},
 \code{\link[grf:boosted_regression_forest]{grf::boosted_regression_forest()}},
 \code{\link[grf:probability_forest]{grf::probability_forest()}} for supported model fitters.
 }

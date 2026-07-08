@@ -70,25 +70,27 @@
 #'   removed; any value is accepted and has no effect on the
 #'   computation or the return value.
 #'
-#' @return A data frame sorted by descending importance with columns:
+#' @return An object of class `"loco"` with components:
 #'   \describe{
-#'     \item{variable}{Covariate name, or group name when `groups` is
-#'       supplied.}
-#'     \item{importance}{LOCO importance score. Split mode: mean (or
-#'       Hodges-Lehmann pseudo-median for Wilcoxon) of loss-residual
-#'       differences `L(reduced) - L(full)`. OOB mode: reduced-model
-#'       OOB error minus full-model OOB error.}
-#'     \item{ci.lower, ci.upper}{Confidence interval bounds (split
-#'       mode only).}
-#'     \item{p.value}{**One-sided** p-value testing
-#'       H0: importance \eqn{\le} 0 vs H1: importance \eqn{>} 0
-#'       (split mode only). Bonferroni-corrected when
-#'       `bonf.correct = TRUE`.}
+#'     \item{vimp}{Data frame sorted by descending importance, with columns
+#'       `Variable` (covariate or group name), `Importance` (LOCO importance
+#'       score), `CI.lower`, `CI.upper` (confidence interval bounds; `NA` in
+#'       OOB mode), `p.value` (one-sided p-value testing H0: importance
+#'       \eqn{\le} 0; `NA` in OOB mode), and, only when `groups` is supplied,
+#'       `Members` (list-column of character vectors naming each group's
+#'       members).}
+#'     \item{n}{Sample size.}
+#'     \item{p}{Number of covariates in the fitted model (not the number of
+#'       groups, when `groups` is supplied).}
 #'     \item{method}{`"z"`, `"wilcox"`, or `"oob"`.}
 #'     \item{loss}{Loss function used (`"abs"`, `"mse"`, `"brier"`,
 #'       `"zero_one"`, or `"log"`).}
-#'     \item{members}{(group mode only) list-column of character
-#'       vectors naming the members of each group.}
+#'     \item{split}{Logical; whether split-sample mode was used.}
+#'     \item{alpha}{The `alpha` argument value.}
+#'     \item{bonf.correct}{The `bonf.correct` argument value.}
+#'     \item{backend}{The detected model backend
+#'       (`"ranger"`, `"grf_reg"`, `"grf_brf"`, or `"grf_prob"`).}
+#'     \item{group}{Logical; whether group-LOCO was used.}
 #'   }
 #'
 #' @details
@@ -173,7 +175,8 @@
 #' \doi{10.1080/01621459.2020.1812596}
 #'
 #' @seealso [cf_loco()] for LOCO importance tailored to causal forests;
-#'   [ranger::ranger()], [grf::regression_forest()],
+#'   [print.loco()], [summary.loco()], [plot.loco()] for the object's S3
+#'   methods; [ranger::ranger()], [grf::regression_forest()],
 #'   [grf::boosted_regression_forest()],
 #'   [grf::probability_forest()] for supported model fitters.
 #'
@@ -202,7 +205,9 @@
 #'   colnames(X) <- c("x1", "x2", "x3")
 #'   Y <- X[, 1] + 0.5 * X[, 2] + rnorm(100, sd = 0.5)
 #'   rf <- grf::regression_forest(X, Y, num.trees = 100)
-#'   loco(rf, split = FALSE)                  # auto -> "abs"
+#'   vi <- loco(rf, split = FALSE)            # auto -> "abs"
+#'   summary(vi)
+#'   if (requireNamespace("ggplot2", quietly = TRUE)) plot(vi)
 #'   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
 #'   pf <- grf::probability_forest(X, Yf, num.trees = 100)
 #'   loco(pf, split = FALSE)                  # auto -> "brier"
@@ -575,24 +580,53 @@ loco <- function(model,
       baseline.error
   }
 
-  out <- data.frame(
-    variable   = target.names,
+  .new_loco(
+    variable = target.names,
     importance = as.numeric(importance),
-    method     = "oob",
-    loss       = loss,
-    row.names  = NULL,
-    stringsAsFactors = FALSE
+    members = if (group_mode) lapply(targets, as.character) else NULL,
+    n = nrow(train.data), p = length(pred.names),
+    method = "oob", loss = loss,
+    split = FALSE, alpha = alpha, bonf.correct = bonf.correct,
+    backend = backend, group = group_mode
   )
-  if (group_mode) {
-    out$members <- I(lapply(targets, as.character))
-  }
-  out <- out[order(-out$importance), , drop = FALSE]
-  row.names(out) <- NULL
-  out
 }
 
 
 ## --- Internal helpers ---------------------------------------------------
+
+## Build the classed "loco" return object. Single funnel point for both
+## return sites (OOB loop and loco_custom_split()) so the object shape only
+## has to be defined once.
+.new_loco <- function(variable, importance,
+                      ci.lower = NA_real_, ci.upper = NA_real_,
+                      p.value = NA_real_, members = NULL,
+                      n, p, method, loss, split, alpha, bonf.correct,
+                      backend, group) {
+  vimp <- data.frame(
+    Variable   = variable,
+    Importance = as.numeric(importance),
+    CI.lower   = as.numeric(ci.lower),
+    CI.upper   = as.numeric(ci.upper),
+    p.value    = as.numeric(p.value),
+    stringsAsFactors = FALSE
+  )
+  if (isTRUE(group)) {
+    vimp$Members <- I(members)
+  }
+  vimp <- vimp[order(-vimp$Importance), , drop = FALSE]
+  row.names(vimp) <- NULL
+
+  structure(
+    list(
+      vimp = vimp,
+      n = as.integer(n), p = as.integer(p),
+      method = method, loss = loss,
+      split = isTRUE(split), alpha = alpha, bonf.correct = isTRUE(bonf.correct),
+      backend = backend, group = isTRUE(group)
+    ),
+    class = "loco"
+  )
+}
 
 ## Detect supported backend or stop with a clear message.
 detect_backend <- function(model) {
@@ -924,21 +958,16 @@ loco_custom_split <- function(x, y_train, y_levels, pred.names,
 
   importance <- (results[, "LowConfPt"] + results[, "UpConfPt"]) / 2
 
-  out <- data.frame(
-    variable   = target.names,
+  .new_loco(
+    variable = target.names,
     importance = as.numeric(importance),
-    ci.lower   = as.numeric(results[, "LowConfPt"]),
-    ci.upper   = as.numeric(results[, "UpConfPt"]),
-    p.value    = as.numeric(results[, "P-value"]),
-    method     = method,
-    loss       = loss,
-    row.names  = NULL,
-    stringsAsFactors = FALSE
+    ci.lower = as.numeric(results[, "LowConfPt"]),
+    ci.upper = as.numeric(results[, "UpConfPt"]),
+    p.value = as.numeric(results[, "P-value"]),
+    members = if (group_mode) lapply(targets, as.character) else NULL,
+    n = n, p = length(pred.names),
+    method = method, loss = loss,
+    split = TRUE, alpha = alpha, bonf.correct = bonf.correct,
+    backend = backend, group = group_mode
   )
-  if (group_mode) {
-    out$members <- I(lapply(targets, as.character))
-  }
-  out <- out[order(-out$importance), , drop = FALSE]
-  row.names(out) <- NULL
-  out
 }

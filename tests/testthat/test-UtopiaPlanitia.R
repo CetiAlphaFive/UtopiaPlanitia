@@ -256,9 +256,9 @@ test_that("loco OOB mode returns correct structure", {
   dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100), x3 = rnorm(100))
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
   result <- loco(mod, split = FALSE)
-  expect_s3_class(result, "data.frame")
-  expect_named(result, c("variable", "importance", "method", "loss"))
-  expect_equal(nrow(result), 3)
+  expect_s3_class(result, "loco")
+  expect_named(result$vimp, c("Variable", "Importance", "CI.lower", "CI.upper", "p.value"))
+  expect_equal(nrow(result$vimp), 3)
 })
 
 test_that("loco rejects non-ranger input", {
@@ -271,8 +271,8 @@ test_that("loco OOB mode importance values are numeric", {
   dat <- data.frame(y = rnorm(100), x1 = rnorm(100), x2 = rnorm(100))
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
   result <- loco(mod, split = FALSE)
-  expect_type(result$importance, "double")
-  expect_true(all(!is.na(result$importance)))
+  expect_type(result$vimp$Importance, "double")
+  expect_true(all(!is.na(result$vimp$Importance)))
 })
 
 # -- plot_diag tests -----------------------------------------------------------
