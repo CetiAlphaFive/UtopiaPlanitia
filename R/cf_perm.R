@@ -501,6 +501,12 @@ cf_perm <- function(c.forest, loss = c("R", "AIPW"), n.perm = 50L,
   # data no kept column carries NA, so this reduces to colMeans(Psi)/var(Psi).
   # Nadeau-Bengio corrected variance of the cross-validated mean. The corrected
   # resampled statistic is a t with (num.folds - 1) df, so reference t, not normal.
+  # `.nb_ttest()`'s `reference` argument defaults to "t" precisely so this call
+  # site needs no change to keep that reference -- do NOT pass reference = "z"
+  # here. `loco()`'s `.loco_cv()` (R/loco.R) deliberately uses reference = "z"
+  # instead (a validated fix for that estimator's over-conservative Type-I/
+  # power tradeoff); the two cross-fit paths intentionally diverge on this
+  # point and cf_perm's output must remain bit-identical to before.
   agg <- .nb_ttest(Psi, n1, n2)
   imp <- agg$imp
   se  <- agg$se

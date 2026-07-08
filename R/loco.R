@@ -79,10 +79,18 @@
 #'   symmetric-under-null differences, which cross-fitted folds
 #'   violate) and errors if `split = FALSE` (cross-fitting only applies
 #'   to split-sample LOCO, not OOB mode). Inference uses the
-#'   Nadeau-Bengio corrected t-test at `num.folds - 1` degrees of
-#'   freedom (mirroring [cf_perm()]'s `cross.fit = TRUE` path), because
-#'   the `num.folds` per-fold statistics are not independent (models
-#'   share overlapping training folds). Note the extra compute cost:
+#'   Nadeau-Bengio corrected standard error (because the `num.folds`
+#'   per-fold statistics are not independent -- models share overlapping
+#'   training folds) referenced against the standard normal (z), *not*
+#'   Student-t at `num.folds - 1` degrees of freedom. This deliberately
+#'   differs from [cf_perm()]'s `cross.fit = TRUE` path, which keeps the
+#'   `t_{K-1}` reference: a simulation study found that reference
+#'   stacked additional, avoidable conservatism on top of the NB SE's
+#'   own inherent inflation, suppressing the power/data-efficiency gain
+#'   cross-fitting is meant to deliver while Type-I error remained
+#'   comfortably under nominal either way; dropping only the reference
+#'   distribution (holding the NB SE formula fixed) preserves Type-I
+#'   control and recovers the power gain. Note the extra compute cost:
 #'   `num.folds * (p + 1)` model refits instead of `p + 1`.
 #' @param num.folds Integer. Number of cross-fit folds used when
 #'   `cross.fit = TRUE`; ignored otherwise. Default `5`. Must satisfy
@@ -142,7 +150,14 @@
 #' the Wilcoxon signed-rank test's validity assumes independent,
 #' symmetric-under-null differences, an assumption cross-fitted folds
 #' (which share overlapping training data) violate. Use
-#' `method = "z"` (the default) instead.
+#' `method = "z"` (the default) instead. Inference uses the
+#' Nadeau-Bengio corrected standard error referenced against the
+#' standard normal (z) rather than Student-t at `num.folds - 1` degrees
+#' of freedom -- a deliberate difference from [cf_perm()]'s
+#' `cross.fit = TRUE` path (which keeps the `t_{K-1}` reference): a
+#' simulation study found the `t_{K-1}` reference over-corrected on top
+#' of the NB SE's own inherent inflation, suppressing power without a
+#' meaningful further gain in Type-I control.
 #'
 #' **Group LOCO.** When `groups` is supplied, importance is computed
 #' jointly for each group: the reduced model omits all members of the
@@ -1037,8 +1052,35 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
 ## build CIs and emit warnings themselves (their conventions differ).
 ##
 ## `Psi` is a `num.folds x G` matrix of per-fold mean statistics; `n1`/`n2`
-## are per-fold train/test set sizes (length `num.folds`).
-.nb_ttest <- function(Psi, n1, n2) {
+## are per-fold train/test set sizes (length `num.folds`). The NB-corrected
+## standard error (`se`, via the `(1/K + rho)` inflation) does not depend on
+## `reference` -- only the reference distribution used for the one-sided
+## p-value (and, by callers, the CI half-width) changes.
+##
+## `reference = "t"` (the default) references the test statistic against
+## Student-t at `K - 1` df, exactly as originally derived (Nadeau & Bengio,
+## 2003). This default reproduces the pre-existing (pre-parameterization)
+## behavior bit-for-bit, so `cf_perm()`'s `.cf_perm_cv()` call site does not
+## need to change to keep its `t_{K-1}` reference.
+##
+## `reference = "z"` references the same test statistic against the
+## standard normal instead; `.loco_cv()` (below) uses this. A simulation
+## investigation found the NB SE is itself inflated by a K-invariant factor
+## (here `rho = 1/(K-1)` exactly, since fold sizes divide evenly; the
+## inflation converges to sqrt(2) as `K -> Inf`) that already guards against
+## between-fold dependence -- stacking the additionally heavy-tailed
+## `t_{K-1}` critical value on top of that SE inflation made cross-fit
+## LOCO's Type-I error far under nominal (0.2%-1.0% observed vs. a 10%
+## target across the cells tested) and suppressed the power / data-
+## efficiency gain that motivates cross-fitting in the first place.
+## Dropping only the reference distribution to z -- holding the NB SE
+## formula exactly fixed -- remains Type-I valid in every cell re-examined
+## (<= 1.0% observed) and recovers the power gain (FAIL -> PASS vs.
+## single-split LOCO in all cells re-examined). `cf_perm()` deliberately
+## keeps the `t_{K-1}` reference for its own `cross.fit = TRUE` path -- the
+## two functions intentionally diverge here; this is not an oversight.
+.nb_ttest <- function(Psi, n1, n2, reference = c("t", "z")) {
+  reference <- match.arg(reference)
   K    <- nrow(Psi)
   imp  <- colMeans(Psi, na.rm = TRUE)
   rho  <- mean(n2) / mean(n1)
@@ -1048,8 +1090,13 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
   zero.se <- !is.na(se) & se == 0
   t[zero.se] <- NA_real_
   df   <- K - 1L
-  pval <- stats::pt(t, df = df, lower.tail = FALSE)
-  list(imp = imp, se = se, t = t, pval = pval, df = df, zero.se = zero.se)
+  pval <- if (reference == "z") {
+    stats::pnorm(t, lower.tail = FALSE)
+  } else {
+    stats::pt(t, df = df, lower.tail = FALSE)
+  }
+  list(imp = imp, se = se, t = t, pval = pval, df = df, zero.se = zero.se,
+       reference = reference)
 }
 
 ## K-fold cross-fit split-sample LOCO (`cross.fit = TRUE`). For each fold,
@@ -1058,9 +1105,15 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
 ## importance estimate exactly once (across all folds combined), at the
 ## cost of `num.folds * (p + 1)` model refits instead of `p + 1`. The K
 ## per-fold statistics are not independent (models share overlapping
-## training folds), so inference uses the Nadeau-Bengio corrected t-test at
-## `num.folds - 1` degrees of freedom (mirroring `cf_perm()`'s
-## `cross.fit = TRUE` path) rather than the single-split Z-test.
+## training folds), so inference uses the Nadeau-Bengio corrected standard
+## error -- but referenced against the standard normal (z), not
+## Student-t at `num.folds - 1` degrees of freedom. This deliberately
+## differs from `cf_perm()`'s `cross.fit = TRUE` path (which keeps the
+## `t_{K-1}` reference): a simulation investigation found the t_{K-1}
+## reference stacks extra, avoidable conservatism on top of the NB SE's own
+## inherent inflation, suppressing power while Type-I stayed comfortably
+## under nominal either way. See `.nb_ttest()`'s comment above for the full
+## rationale.
 .loco_cv <- function(x, y_train, y_levels, pred.names, targets, target.names,
                      group_mode, hp.args, loss, tt, alpha, bonf.correct, seed,
                      backend, num.folds) {
@@ -1100,15 +1153,17 @@ oob_loss <- function(model, train.data, resp.name, pred.names, loss, tt,
     }
   }
 
-  agg <- .nb_ttest(Psi, n1, n2)
+  agg <- .nb_ttest(Psi, n1, n2, reference = "z")
   if (any(agg$zero.se)) {
     warning("loco(): zero cross-fit standard error for some variable(s)/group(s) ",
             "(identical fold importances); their p-values are set to NA. Use more ",
             "folds or a larger sample.", call. = FALSE)
   }
 
+  ## Reference is z/Normal (not t_{K-1}), holding the NB SE formula fixed --
+  ## see the rationale above `.loco_cv()` and in `.nb_ttest()`'s comment.
   alpha_eff <- if (bonf.correct) alpha / G else alpha
-  half <- stats::qt(1 - alpha_eff / 2, df = agg$df) * agg$se
+  half <- stats::qnorm(1 - alpha_eff / 2) * agg$se
   ci.lower <- agg$imp - half
   ci.upper <- agg$imp + half
   p.value  <- if (bonf.correct) pmin(1, agg$pval * G) else agg$pval

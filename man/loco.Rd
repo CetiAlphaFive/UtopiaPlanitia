@@ -94,10 +94,18 @@ Wilcoxon signed-rank validity assumes independent,
 symmetric-under-null differences, which cross-fitted folds
 violate) and errors if \code{split = FALSE} (cross-fitting only applies
 to split-sample LOCO, not OOB mode). Inference uses the
-Nadeau-Bengio corrected t-test at \code{num.folds - 1} degrees of
-freedom (mirroring \code{\link[=cf_perm]{cf_perm()}}'s \code{cross.fit = TRUE} path), because
-the \code{num.folds} per-fold statistics are not independent (models
-share overlapping training folds). Note the extra compute cost:
+Nadeau-Bengio corrected standard error (because the \code{num.folds}
+per-fold statistics are not independent -- models share overlapping
+training folds) referenced against the standard normal (z), \emph{not}
+Student-t at \code{num.folds - 1} degrees of freedom. This deliberately
+differs from \code{\link[=cf_perm]{cf_perm()}}'s \code{cross.fit = TRUE} path, which keeps the
+\verb{t_\{K-1\}} reference: a simulation study found that reference
+stacked additional, avoidable conservatism on top of the NB SE's
+own inherent inflation, suppressing the power/data-efficiency gain
+cross-fitting is meant to deliver while Type-I error remained
+comfortably under nominal either way; dropping only the reference
+distribution (holding the NB SE formula fixed) preserves Type-I
+control and recovers the power gain. Note the extra compute cost:
 \code{num.folds * (p + 1)} model refits instead of \code{p + 1}.}
 
 \item{num.folds}{Integer. Number of cross-fit folds used when
@@ -178,7 +186,14 @@ scoring. \code{method = "wilcox"} also errors under \code{cross.fit = TRUE}:
 the Wilcoxon signed-rank test's validity assumes independent,
 symmetric-under-null differences, an assumption cross-fitted folds
 (which share overlapping training data) violate. Use
-\code{method = "z"} (the default) instead.
+\code{method = "z"} (the default) instead. Inference uses the
+Nadeau-Bengio corrected standard error referenced against the
+standard normal (z) rather than Student-t at \code{num.folds - 1} degrees
+of freedom -- a deliberate difference from \code{\link[=cf_perm]{cf_perm()}}'s
+\code{cross.fit = TRUE} path (which keeps the \verb{t_\{K-1\}} reference): a
+simulation study found the \verb{t_\{K-1\}} reference over-corrected on top
+of the NB SE's own inherent inflation, suppressing power without a
+meaningful further gain in Type-I control.
 
 \strong{Group LOCO.} When \code{groups} is supplied, importance is computed
 jointly for each group: the reduced model omits all members of the
