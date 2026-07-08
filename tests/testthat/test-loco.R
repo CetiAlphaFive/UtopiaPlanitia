@@ -61,12 +61,12 @@ test_that("OOB mode returns the expected data-frame shape", {
   skip_if_no_ranger()
   bundle <- make_reg_model()
   out <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 1)
-  expect_s3_class(out, "data.frame")
-  expect_named(out, c("variable", "importance", "method", "loss"))
-  expect_setequal(out$variable, c("x1", "x2", "x3"))
-  expect_true(all(out$method == "oob"))
-  expect_true(all(out$loss == "abs"))
-  expect_equal(out$importance, sort(out$importance, decreasing = TRUE))
+  expect_s3_class(out, "loco_vimp")
+  expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper", "p.value"))
+  expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
+  expect_identical(out$method, "oob")
+  expect_identical(out$loss, "abs")
+  expect_equal(out$vimp$Importance, sort(out$vimp$Importance, decreasing = TRUE))
 })
 
 test_that("OOB mode is reproducible with the same seed", {
@@ -74,12 +74,12 @@ test_that("OOB mode is reproducible with the same seed", {
   bundle <- make_reg_model()
   o1 <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 42)
   o2 <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 42)
-  o1s <- o1[order(o1$variable), ]
-  o2s <- o2[order(o2$variable), ]
-  expect_equal(o1s$importance, o2s$importance)
+  o1s <- o1$vimp[order(o1$vimp$Variable), ]
+  o2s <- o2$vimp[order(o2$vimp$Variable), ]
+  expect_equal(o1s$Importance, o2s$Importance)
   o3 <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 999)
-  o3s <- o3[order(o3$variable), ]
-  expect_false(isTRUE(all.equal(o1s$importance, o3s$importance)))
+  o3s <- o3$vimp[order(o3$vimp$Variable), ]
+  expect_false(isTRUE(all.equal(o1s$Importance, o3s$Importance)))
 })
 
 test_that("OOB mode handles extra non-predictor columns in `data`", {
@@ -92,8 +92,8 @@ test_that("OOB mode handles extra non-predictor columns in `data`", {
   dat$y <- dat$x1 + rnorm(80, sd = 0.5)
   mod <- ranger::ranger(y ~ x1 + x2 + x3, data = dat, num.trees = 50)
   out <- loco(mod, split = FALSE, seed = 1)
-  expect_s3_class(out, "data.frame")
-  expect_setequal(out$variable, c("x1", "x2", "x3"))
+  expect_s3_class(out, "loco_vimp")
+  expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
 test_that("loco() rejects survival forests", {
@@ -133,7 +133,7 @@ test_that("OOB mode accepts factor predictors (ranger handles them natively)", {
   )
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = 50)
   out <- loco(mod, split = FALSE, seed = 1)
-  expect_setequal(out$variable, c("x1", "x2"))
+  expect_setequal(out$vimp$Variable, c("x1", "x2"))
 })
 
 test_that("split mode rejects factor predictors with a clear message", {
@@ -156,8 +156,8 @@ test_that("hyperparameter symbols evaluate in caller environment", {
   ntrees_local <- 40L
   mod <- ranger::ranger(y ~ ., data = dat, num.trees = ntrees_local)
   out <- loco(mod, split = FALSE, seed = 1)
-  expect_s3_class(out, "data.frame")
-  expect_setequal(out$variable, c("x1", "x2", "x3"))
+  expect_s3_class(out, "loco_vimp")
+  expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
 test_that("core hyperparameters survive being defined inside a function", {
@@ -171,7 +171,7 @@ test_that("core hyperparameters survive being defined inside a function", {
   }
   mod <- fit_in_fn(dat_outer)
   out <- loco(mod, data = dat_outer, split = FALSE, seed = 1)
-  expect_setequal(out$variable, c("x1", "x2", "x3"))
+  expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
 test_that("uncommon hyperparameter symbols that can't be resolved warn but continue", {
@@ -189,7 +189,7 @@ test_that("uncommon hyperparameter symbols that can't be resolved warn but conti
     out <- loco(mod, data = dat_outer, split = FALSE, seed = 1),
     "ignoring ranger argument"
   )
-  expect_setequal(out$variable, c("x1", "x2", "x3"))
+  expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
 test_that("x/y interface without dependent.variable.name errors clearly", {
@@ -213,7 +213,7 @@ test_that("x/y interface works when dependent.variable.name is supplied", {
                         dependent.variable.name = "y")
   dat <- data.frame(y = y, X)
   out <- loco(mod, data = dat, split = FALSE, seed = 1)
-  expect_setequal(out$variable, c("x1", "x2", "x3"))
+  expect_setequal(out$vimp$Variable, c("x1", "x2", "x3"))
 })
 
 test_that("split mode returns the expected columns and method tag", {
@@ -221,14 +221,14 @@ test_that("split mode returns the expected columns and method tag", {
   bundle <- make_reg_model(n = 120, trees = 100)
   out <- suppressWarnings(loco(bundle$mod, data = bundle$dat,
                                split = TRUE, seed = 1, method = "z"))
-  expect_s3_class(out, "data.frame")
-  expect_named(out, c("variable", "importance",
-                      "ci.lower", "ci.upper", "p.value", "method", "loss"))
-  expect_true(all(out$method == "z"))
-  expect_true(all(out$loss == "abs"))
-  expect_true(all(out$ci.lower <= out$ci.upper))
-  expect_equal(out$importance, (out$ci.lower + out$ci.upper) / 2)
-  expect_true(all(out$p.value >= 0 & out$p.value <= 1))
+  expect_s3_class(out, "loco_vimp")
+  expect_named(out$vimp, c("Variable", "Importance",
+                      "CI.lower", "CI.upper", "p.value"))
+  expect_identical(out$method, "z")
+  expect_identical(out$loss, "abs")
+  expect_true(all(out$vimp$CI.lower <= out$vimp$CI.upper))
+  expect_equal(out$vimp$Importance, (out$vimp$CI.lower + out$vimp$CI.upper) / 2)
+  expect_true(all(out$vimp$p.value >= 0 & out$vimp$p.value <= 1))
 })
 
 test_that("split mode supports method = 'wilcox'", {
@@ -236,9 +236,9 @@ test_that("split mode supports method = 'wilcox'", {
   bundle <- make_reg_model(n = 120, trees = 100)
   out <- suppressWarnings(loco(bundle$mod, data = bundle$dat,
                                split = TRUE, seed = 1, method = "wilcox"))
-  expect_true(all(out$method == "wilcox"))
-  expect_named(out, c("variable", "importance",
-                      "ci.lower", "ci.upper", "p.value", "method", "loss"))
+  expect_identical(out$method, "wilcox")
+  expect_named(out$vimp, c("Variable", "Importance",
+                      "CI.lower", "CI.upper", "p.value"))
 })
 
 test_that("bonf.correct = TRUE produces p-values at least as large as raw", {
@@ -248,9 +248,9 @@ test_that("bonf.correct = TRUE produces p-values at least as large as raw", {
                               seed = 1, method = "z", bonf.correct = TRUE))
   oB <- suppressWarnings(loco(bundle$mod, data = bundle$dat, split = TRUE,
                               seed = 1, method = "z", bonf.correct = FALSE))
-  oA <- oA[order(oA$variable), ]
-  oB <- oB[order(oB$variable), ]
-  expect_true(all(oA$p.value >= oB$p.value - 1e-12))
+  vA <- oA$vimp[order(oA$vimp$Variable), ]
+  vB <- oB$vimp[order(oB$vimp$Variable), ]
+  expect_true(all(vA$p.value >= vB$p.value - 1e-12))
 })
 
 test_that("alpha controls CI width monotonically", {
@@ -260,10 +260,10 @@ test_that("alpha controls CI width monotonically", {
                                     seed = 1, method = "z", alpha = 0.20))
   w_narrow <- suppressWarnings(loco(bundle$mod, data = bundle$dat, split = TRUE,
                                     seed = 1, method = "z", alpha = 0.01))
-  w_wide   <- w_wide[order(w_wide$variable), ]
-  w_narrow <- w_narrow[order(w_narrow$variable), ]
-  width_wide   <- w_wide$ci.upper - w_wide$ci.lower
-  width_narrow <- w_narrow$ci.upper - w_narrow$ci.lower
+  v_wide   <- w_wide$vimp[order(w_wide$vimp$Variable), ]
+  v_narrow <- w_narrow$vimp[order(w_narrow$vimp$Variable), ]
+  width_wide   <- v_wide$CI.upper - v_wide$CI.lower
+  width_narrow <- v_narrow$CI.upper - v_narrow$CI.lower
   expect_true(all(width_narrow >= width_wide - 1e-12))
 })
 
@@ -286,11 +286,11 @@ test_that("probability forest, OOB, auto-detects brier loss", {
   skip_if_no_ranger()
   b <- make_prob_model()
   out <- loco(b$mod, data = b$dat, split = FALSE, seed = 1)
-  expect_named(out, c("variable", "importance", "method", "loss"))
-  expect_true(all(out$loss == "brier"))
-  expect_setequal(out$variable, c("x1","x2","x3"))
+  expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper", "p.value"))
+  expect_identical(out$loss, "brier")
+  expect_setequal(out$vimp$Variable, c("x1","x2","x3"))
   ## x1 should beat x3 in importance
-  i <- setNames(out$importance, out$variable)
+  i <- setNames(out$vimp$Importance, out$vimp$Variable)
   expect_gt(i["x1"], i["x3"])
 })
 
@@ -299,17 +299,17 @@ test_that("probability forest, OOB, supports zero_one and log losses", {
   b <- make_prob_model()
   out_zo <- loco(b$mod, data = b$dat, split = FALSE, seed = 1, loss = "zero_one")
   out_lg <- loco(b$mod, data = b$dat, split = FALSE, seed = 1, loss = "log")
-  expect_true(all(out_zo$loss == "zero_one"))
-  expect_true(all(out_lg$loss == "log"))
-  expect_setequal(out_zo$variable, c("x1","x2","x3"))
+  expect_identical(out_zo$loss, "zero_one")
+  expect_identical(out_lg$loss, "log")
+  expect_setequal(out_zo$vimp$Variable, c("x1","x2","x3"))
 })
 
 test_that("classification forest, OOB, auto-detects zero_one loss", {
   skip_if_no_ranger()
   b <- make_clf_model()
   out <- loco(b$mod, data = b$dat, split = FALSE, seed = 1)
-  expect_true(all(out$loss == "zero_one"))
-  expect_setequal(out$variable, c("x1","x2","x3"))
+  expect_identical(out$loss, "zero_one")
+  expect_setequal(out$vimp$Variable, c("x1","x2","x3"))
 })
 
 test_that("classification forest rejects brier and log losses", {
@@ -345,20 +345,20 @@ test_that("probability forest, split mode, brier", {
   skip_if_no_ranger()
   b <- make_prob_model(n = 160, trees = 80)
   out <- loco(b$mod, data = b$dat, split = TRUE, seed = 1)
-  expect_named(out, c("variable","importance","ci.lower","ci.upper",
-                      "p.value","method","loss"))
-  expect_true(all(out$loss == "brier"))
-  expect_true(all(out$ci.lower <= out$ci.upper))
-  expect_true(all(out$p.value >= 0 & out$p.value <= 1))
+  expect_named(out$vimp, c("Variable","Importance","CI.lower","CI.upper",
+                      "p.value"))
+  expect_identical(out$loss, "brier")
+  expect_true(all(out$vimp$CI.lower <= out$vimp$CI.upper))
+  expect_true(all(out$vimp$p.value >= 0 & out$vimp$p.value <= 1))
 })
 
 test_that("classification forest, split mode, zero_one", {
   skip_if_no_ranger()
   b <- make_clf_model(n = 160, trees = 80)
   out <- loco(b$mod, data = b$dat, split = TRUE, seed = 1)
-  expect_true(all(out$loss == "zero_one"))
-  expect_true(all(out$method == "z"))
-  expect_true(all(out$ci.lower <= out$ci.upper))
+  expect_identical(out$loss, "zero_one")
+  expect_identical(out$method, "z")
+  expect_true(all(out$vimp$CI.lower <= out$vimp$CI.upper))
 })
 
 test_that("multi-class probability forest works with all loss choices", {
@@ -366,8 +366,8 @@ test_that("multi-class probability forest works with all loss choices", {
   b <- make_multi_prob_model(n = 150, trees = 60)
   for (lo in c("brier", "zero_one", "log")) {
     out <- loco(b$mod, data = b$dat, split = FALSE, seed = 1, loss = lo)
-    expect_true(all(out$loss == lo))
-    expect_setequal(out$variable, c("x1","x2","x3","x4"))
+    expect_identical(out$loss, lo)
+    expect_setequal(out$vimp$Variable, c("x1","x2","x3","x4"))
   }
 })
 
@@ -378,13 +378,13 @@ test_that("MSE loss on regression forest produces a result and differs from abs"
                 seed = 1, loss = "abs")
   o_mse <- loco(bundle$mod, data = bundle$dat, split = FALSE,
                 seed = 1, loss = "mse")
-  expect_true(all(o_mse$loss == "mse"))
-  expect_true(all(o_abs$loss == "abs"))
-  expect_setequal(o_abs$variable, o_mse$variable)
-  oa <- o_abs[order(o_abs$variable), ]
-  om <- o_mse[order(o_mse$variable), ]
+  expect_identical(o_mse$loss, "mse")
+  expect_identical(o_abs$loss, "abs")
+  expect_setequal(o_abs$vimp$Variable, o_mse$vimp$Variable)
+  oa <- o_abs$vimp[order(o_abs$vimp$Variable), ]
+  om <- o_mse$vimp[order(o_mse$vimp$Variable), ]
   ## They should differ (MSE inflates large residuals)
-  expect_false(isTRUE(all.equal(oa$importance, om$importance)))
+  expect_false(isTRUE(all.equal(oa$Importance, om$Importance)))
 })
 
 # ---- New: Group-LOCO ----------------------------------------------------
@@ -394,11 +394,14 @@ test_that("group-LOCO OOB returns one row per group, with members column", {
   bundle <- make_reg_model(n = 100, trees = 60)
   out <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 1,
               groups = list(g_x12 = c("x1","x2"), g_x3 = "x3"))
-  expect_named(out, c("variable", "importance", "method", "loss", "members"))
-  expect_setequal(out$variable, c("g_x12", "g_x3"))
-  expect_equal(length(out$members), 2L)
+  expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper",
+                      "p.value", "Members"))
+  expect_identical(out$method, "oob")
+  expect_identical(out$loss, "abs")
+  expect_setequal(out$vimp$Variable, c("g_x12", "g_x3"))
+  expect_equal(length(out$vimp$Members), 2L)
   ## The combined importance of (x1,x2) should exceed x3 alone.
-  i <- setNames(out$importance, out$variable)
+  i <- setNames(out$vimp$Importance, out$vimp$Variable)
   expect_gt(i["g_x12"], i["g_x3"])
 })
 
@@ -407,10 +410,10 @@ test_that("group-LOCO split returns CI / p.value with members", {
   bundle <- make_reg_model(n = 160, trees = 80)
   out <- loco(bundle$mod, data = bundle$dat, split = TRUE, seed = 1,
               groups = list(g_x12 = c("x1","x2"), g_x3 = "x3"))
-  expect_named(out, c("variable","importance","ci.lower","ci.upper",
-                      "p.value","method","loss","members"))
-  expect_setequal(out$variable, c("g_x12", "g_x3"))
-  expect_true(all(out$ci.lower <= out$ci.upper))
+  expect_named(out$vimp, c("Variable","Importance","CI.lower","CI.upper",
+                      "p.value","Members"))
+  expect_setequal(out$vimp$Variable, c("g_x12", "g_x3"))
+  expect_true(all(out$vimp$CI.lower <= out$vimp$CI.upper))
 })
 
 test_that("singleton groups in pred-name order equal per-variable LOCO (OOB)", {
@@ -419,9 +422,9 @@ test_that("singleton groups in pred-name order equal per-variable LOCO (OOB)", {
   per_var <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 1)
   singletons <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 1,
                      groups = list(x1 = "x1", x2 = "x2", x3 = "x3"))
-  per_var <- per_var[order(per_var$variable), ]
-  singletons <- singletons[order(singletons$variable), ]
-  expect_equal(singletons$importance, per_var$importance, tolerance = 1e-8)
+  per_var_v <- per_var$vimp[order(per_var$vimp$Variable), ]
+  singletons_v <- singletons$vimp[order(singletons$vimp$Variable), ]
+  expect_equal(singletons_v$Importance, per_var_v$Importance, tolerance = 1e-8)
 })
 
 test_that("character-vector groups arg becomes single unnamed group", {
@@ -429,9 +432,9 @@ test_that("character-vector groups arg becomes single unnamed group", {
   bundle <- make_reg_model(n = 80, trees = 50)
   out <- loco(bundle$mod, data = bundle$dat, split = FALSE, seed = 1,
               groups = c("x1","x2"))
-  expect_equal(nrow(out), 1L)
-  expect_equal(out$variable, "group1")
-  expect_equal(out$members[[1]], c("x1","x2"))
+  expect_equal(nrow(out$vimp), 1L)
+  expect_equal(out$vimp$Variable, "group1")
+  expect_equal(out$vimp$Members[[1]], c("x1","x2"))
 })
 
 test_that("group-LOCO validation: unknown member name errors", {
@@ -489,9 +492,10 @@ test_that("group-LOCO on probability forest with brier loss works", {
   b <- make_prob_model(n = 140, trees = 60)
   out <- loco(b$mod, data = b$dat, split = FALSE, seed = 1,
               groups = list(g_signal = c("x1","x2"), g_noise = "x3"))
-  expect_named(out, c("variable","importance","method","loss","members"))
-  expect_true(all(out$loss == "brier"))
-  i <- setNames(out$importance, out$variable)
+  expect_named(out$vimp, c("Variable","Importance","CI.lower","CI.upper",
+                      "p.value","Members"))
+  expect_identical(out$loss, "brier")
+  i <- setNames(out$vimp$Importance, out$vimp$Variable)
   expect_gt(i["g_signal"], i["g_noise"])
 })
 
@@ -500,10 +504,10 @@ test_that("group-LOCO + classification + split mode is wired end-to-end", {
   b <- make_prob_model(n = 160, trees = 60)
   out <- loco(b$mod, data = b$dat, split = TRUE, seed = 1,
               groups = list(g_signal = c("x1","x2"), g_noise = "x3"))
-  expect_named(out, c("variable","importance","ci.lower","ci.upper",
-                      "p.value","method","loss","members"))
-  expect_true(all(out$loss == "brier"))
-  expect_true(all(out$ci.lower <= out$ci.upper))
+  expect_named(out$vimp, c("Variable","Importance","CI.lower","CI.upper",
+                      "p.value","Members"))
+  expect_identical(out$loss, "brier")
+  expect_true(all(out$vimp$CI.lower <= out$vimp$CI.upper))
 })
 
 # ---- GOLD-vs-NEW verification: conformalInference migration ------------
@@ -632,17 +636,17 @@ test_that("GOLD-vs-NEW: method = 'z' exact match vs conformalInference (toleranc
                                    bonf.correct = sc$bonf.correct)
     gold <- gold_frame(gold_raw, sc$bundle$pred.names, method = "z")
 
-    new_out <- suppressWarnings(loco(
+    new_res <- suppressWarnings(loco(
       sc$bundle$mod, data = sc$bundle$dat, split = TRUE, method = "z",
       alpha = sc$alpha, bonf.correct = sc$bonf.correct, seed = sc$seed
     ))
-    new_out <- new_out[order(new_out$variable), ]
+    new_out <- new_res$vimp[order(new_res$vimp$Variable), ]
 
-    expect_equal(new_out$importance, gold$importance, tolerance = 1e-6,
+    expect_equal(new_out$Importance, gold$importance, tolerance = 1e-6,
                  info = sc$label)
-    expect_equal(new_out$ci.lower, gold$ci.lower, tolerance = 1e-6,
+    expect_equal(new_out$CI.lower, gold$ci.lower, tolerance = 1e-6,
                  info = sc$label)
-    expect_equal(new_out$ci.upper, gold$ci.upper, tolerance = 1e-6,
+    expect_equal(new_out$CI.upper, gold$ci.upper, tolerance = 1e-6,
                  info = sc$label)
     expect_equal(new_out$p.value, gold$p.value, tolerance = 1e-6,
                  info = sc$label)
@@ -664,28 +668,28 @@ test_that("GOLD-vs-NEW: method = 'wilcox' equivalence bar vs conformalInference"
                                    bonf.correct = sc$bonf.correct)
     gold_w <- gold_frame(gold_raw, sc$bundle$pred.names, method = "wilcox")
 
-    new_out <- suppressWarnings(loco(
+    new_res <- suppressWarnings(loco(
       sc$bundle$mod, data = sc$bundle$dat, split = TRUE, method = "wilcox",
       alpha = sc$alpha, bonf.correct = sc$bonf.correct, seed = sc$seed
     ))
-    new_out <- new_out[order(new_out$variable), ]
+    new_out <- new_res$vimp[order(new_res$vimp$Variable), ]
 
     ## 1. Significance-decision agreement (exact).
-    sig_new  <- new_out$variable[new_out$p.value < 0.10]
+    sig_new  <- new_out$Variable[new_out$p.value < 0.10]
     sig_gold <- gold_w$variable[gold_w$p.value < 0.10]
     expect_setequal(sig_new, sig_gold)
 
     ## 2. Ranking agreement (Spearman >= 0.9).
-    rho <- cor(new_out$importance, gold_w$importance, method = "spearman")
+    rho <- cor(new_out$Importance, gold_w$importance, method = "spearman")
     expect_gte(rho, 0.9)
 
     ## 3. Point-estimate / CI tolerance, calibrated by dataset size:
     ## FAKE (n=150) <= 0.02, REAL/mtcars (n=32) <= 0.08.
     tol <- if (identical(sc$dataset, "fake")) 0.02 else 0.08
     max_diff <- max(
-      abs(new_out$importance - gold_w$importance),
-      abs(new_out$ci.lower - gold_w$ci.lower),
-      abs(new_out$ci.upper - gold_w$ci.upper)
+      abs(new_out$Importance - gold_w$importance),
+      abs(new_out$CI.lower - gold_w$ci.lower),
+      abs(new_out$CI.upper - gold_w$ci.upper)
     )
     expect_lte(max_diff, tol)
   }
@@ -721,11 +725,11 @@ test_that("loss = 'mse' split mode is unaffected (never routed through conformal
   skip_if_no_ranger()
   fake <- make_fake_gold_data()
   out <- loco(fake$mod, data = fake$dat, split = TRUE, loss = "mse", seed = 1)
-  expect_true(is.data.frame(out))
-  expect_named(out, c("variable", "importance", "ci.lower", "ci.upper",
-                      "p.value", "method", "loss"))
-  expect_true(all(out$loss == "mse"))
-  expect_equal(nrow(out), 5L)
+  expect_s3_class(out, "loco_vimp")
+  expect_named(out$vimp, c("Variable", "Importance", "CI.lower", "CI.upper",
+                      "p.value"))
+  expect_identical(out$loss, "mse")
+  expect_equal(nrow(out$vimp), 5L)
 })
 
 # ---- API-stability (test-spec.md Sec 7) ---------------------------------

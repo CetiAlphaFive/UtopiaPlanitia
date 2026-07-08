@@ -56,3 +56,10 @@ reference:
       - summary.cf_perm
       - print.cf_perm
       - plot.cf_perm
+
+  - title: S3 Methods for loco
+    desc: Print, summary, and plot methods for loco() results (class loco_vimp).
+    contents:
+      - summary.loco_vimp
+      - print.loco_vimp
+      - plot.loco_vimp
