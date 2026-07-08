@@ -116,28 +116,25 @@ loco(
 
 ## Value
 
-A data frame sorted by descending importance with columns:
+An object of class `"loco_vimp"` with components:
 
-- variable:
+- vimp:
 
-  Covariate name, or group name when `groups` is supplied.
+  Data frame sorted by descending importance, with columns `Variable`
+  (covariate or group name), `Importance` (LOCO importance score),
+  `CI.lower`, `CI.upper` (confidence interval bounds; `NA` in OOB mode),
+  `p.value` (one-sided p-value testing H0: importance \\\le\\ 0; `NA` in
+  OOB mode), and, only when `groups` is supplied, `Members` (list-column
+  of character vectors naming each group's members).
 
-- importance:
+- n:
 
-  LOCO importance score. Split mode: mean (or Hodges-Lehmann
-  pseudo-median for Wilcoxon) of loss-residual differences
-  `L(reduced) - L(full)`. OOB mode: reduced-model OOB error minus
-  full-model OOB error.
+  Sample size.
 
-- ci.lower, ci.upper:
+- p:
 
-  Confidence interval bounds (split mode only).
-
-- p.value:
-
-  **One-sided** p-value testing H0: importance \\\le\\ 0 vs H1:
-  importance \\\>\\ 0 (split mode only). Bonferroni-corrected when
-  `bonf.correct = TRUE`.
+  Number of covariates in the fitted model (not the number of groups,
+  when `groups` is supplied).
 
 - method:
 
@@ -148,10 +145,26 @@ A data frame sorted by descending importance with columns:
   Loss function used (`"abs"`, `"mse"`, `"brier"`, `"zero_one"`, or
   `"log"`).
 
-- members:
+- split:
 
-  (group mode only) list-column of character vectors naming the members
-  of each group.
+  Logical; whether split-sample mode was used.
+
+- alpha:
+
+  The `alpha` argument value.
+
+- bonf.correct:
+
+  The `bonf.correct` argument value.
+
+- backend:
+
+  The detected model backend (`"ranger"`, `"grf_reg"`, `"grf_brf"`, or
+  `"grf_prob"`).
+
+- group:
+
+  Logical; whether group-LOCO was used.
 
 ## Details
 
@@ -261,6 +274,10 @@ R^2. *Journal of the American Statistical Association*, 116(536),
 
 [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
 for LOCO importance tailored to causal forests;
+[`print.loco_vimp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.loco_vimp.md),
+[`summary.loco_vimp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.loco_vimp.md),
+[`plot.loco_vimp()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.loco_vimp.md)
+for the object's S3 methods;
 [`ranger::ranger()`](http://imbs-hl.github.io/ranger/reference/ranger.md),
 [`grf::regression_forest()`](https://rdrr.io/pkg/grf/man/regression_forest.html),
 [`grf::boosted_regression_forest()`](https://rdrr.io/pkg/grf/man/boosted_regression_forest.html),
@@ -287,24 +304,42 @@ if (requireNamespace("ranger", quietly = TRUE)) {
   loco(mod_prob, split = FALSE)            # auto -> "brier"
   loco(mod_prob, split = FALSE, loss = "log")
 }
-#>   variable importance method loss
-#> 1       x2 0.09788476    oob  log
-#> 2       x3 0.07353345    oob  log
-#> 3       x1 0.02890264    oob  log
+#> LOCO Variable Importance
+#>   n = 100  p = 3  method = oob  loss = log 
+#>   Mode: OOB (no inference) 
+#> 
+#>  Variable Importance CI.lower CI.upper p.value
+#>        x2   0.097885       NA       NA      NA
+#>        x3   0.073533       NA       NA      NA
+#>        x1   0.028903       NA       NA      NA
 if (requireNamespace("grf", quietly = TRUE)) {
   set.seed(1995)
   X <- matrix(rnorm(100 * 3), 100, 3)
   colnames(X) <- c("x1", "x2", "x3")
   Y <- X[, 1] + 0.5 * X[, 2] + rnorm(100, sd = 0.5)
   rf <- grf::regression_forest(X, Y, num.trees = 100)
-  loco(rf, split = FALSE)                  # auto -> "abs"
+  vi <- loco(rf, split = FALSE)            # auto -> "abs"
+  summary(vi)
+  if (requireNamespace("ggplot2", quietly = TRUE)) plot(vi)
   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
   pf <- grf::probability_forest(X, Yf, num.trees = 100)
   loco(pf, split = FALSE)                  # auto -> "brier"
 }
-#>   variable  importance method  loss
-#> 1       x1 0.063156781    oob brier
-#> 2       x2 0.005360043    oob brier
-#> 3       x3 0.005281682    oob brier
+#> LOCO Variable Importance
+#>   n = 100  p = 3  method = oob  loss = abs 
+#>   Mode: OOB (no inference) 
+#> 
+#>  Variable Importance CI.lower CI.upper p.value
+#>        x1   0.435066       NA       NA      NA
+#>        x2   0.056702       NA       NA      NA
+#>        x3   0.002080       NA       NA      NA
+#> LOCO Variable Importance
+#>   n = 100  p = 3  method = oob  loss = brier 
+#>   Mode: OOB (no inference) 
+#> 
+#>  Variable Importance CI.lower CI.upper p.value
+#>        x1   0.063157       NA       NA      NA
+#>        x2   0.005360       NA       NA      NA
+#>        x3   0.005282       NA       NA      NA
 # }
 ```

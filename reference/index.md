@@ -83,3 +83,14 @@ Print, summary, and plot methods for PermuCATE results.
   : Print PermuCATE Variable Importance
 - [`plot(`*`<cf_perm>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_perm.md)
   : Plot PermuCATE Variable Importance
+
+## S3 Methods for loco
+
+Print, summary, and plot methods for loco() results (class loco_vimp).
+
+- [`summary(`*`<loco_vimp>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.loco_vimp.md)
+  : Summarize LOCO Variable Importance
+- [`print(`*`<loco_vimp>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/print.loco_vimp.md)
+  : Print LOCO Variable Importance
+- [`plot(`*`<loco_vimp>`*`)`](https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.loco_vimp.md)
+  : Plot LOCO Variable Importance

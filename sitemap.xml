@@ -16,6 +16,7 @@
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.causal_forest.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_loco.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.cf_perm.html</loc></url>
+<url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.loco_vimp.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot.omni_hetero.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_diag.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_pdp.html</loc></url>
@@ -23,6 +24,7 @@
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/plot_scatter.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/print.cf_loco.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/print.cf_perm.html</loc></url>
+<url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/print.loco_vimp.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/print.omni_hetero.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/print.summary.causal_forest.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/print.utopia_plot.html</loc></url>
@@ -30,6 +32,7 @@
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.causal_forest.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.cf_loco.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.cf_perm.html</loc></url>
+<url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/summary.loco_vimp.html</loc></url>
 <url><loc>https://cetialphafive.github.io/UtopiaPlanitia/reference/tabcf.html</loc></url>
 </urlset>
 

@@ -2,6 +2,60 @@
 
 ## UtopiaPlanitia (development version)
 
+### `loco()` gains `print`/`summary`/`plot` S3 methods
+
+- **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  has never been released, so this is a refinement of an in-development
+  feature, not a breaking change.**
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  now returns a classed object (an R list with a class attribute, not a
+  bare `data.frame`) carrying a `$vimp` data frame (`Variable`,
+  `Importance`, `CI.lower`, `CI.upper`, `p.value`, and — group mode only
+  — `Members`) plus scalar metadata (`n`, `p`, `method`, `loss`,
+  `split`, `alpha`, `bonf.correct`, `backend`, `group`). New
+  [`print()`](https://rdrr.io/r/base/print.html),
+  [`summary()`](https://rdrr.io/r/base/summary.html), and
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) methods (in
+  the new `R/loco_methods.R`) give
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  the same S3 experience
+  [`cf_loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_loco.md)
+  and
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)
+  already have: `loco(mod) |> plot()` returns a `ggplot`
+  variable-importance bar chart in the house style, and `|> summary()`
+  prints a formatted table with significance stars.
+  [`plot()`](https://rdrr.io/r/graphics/plot.default.html) draws a
+  two-sided confidence-interval whisker in split-sample mode
+  ([`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)’s
+  CIs have finite bounds on both sides, unlike
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)’s
+  one-sided permutation CI) and degrades gracefully in OOB mode (bars +
+  tip points only, no whisker, title gains “(OOB)”), since OOB mode
+  performs no inference.
+- **The S3 class is `loco_vimp`, not `loco`.** The obvious class name
+  `"loco"` was tried first but collides with the non-CRAN
+  `conformalInference` package’s own
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  return class and its `print.loco()` S3 method (`conformalInference` is
+  used only as a test-only correctness oracle in this package’s test
+  suite, never a runtime dependency); loading both packages’ namespaces
+  in one R session registered a conflicting `print.loco` method
+  (`Registered S3 method overwritten by 'conformalInference': print.loco`),
+  a real risk under this package’s `error_on = "warning"` CI
+  configuration. The class (and all three method names —
+  `print.loco_vimp`, `summary.loco_vimp`, `plot.loco_vimp`) was renamed
+  to `loco_vimp` to avoid the clash;
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)’s
+  exported function name, formals, defaults, and argument order are
+  completely unaffected.
+- Every existing
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  test that read the old bare-data.frame shape (`out$variable`,
+  `out$importance`, etc.) was rewritten to read the new `$vimp`-based
+  shape; no numeric tolerance, seed, or DGP changed — the underlying
+  computation is bit-identical to before this refinement.
+
 ### `loco()`’s split-mode inference is fully in-package (no `conformalInference` dependency)
 
 - **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
