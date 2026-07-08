@@ -63,7 +63,8 @@ Wrappers that fit a causal forest with non-default nuisance estimators (Y-hat, W
 | `cf_loco_methods.R` | `print.cf_loco`, `summary.cf_loco`, `plot.cf_loco` | S3 methods for LOCO objects |
 | `cf_perm.R` | `cf_perm()` | PermuCATE conditional-permutation variable importance (Paillard et al., 2025) — permutes rather than refits, reports one-sided p-values + CIs. `loss = "R"` (default, Robinson residual, uses forest `Y.hat`/`W.hat`) or `loss = "AIPW"` (`grf::get_scores()`); light path (default) scores forest in place, `cross.fit = TRUE` opts into K-fold refit with Nadeau-Bengio inference (R-loss only). Complements `cf_loco()` |
 | `cf_perm_methods.R` | `print.cf_perm`, `summary.cf_perm`, `plot.cf_perm` | S3 methods for PermuCATE objects |
-| `loco.R` | `loco()` | LOCO variable importance for ranger AND grf outcome forests (regression/probability/boosted); auto-detects backend from model class |
+| `loco.R` | `loco()` | LOCO variable importance for ranger AND grf outcome forests (regression/probability/boosted); auto-detects backend from model class; returns a classed `loco_vimp` object (`$vimp` + metadata) |
+| `loco_methods.R` | `print.loco_vimp`, `summary.loco_vimp`, `plot.loco_vimp` | S3 methods for `loco()` objects (class is `loco_vimp`, not `loco`, to avoid a clash with conformalInference's own `loco` class/`print.loco()`) |
 | `omni_hetero.R` | `omni_hetero()` | Omnibus HTE test battery (calibration, high/low CATE, RATE) |
 
 ### 3. Visualization
