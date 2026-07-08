@@ -2,6 +2,108 @@
 
 ## UtopiaPlanitia (development version)
 
+### `loco()` gains opt-in K-fold cross-fit split-sample inference
+
+- **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  has never been released, so this is an additive refinement, not a
+  breaking change.** Two new trailing arguments, `cross.fit = FALSE` and
+  `num.folds = 5L`, are appended after `verbose` — every existing formal
+  keeps its name, position, and default. `cross.fit = FALSE` (the
+  default) reproduces today’s single 50/50-split `loco_custom_split()`
+  output bit-for-bit; nothing about the default code path changed.
+- **What cross-fitting does.** A single split only ever evaluates
+  loss-residual differences on the held-out ~n/2 of the data. With
+  `cross.fit = TRUE`,
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  instead partitions the data into `num.folds` folds and, for each fold,
+  fits the full model and every reduced model on the other
+  `num.folds - 1` folds and evaluates on the held-out fold — so every
+  observation contributes to the importance estimate exactly once
+  (across all folds combined), at the cost of `num.folds * (p + 1)`
+  model refits instead of `p + 1`. Supported for per-variable and group
+  LOCO, for regression, probability, and classification forests (folds
+  are stratified by class in probability/classification mode), on both
+  the `ranger` and `grf` backends.
+- **Restrictions (both raise a clear, actionable error):**
+  `cross.fit = TRUE` requires `method = "z"` — `method = "wilcox"`
+  errors, because Wilcoxon’s signed-rank validity assumes independent
+  differences, which cross-fitted folds violate by construction (fold
+  statistics share overlapping training data). `cross.fit = TRUE` also
+  requires `split = TRUE` — OOB mode (`split = FALSE`) errors, since
+  cross-fitting is a refinement of split-sample inference, not of OOB
+  scoring. `num.folds` must satisfy `2 <= num.folds < n`, and in
+  probability/classification mode must not exceed the smallest class
+  count (folds are stratified by class); violations error before any
+  model is fit.
+- **Inference: Nadeau-Bengio corrected standard error, referenced
+  against the standard normal (z), not Student-t at `num.folds - 1`
+  degrees of freedom.** Because the `num.folds` per-fold statistics are
+  not independent (each pair of folds shares overlapping training data),
+  a naive Z-test on the pooled per-observation differences would be
+  anti-conservative, so cross-fit LOCO reuses the same Nadeau-Bengio
+  (NB) variance-inflation formula
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)’s
+  own `cross.fit = TRUE` path already implements (shared via a new
+  internal `.nb_ttest()` helper called by both functions). **This is
+  where
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)
+  and
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)
+  deliberately diverge:**
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)
+  keeps the `t_{K-1}` reference for its p-value and CI, but
+  [`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)’s
+  cross-fit path references the *same* NB-corrected standard error
+  against a standard normal instead. A dedicated Monte Carlo simulation
+  study found that stacking the heavy-tailed `t_{K-1}` critical value on
+  top of the NB correction’s own (K-invariant, by-design) variance
+  inflation pushed cross-fit LOCO’s Type-I error far under its nominal
+  level (0.2%-1.0% observed one-sided rejection rate at a 10% nominal
+  target, across `num.folds` in `{5, 10, 20}` and `n` in `{200, 500}`)
+  and, in the process, suppressed the very power/efficiency gain
+  cross-fitting is meant to deliver. Dropping only the reference
+  distribution to z — holding the NB standard-error formula completely
+  unchanged — remains comfortably Type-I valid everywhere re-tested
+  (highest observed rate 1.0% vs. the 10% nominal level) while
+  recovering a clear power advantage over the single split (see below).
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)’s
+  own `cross.fit = TRUE` path is untouched by this change and keeps its
+  `t_{K-1}` reference.
+- **Data efficiency: demonstrated by simulation, real but modest at
+  typical `n`, and specifically a power/inference-calibration gain
+  rather than a uniformly quieter point estimate.** Across a 7-cell,
+  ~2,700-call Monte Carlo study (`p = 4` covariates,
+  [`grf::regression_forest`](https://rdrr.io/pkg/grf/man/regression_forest.html),
+  `num.trees = 200`) plus a 10-cell follow-up investigation (`num.folds`
+  in `{5, 10, 20}`, `n` in `{200, 500}`), z-referenced cross-fit LOCO’s
+  empirical power exceeded single-split LOCO’s in every cell tested — by
+  5.3 to 15.7 percentage points — with the paired-sign-test advantage
+  reaching statistical significance in every cell (p-values
+  0.000003-0.025). Type-I error stayed comfortably controlled throughout
+  (at or below 1.0% against the 10% nominal level in every cell). The
+  raw point-estimate variance (`sd` of `Importance` across replicates)
+  does *not* show a uniformly favorable reduction relative to
+  single-split at `num.folds = 5` / `n <= 500` — the validated
+  efficiency gain is in calibrated inferential power, not necessarily a
+  dramatically quieter point estimate; documentation and examples
+  describe the gain in those terms rather than as an unqualified
+  variance reduction.
+- **Return object and metadata unchanged in shape.** `cross.fit = TRUE`
+  returns the same `loco_vimp` class and the same `$vimp` column set
+  (`Variable`, `Importance`, `CI.lower`, `CI.upper`, `p.value`, plus
+  `Members` in group mode) as ordinary split mode, with
+  `Importance == (CI.lower + CI.upper) / 2` holding exactly as before.
+  The object gains two new metadata fields, `$cross.fit` (logical) and
+  `$num.folds` (integer, `NA` unless `cross.fit = TRUE`);
+  [`print()`](https://rdrr.io/r/base/print.html) and
+  [`summary()`](https://rdrr.io/r/base/summary.html) note cross-fitting
+  and the fold count in the header only when `cross.fit = TRUE`, and are
+  silent (identical to before) otherwise.
+- **No new dependency.** Cross-fit inference uses only
+  [`stats::pnorm`](https://rdrr.io/r/stats/Normal.html)/
+  [`stats::qnorm`](https://rdrr.io/r/stats/Normal.html) (already used
+  elsewhere in the package); `DESCRIPTION`’s `Imports:` is unchanged.
+
 ### `loco()` gains `print`/`summary`/`plot` S3 methods
 
 - **[`loco()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/loco.md)

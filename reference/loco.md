@@ -23,7 +23,9 @@ loco(
   groups = NULL,
   bonf.correct = TRUE,
   seed = 1995,
-  verbose = FALSE
+  verbose = FALSE,
+  cross.fit = FALSE,
+  num.folds = 5L
 )
 ```
 
@@ -114,6 +116,39 @@ loco(
   conformal-inference code path that has been removed; any value is
   accepted and has no effect on the computation or the return value.
 
+- cross.fit:
+
+  Logical. If `TRUE`, uses K-fold cross-fitting instead of a single
+  50/50 split, so every observation contributes to the importance
+  estimate exactly once (across the `num.folds` held-out folds) rather
+  than only the held-out half. Default `FALSE` (single split, exactly as
+  before). Only used when `split = TRUE`; requires `method = "z"`
+  (errors otherwise – Wilcoxon signed-rank validity assumes independent,
+  symmetric-under-null differences, which cross-fitted folds violate)
+  and errors if `split = FALSE` (cross-fitting only applies to
+  split-sample LOCO, not OOB mode). Inference uses the Nadeau-Bengio
+  corrected standard error (because the `num.folds` per-fold statistics
+  are not independent – models share overlapping training folds)
+  referenced against the standard normal (z), *not* Student-t at
+  `num.folds - 1` degrees of freedom. This deliberately differs from
+  [`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)'s
+  `cross.fit = TRUE` path, which keeps the `t_{K-1}` reference: a
+  simulation study found that reference stacked additional, avoidable
+  conservatism on top of the NB SE's own inherent inflation, suppressing
+  the power/data-efficiency gain cross-fitting is meant to deliver while
+  Type-I error remained comfortably under nominal either way; dropping
+  only the reference distribution (holding the NB SE formula fixed)
+  preserves Type-I control and recovers the power gain. Note the extra
+  compute cost: `num.folds * (p + 1)` model refits instead of `p + 1`.
+
+- num.folds:
+
+  Integer. Number of cross-fit folds used when `cross.fit = TRUE`;
+  ignored otherwise. Default `5`. Must satisfy `2 <= num.folds < n`; in
+  probability/classification mode, folds are additionally stratified by
+  class and `num.folds` must not exceed the smallest class count (plain
+  random folds in regression mode).
+
 ## Value
 
 An object of class `"loco_vimp"` with components:
@@ -166,6 +201,16 @@ An object of class `"loco_vimp"` with components:
 
   Logical; whether group-LOCO was used.
 
+- cross.fit:
+
+  Logical; whether K-fold cross-fitting was used (always `FALSE` unless
+  explicitly requested via `cross.fit = TRUE`).
+
+- num.folds:
+
+  Integer number of cross-fit folds, or `NA` when `cross.fit` is
+  `FALSE`.
+
 ## Details
 
 Two modes:
@@ -198,6 +243,22 @@ Small p-values indicate the covariate helps prediction.
   `"zero_one"` only. To use Brier or log-loss, refit with
   `probability = TRUE` (ranger) or use
   [`grf::probability_forest()`](https://rdrr.io/pkg/grf/man/probability_forest.html).
+
+**Cross-fit LOCO (`cross.fit = TRUE`).** Only applies to split-sample
+mode (`split = TRUE`); `split = FALSE` (OOB) errors, since cross-fitting
+is a refinement of split-sample inference, not of OOB scoring.
+`method = "wilcox"` also errors under `cross.fit = TRUE`: the Wilcoxon
+signed-rank test's validity assumes independent, symmetric-under-null
+differences, an assumption cross-fitted folds (which share overlapping
+training data) violate. Use `method = "z"` (the default) instead.
+Inference uses the Nadeau-Bengio corrected standard error referenced
+against the standard normal (z) rather than Student-t at `num.folds - 1`
+degrees of freedom – a deliberate difference from
+[`cf_perm()`](https://cetialphafive.github.io/UtopiaPlanitia/reference/cf_perm.md)'s
+`cross.fit = TRUE` path (which keeps the `t_{K-1}` reference): a
+simulation study found the `t_{K-1}` reference over-corrected on top of
+the NB SE's own inherent inflation, suppressing power without a
+meaningful further gain in Type-I control.
 
 **Group LOCO.** When `groups` is supplied, importance is computed
 jointly for each group: the reduced model omits all members of the group
@@ -324,6 +385,11 @@ if (requireNamespace("grf", quietly = TRUE)) {
   Yf <- factor(rbinom(100, 1, plogis(X[, 1])))
   pf <- grf::probability_forest(X, Yf, num.trees = 100)
   loco(pf, split = FALSE)                  # auto -> "brier"
+
+  # K-fold cross-fit split-sample LOCO: uses every observation once
+  # (across folds) instead of only the held-out half of a single
+  # split, at the cost of num.folds * (p + 1) model refits.
+  loco(rf, split = TRUE, cross.fit = TRUE, num.folds = 5)
 }
 #> LOCO Variable Importance
 #>   n = 100  p = 3  method = oob  loss = abs 
@@ -334,12 +400,13 @@ if (requireNamespace("grf", quietly = TRUE)) {
 #>        x2   0.056702       NA       NA      NA
 #>        x3   0.002080       NA       NA      NA
 #> LOCO Variable Importance
-#>   n = 100  p = 3  method = oob  loss = brier 
-#>   Mode: OOB (no inference) 
+#>   n = 100  p = 3  method = z  loss = abs 
+#>   Mode: split-sample 
+#>   (cross-fit, num.folds = 5 )
 #> 
-#>  Variable Importance CI.lower CI.upper p.value
-#>        x1   0.063157       NA       NA      NA
-#>        x2   0.005360       NA       NA      NA
-#>        x3   0.005282       NA       NA      NA
+#>  Variable Importance    CI.lower   CI.upper  p.value sig
+#>        x1   0.400812  0.22884597 0.57277764 1.06e-06 ***
+#>        x2   0.018294 -0.03627220 0.07286048 7.13e-01    
+#>        x3  -0.014892 -0.04562118 0.01583718 1.00e+00    
 # }
 ```
