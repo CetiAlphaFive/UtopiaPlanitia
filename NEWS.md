@@ -1,5 +1,19 @@
 # UtopiaPlanitia (development version)
 
+## GATES for causal forests (`gates()`, `plot_gates()`)
+
+* **`gates()`** estimates Chernozhukov et al. (2020) Sorted Group Average
+  Treatment Effects on an already-fitted `grf::causal_forest()`. Units are
+  sorted by out-of-bag CATE predictions, split into quantile groups (default
+  quartiles), and group effects are recovered via the weighted GATES
+  regression (classic or Horvitz-Thompson path). Returns a `"cf_gates"`
+  object with `$groups`, `$diff` (e.g. `G4-G1`), and an overall `$ate` for
+  plotting. Binary treatment only.
+* **`plot_gates()`** draws a point-and-interval plot by group with optional
+  overall ATE reference lines, using the package PDP theme and `utopia_plot`
+  printing. **`print.cf_gates()` / `summary.cf_gates()`** provide tabular
+  output.
+
 ## `loco()` gains opt-in K-fold cross-fit split-sample inference
 
 * **`loco()` has never been released, so this is an additive refinement, not

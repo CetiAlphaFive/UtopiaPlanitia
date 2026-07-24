@@ -24,6 +24,10 @@ reference:
     desc: Omnibus battery of treatment effect heterogeneity tests.
     contents:
       - omni_hetero
+      - gates
+      - plot_gates
+      - print.cf_gates
+      - summary.cf_gates
       - print.omni_hetero
       - plot.omni_hetero
 
