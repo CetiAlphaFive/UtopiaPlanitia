@@ -8,8 +8,11 @@
 #' @export
 print.cf_gates <- function(x, ...) {
   cat("Sorted Group Average Treatment Effects (GATES)\n")
-  cat("  n =", x$n, " K =", x$K,
+  cat("  n =", x$n,
+      if (isTRUE(x$cross.fit)) paste0(" (eval n = ", x$eval.n, ")") else "",
+      " K =", x$K,
       " HT =", x$HT,
+      " cross.fit =", x$cross.fit,
       " conf.level =", x$conf.level, "\n")
   cat("  Quantile cutoffs:", paste(format(x$quantile.cutoffs, digits = 3),
                                    collapse = ", "), "\n\n")
@@ -21,8 +24,11 @@ print.cf_gates <- function(x, ...) {
   g$upper    <- round(g$upper, 6)
   g$p.left   <- signif(g$p.left, 3)
   g$p.right  <- signif(g$p.right, 3)
-  cat("Group effects (lowest to highest predicted CATE):\n")
-  print(g[, c("group", "estimate", "std.err", "lower", "upper")],
+  g$p.left.adj  <- signif(g$p.left.adj, 3)
+  g$p.right.adj <- signif(g$p.right.adj, 3)
+  cat("Group effects:\n")
+  print(g[, c("group", "estimate", "std.err", "lower", "upper",
+              "p.left", "p.right", "p.left.adj", "p.right.adj")],
         row.names = FALSE)
 
   if (nrow(x$diff) > 0L) {
@@ -31,8 +37,9 @@ print.cf_gates <- function(x, ...) {
     d$std.err  <- round(d$std.err, 6)
     d$lower    <- round(d$lower, 6)
     d$upper    <- round(d$upper, 6)
+    d$p.right.adj <- signif(d$p.right.adj, 3)
     cat("\nDifferenced targets:\n")
-    print(d[, c("group", "estimate", "std.err", "lower", "upper")],
+    print(d[, c("group", "estimate", "std.err", "lower", "upper", "p.right.adj")],
           row.names = FALSE)
   }
 

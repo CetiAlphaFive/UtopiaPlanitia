@@ -8,6 +8,7 @@ gates(
   c.forest,
   quantile.cutoffs = c(0.25, 0.5, 0.75),
   HT = FALSE,
+  cross.fit = FALSE,
   subtract.from = c("most", "least"),
   subtracted = 1,
   monotonize = TRUE,
@@ -20,15 +21,21 @@ gates(
 
 \item{quantile.cutoffs}{Numeric vector of interior quantile cutoffs in
 \eqn{(0, 1)}, strictly increasing. Default \code{c(0.25, 0.5, 0.75)} yields
-four quartile groups (\code{G1}--\code{G4}). Group \code{G1} is the lowest
-predicted-CATE slice; \code{GK} is the highest.}
+four quartile groups (\code{G1}--\code{G4}). With \code{monotonize = FALSE},
+\code{G1} is the lowest predicted-CATE quantile slice and \code{GK} the highest.
+With \code{monotonize = TRUE}, labels are rearranged so \code{G1} is the
+smallest group effect and \code{GK} the largest (GenericML convention).}
 
-\item{HT}{Logical. If \code{TRUE}, apply the Horvitz-Thompson (GATES2)
-transformation from Chernozhukov et al. (2020). Default \code{FALSE}.}
+\item{HT}{Logical. If \code{TRUE}, estimate groups via the Horvitz-Thompson
+GATES regression (GATES2) instead of grf subgroup ATEs. Default \code{FALSE}.}
+
+\item{cross.fit}{Logical. If \code{TRUE}, form CATE groups with a 50/50
+cross-fit (forest on A, group by predicted CATE on B, ATEs on B with a
+forest trained only on B) instead of OOB predictions from \code{c.forest}.
+Default \code{FALSE}. Ignored when \code{HT = TRUE}.}
 
 \item{subtract.from}{Character scalar, either \code{"most"} (default) or
-\code{"least"}. Controls which group anchors differenced generic targets
-(e.g. \code{GK - G1} when \code{"most"} and \code{subtracted = 1}).}
+\code{"least"}. Controls which group anchors differenced generic targets.}
 
 \item{subtracted}{Integer vector of group indices to difference against the
 anchor group. Default \code{1} yields \code{GK - G1} when
@@ -36,46 +43,52 @@ anchor group. Default \code{1} yields \code{GK - G1} when
 
 \item{monotonize}{Logical. If \code{TRUE} (default), rearrange group point
 estimates and confidence bounds to be monotonically increasing following
-Chernozhukov, Fernandez-Val, and Galichon (2009).}
+Chernozhukov, Fernandez-Val, and Galichon (2009). Differenced targets are
+computed \strong{after} monotonization so they match the printed/plotted table.}
 
 \item{conf.level}{Confidence level for two-sided intervals. Default \code{0.95}.}
 
-\item{seed}{Integer seed for the quantile-group tie-break path when many
-predicted CATEs are tied. Default \code{1995}.}
+\item{seed}{Integer seed for fold assignment and quantile-group tie-breaks.
+Default \code{1995}.}
 }
 \value{
 An object of class \code{"cf_gates"} with components:
 \describe{
-\item{groups}{Data frame of per-group GATES estimates (\code{G1..GK}) with
-\code{estimate}, \code{std.err}, \code{lower}, \code{upper},
-\code{p.left}, and \code{p.right}.}
-\item{diff}{Data frame of differenced generic targets (e.g. \code{G4-G1}).}
-\item{ate}{List from \code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}} on the full sample
-(used by \code{\link[=plot_gates]{plot_gates()}} for the reference line).}
-\item{membership}{Logical matrix of group indicators (columns = group labels).}
-\item{quantile.cutoffs, HT, monotonize, conf.level, n, K}{Metadata.}
+\item{groups}{Data frame per \code{G1..GK}: grf subgroup \code{estimate} /
+\code{std.err} (or GATES regression when \code{HT = TRUE}), CIs,
+one-sided \code{p.left}, \code{p.right}, and GenericML-style adjusted
+\code{p.left.adj}, \code{p.right.adj}.}
+\item{diff}{Differenced targets consistent with \code{groups}.}
+\item{ate}{Overall ATE from \code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}} (reference line).}
+\item{membership}{Logical group matrix (full \code{n} when \code{cross.fit = FALSE},
+evaluation half only when \code{cross.fit = TRUE}).}
+\item{cross.fit, HT, monotonize, conf.level, quantile.cutoffs, n, K, eval.n}{Metadata.}
 }
 }
 \description{
 Estimates Chernozhukov et al. (2018) Sorted Group Average Treatment Effects
-using a fitted \code{grf} causal forest. Units are sorted by the forest's
-out-of-bag CATE predictions, partitioned into quantile groups, and group-level
-average effects are estimated via the weighted GATES regression of Chernozhukov
-et al. (2020).
+using a fitted \code{grf} causal forest. Units are sorted by predicted CATE
+(out-of-bag by default, or cross-fitted when \code{cross.fit = TRUE}),
+partitioned into quantile groups, and group-level effects are estimated with
+\code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}} on each subset. Differenced targets use the
+same group table (after optional monotonization). When \code{HT = TRUE}, the
+Horvitz-Thompson GATES regression path is used instead (no grf subgroup ATEs).
 }
 \details{
-\strong{Proxies.} The GATES regression uses the forest's Robinson-residual nuisances
-and OOB CATE predictions as GenericML proxies: \eqn{\hat m(X) =} \code{Y.hat},
-\eqn{\hat e(X) =} \code{W.hat}, and \eqn{\hat S(X) =} OOB \code{predictions}.
-The \eqn{X_1} block defaults to the baseline proxy \code{B} only (GenericML
-default \code{setup_X1(funs_Z = "B")}).
+\strong{Group effects (default path).} Each \code{Gk} reports
+\code{grf::average_treatment_effect(c.forest, subset = G_k)} — doubly robust
+subgroup ATEs with grf's analytical standard errors (honoring \code{clusters}
+and \code{sample.weights} stored on the forest). These are not identical to
+the GATES regression \eqn{\gamma_k} coefficients, but share the same quantile
+grouping by predicted CATE and are the package-native way to attach valid grf
+inference to sorted bins.
 
-\strong{Scope.} This is a single-forest, in-sample scoring path (like \code{\link[=cf_perm]{cf_perm()}}
-or the BLP payload in \code{\link[=omni_hetero]{omni_hetero()}}), not the full GenericML auxiliary/main
-sample-splitting and median aggregation over many splits. Use for exploratory
-heterogeneity summaries on an already-fitted forest.
+\strong{OOB vs cross-fit.} By default, groups use OOB \code{predictions} from the
+supplied forest (same-sample scoring; exploratory). \code{cross.fit = TRUE}
+separates grouping from ATE estimation to reduce winner's-curse optimism on
+contrasts such as \code{GK - G1}.
 
-\strong{Treatment.} Binary \code{W} only (\code{length(unique(W)) == 2}).
+\strong{Treatment.} Binary \code{W} coded \code{0/1} only.
 }
 \examples{
 \donttest{
@@ -96,10 +109,6 @@ Chernozhukov, V., Demirer, M., Duflo, E., and Fernandez-Val, I. (2020).
 Generic Machine Learning Inference on Heterogeneous Treatment Effects in
 Randomized Experiments. \emph{Econometrica}, forthcoming.
 \doi{10.3982/ECTA19303}
-
-Chernozhukov, V., Fernandez-Val, I., and Galichon, A. (2009). Improving
-Point and Interval Estimators of Monotone Functions by Rearrangement.
-\emph{Biometrika}, 96(3), 559--575. \doi{10.1093/biomet/asp030}
 }
 \seealso{
 \code{\link[=plot_gates]{plot_gates()}}, \code{\link[=omni_hetero]{omni_hetero()}}, \code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}}

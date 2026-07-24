@@ -2,17 +2,18 @@
 
 ## GATES for causal forests (`gates()`, `plot_gates()`)
 
-* **`gates()`** estimates Chernozhukov et al. (2020) Sorted Group Average
-  Treatment Effects on an already-fitted `grf::causal_forest()`. Units are
-  sorted by out-of-bag CATE predictions, split into quantile groups (default
-  quartiles), and group effects are recovered via the weighted GATES
-  regression (classic or Horvitz-Thompson path). Returns a `"cf_gates"`
-  object with `$groups`, `$diff` (e.g. `G4-G1`), and an overall `$ate` for
-  plotting. Binary treatment only.
+* **`gates()`** estimates Chernozhukov-style Sorted Group Average Treatment
+  Effects on a fitted `grf::causal_forest()`. Units are sorted into quantile
+  groups by predicted CATE (OOB by default); **group effects and standard errors
+  come from `grf::average_treatment_effect()` on each subset** (honoring forest
+  `clusters` / `sample.weights`). Differenced targets (e.g. `G4-G1`) are built
+  after optional monotonization so print/plot/`$diff` stay consistent. Reports
+  raw and GenericML-style adjusted one-sided p-values. **`cross.fit = TRUE`**
+  adds a 50/50 honest grouping path; **`HT = TRUE`** switches to the weighted
+  GATES regression for users who want the HT transform.
 * **`plot_gates()`** draws a point-and-interval plot by group with optional
-  overall ATE reference lines, using the package PDP theme and `utopia_plot`
-  printing. **`print.cf_gates()` / `summary.cf_gates()`** provide tabular
-  output.
+  overall ATE reference lines. **`print.cf_gates()` / `summary.cf_gates()`**
+  provide tabular output. Binary `W` must be coded `0/1`.
 
 ## `loco()` gains opt-in K-fold cross-fit split-sample inference
 
