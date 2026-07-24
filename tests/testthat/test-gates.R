@@ -47,6 +47,14 @@ test_that("gates() rejects invalid quantile.cutoffs", {
   expect_error(gates(cf, quantile.cutoffs = c(0, 0.5)), "values in \\(0, 1\\)")
 })
 
+test_that("gates() rejects degenerate least-anchor contrast", {
+  cf <- make_hetero_cf()
+  expect_error(
+    gates(cf, subtract.from = "least", subtracted = 1),
+    "G1-G1 is degenerate"
+  )
+})
+
 test_that("cross.fit path runs and sets eval.n", {
   cf <- make_hetero_cf()
   g <- gates(cf, cross.fit = TRUE, seed = 1995)

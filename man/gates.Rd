@@ -88,6 +88,10 @@ supplied forest (same-sample scoring; exploratory). \code{cross.fit = TRUE}
 separates grouping from ATE estimation to reduce winner's-curse optimism on
 contrasts such as \code{GK - G1}.
 
+\strong{Contrasts (default path).} Differenced targets use a score-based standard
+error for two disjoint subgroup ATEs from the same forest (cluster- and
+weight-aware, analogous to \code{\link[grf:average_treatment_effect]{grf::average_treatment_effect()}}).
+
 \strong{Treatment.} Binary \code{W} coded \code{0/1} only.
 }
 \examples{

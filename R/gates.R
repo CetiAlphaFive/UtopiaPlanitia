@@ -61,6 +61,10 @@
 #' separates grouping from ATE estimation to reduce winner's-curse optimism on
 #' contrasts such as \code{GK - G1}.
 #'
+#' **Contrasts (default path).** Differenced targets use a score-based standard
+#' error for two disjoint subgroup ATEs from the same forest (cluster- and
+#' weight-aware, analogous to [grf::average_treatment_effect()]).
+#'
 #' **Treatment.** Binary \code{W} coded \code{0/1} only.
 #'
 #' @references
@@ -128,6 +132,7 @@ gates <- function(c.forest,
     )
     membership <- fit$membership
     eval_n <- n
+    ate_forest <- c.forest
   } else if (isTRUE(cross.fit)) {
     fit <- .gates_crossfit(
       c.forest = c.forest,
@@ -140,12 +145,9 @@ gates <- function(c.forest,
     )
     membership <- fit$membership
     eval_n <- fit$eval.n
+    ate_forest <- fit$ate.forest
   } else {
-    propensity_scores <- c.forest$W.hat
-    if (any(propensity_scores <= 0 | propensity_scores >= 1, na.rm = TRUE)) {
-      stop("Propensity scores must lie strictly in (0, 1). ",
-           "Check overlap or refit with propensity clipping.", call. = FALSE)
-    }
+    .gates_warn_extreme_propensity(c.forest)
     membership <- .gates_quantile_group(c.forest$predictions, quantile.cutoffs)
     fit <- .gates_fit_grf(
       c.forest = c.forest,
@@ -156,15 +158,13 @@ gates <- function(c.forest,
       conf.level = conf.level
     )
     eval_n <- n
+    ate_forest <- c.forest
   }
 
   K <- ncol(membership)
-  if (any(subtracted >= K)) {
-    stop("All entries of subtracted must be less than the number of groups (K = ",
-         K, ").", call. = FALSE)
-  }
+  .gates_check_subtracted(subtract.from, subtracted, K)
 
-  ate <- grf::average_treatment_effect(c.forest)
+  ate <- grf::average_treatment_effect(ate_forest)
   z_ate <- stats::qnorm(1 - (1 - conf.level) / 2)
   ate_ci <- list(
     estimate = ate[["estimate"]],
@@ -224,6 +224,20 @@ gates <- function(c.forest,
   if (!is.numeric(subtracted) || !all(subtracted == round(subtracted)) ||
         any(subtracted < 1)) {
     stop("subtracted must be a vector of positive integers.", call. = FALSE)
+  }
+}
+
+#' @keywords internal
+#' @noRd
+.gates_check_subtracted <- function(subtract.from, subtracted, K) {
+  if (any(subtracted >= K)) {
+    stop("All entries of subtracted must be less than the number of groups (K = ",
+         K, ").", call. = FALSE)
+  }
+  if (subtract.from == "least" && any(subtracted == 1L)) {
+    stop("gates(): with subtract.from = \"least\", subtracted cannot include 1 ",
+         "(G1-G1 is degenerate). Use subtract.from = \"most\" for GK-G1 contrasts.",
+         call. = FALSE)
   }
 }
 
@@ -325,8 +339,92 @@ gates <- function(c.forest,
 
 #' @keywords internal
 #' @noRd
+.gates_observation_weights <- function(c.forest) {
+  grf:::observation_weights(c.forest)
+}
+
+#' @keywords internal
+#' @noRd
+.gates_warn_extreme_propensity <- function(c.forest, context = "gates()") {
+  ps <- c.forest$W.hat
+  if (any(ps <= 0 | ps >= 1, na.rm = TRUE)) {
+    warning(context, ": propensity estimates touch 0 or 1; grf subgroup ",
+            "ATEs and score-based contrasts may be unstable. ",
+            "Consider refitting with overlap trimming or propensity clipping.",
+            call. = FALSE)
+  }
+}
+
+#' Cluster-robust variance for GATES regression (sandwich on cluster sums).
+#' @keywords internal
+#' @noRd
+.gates_lm_vcov <- function(lm_obj, clusters) {
+  if (is.null(clusters) || length(clusters) == 0L) {
+    return(stats::vcov(lm_obj))
+  }
+  X <- stats::model.matrix(lm_obj)
+  res <- stats::residuals(lm_obj)
+  w <- stats::weights(lm_obj)
+  if (is.null(w)) w <- rep(1, nrow(X))
+  cl <- as.factor(clusters)
+  meat <- crossprod(
+    vapply(split(seq_len(nrow(X)), cl), function(ii) {
+      colSums(X[ii, , drop = FALSE] * res[ii] * w[ii])
+    }, numeric(ncol(X)))
+  )
+  XtWX <- crossprod(X * sqrt(w))
+  bread <- tryCatch(
+    solve(XtWX),
+    error = function(e) {
+      stop("gates(): GATES regression design is singular under cluster-robust ",
+           "inference. Use coarser quantile.cutoffs or increase n.",
+           call. = FALSE)
+    }
+  )
+  bread %*% meat %*% bread
+}
+
+#' Score-based SE for a contrast of two disjoint subgroup ATEs (grf-style).
+#' @keywords internal
+#' @noRd
+.gates_grf_contrast_se <- function(c.forest, sub_hi, sub_lo, tau_hi, tau_lo) {
+  scores <- grf::get_scores(c.forest)
+  w <- .gates_observation_weights(c.forest)
+  cls <- if (length(c.forest$clusters) == 0L) {
+    seq_along(scores)
+  } else {
+    c.forest$clusters
+  }
+
+  w_hi <- w * sub_hi
+  w_lo <- w * sub_lo
+  Wh <- sum(w_hi)
+  Wl <- sum(w_lo)
+  if (Wh <= 0 || Wl <= 0) {
+    stop("gates(): contrast groups are empty after weighting.", call. = FALSE)
+  }
+
+  inf <- rep(0, length(scores))
+  inf[sub_hi] <- (scores[sub_hi] - tau_hi) * w[sub_hi] / Wh
+  inf[sub_lo] <- inf[sub_lo] - (scores[sub_lo] - tau_lo) * w[sub_lo] / Wl
+
+  cluster_sums <- rowsum(inf, cls, reorder = FALSE)
+  active <- rowSums(abs(cluster_sums)) > 0
+  n_adj <- sum(active)
+  if (n_adj < 2L) {
+    stop("gates(): contrast requires at least two clusters with support.",
+         call. = FALSE)
+  }
+  se2 <- sum(cluster_sums^2) * n_adj / (n_adj - 1L)
+  sqrt(se2)
+}
+
+#' @keywords internal
+#' @noRd
 .gates_diff_from_groups <- function(groups_df, subtract.from, subtracted,
-                                    conf.level, vcov_gamma = NULL) {
+                                    conf.level, vcov_gamma = NULL,
+                                    c.forest = NULL, membership = NULL,
+                                    quantile_ix = NULL) {
   K <- nrow(groups_df)
   z <- stats::qnorm(1 - (1 - conf.level) / 2)
 
@@ -340,12 +438,27 @@ gates <- function(c.forest,
       i_lo <- j
       lab <- paste0("G", K, "-G", j)
     }
+    if (i_hi == i_lo) {
+      stop("gates(): differenced target ", lab, " is degenerate (same group). ",
+           "Choose a different `subtracted` index.", call. = FALSE)
+    }
     diff_est <- groups_df$estimate[i_hi] - groups_df$estimate[i_lo]
     if (!is.null(vcov_gamma)) {
       v11 <- vcov_gamma[i_hi, i_hi]
       vjj <- vcov_gamma[i_lo, i_lo]
       v1j <- vcov_gamma[i_hi, i_lo]
       diff_se <- sqrt(v11 + vjj - 2 * v1j)
+    } else if (!is.null(c.forest) && !is.null(membership) &&
+               !is.null(quantile_ix)) {
+      q_hi <- quantile_ix[i_hi]
+      q_lo <- quantile_ix[i_lo]
+      diff_se <- .gates_grf_contrast_se(
+        c.forest,
+        membership[, q_hi],
+        membership[, q_lo],
+        groups_df$estimate[i_hi],
+        groups_df$estimate[i_lo]
+      )
     } else {
       diff_se <- sqrt(groups_df$std.err[i_hi]^2 + groups_df$std.err[i_lo]^2)
     }
@@ -408,12 +521,17 @@ gates <- function(c.forest,
   }
 
   groups_df <- .gates_add_pcols(do.call(rbind, rows))
+  groups_df$quantile.ix <- seq_len(K)
   if (isTRUE(monotonize)) {
     groups_df <- .gates_monotonize_table(groups_df)
   }
   diff_df <- .gates_diff_from_groups(
-    groups_df, subtract.from, subtracted, conf.level
+    groups_df, subtract.from, subtracted, conf.level,
+    c.forest = c.forest,
+    membership = membership,
+    quantile_ix = groups_df$quantile.ix
   )
+  groups_df$quantile.ix <- NULL
 
   list(groups = groups_df, diff = diff_df, membership = membership)
 }
@@ -502,7 +620,9 @@ gates <- function(c.forest,
     monotonize = monotonize,
     conf.level = conf.level
   )
+  .gates_warn_extreme_propensity(cf_B, "gates(cross.fit = TRUE)")
   fit$eval.n <- length(idx_B)
+  fit$ate.forest <- cf_B
   fit
 }
 
@@ -519,6 +639,12 @@ gates <- function(c.forest,
   if (any(propensity_scores <= 0 | propensity_scores >= 1, na.rm = TRUE)) {
     stop("Propensity scores must lie strictly in (0, 1) for GATES regression. ",
          "Check overlap or refit with propensity clipping.", call. = FALSE)
+  }
+
+  cls <- if (length(c.forest$clusters) == 0L) NULL else c.forest$clusters
+  if (!is.null(c.forest$sample.weights) && isTRUE(c.forest$equalize.cluster.weights)) {
+    stop("gates(): sample.weights with equalize.cluster.weights = TRUE is ",
+         "not supported by grf.", call. = FALSE)
   }
 
   membership <- .gates_quantile_group(proxy_CATE, quantile.cutoffs)
@@ -566,13 +692,13 @@ gates <- function(c.forest,
     )
   }
 
-  vcov_mat <- stats::vcov(gates.obj)
+  vcov_mat <- .gates_lm_vcov(gates.obj, cls)
   vcov_gamma <- vcov_mat[gammanam, gammanam, drop = FALSE]
 
   z <- stats::qnorm(1 - (1 - conf.level) / 2)
-  estimates <- coef_mat[gammanam, "Estimate", drop = TRUE]
-  ses <- coef_mat[gammanam, "Std. Error", drop = TRUE]
-  zvals <- coef_mat[gammanam, "z value", drop = TRUE]
+  estimates <- coef(gates.obj)[gammanam]
+  ses <- sqrt(diag(vcov_gamma))
+  zvals <- estimates / ses
 
   groups_df <- data.frame(
     group = paste0("G", seq_len(K)),
