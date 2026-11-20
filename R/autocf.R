@@ -1000,6 +1000,11 @@ autocf <- function(c.forest,
 
   fit <- do.call(tabpfn::tab_pfn,
                  c(list(x = X_train, y = y_train), fold_args))
+  # Release the fitted model's GPU memory on exit; see .tabpfn_free_gpu().
+  on.exit({
+    rm(fit)
+    .tabpfn_free_gpu()
+  }, add = TRUE)
   pr <- stats::predict(fit, X_test)
 
   if (family == "binomial") {
