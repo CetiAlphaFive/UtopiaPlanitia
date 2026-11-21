@@ -27,6 +27,7 @@ Suggests:
   MLbalance (>= 0.1.0),
   ranger,
   tabpfn,
+  reticulate,
   glmnet,
   xgboost,
   dbarts,

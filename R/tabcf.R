@@ -630,6 +630,32 @@ tabcf <- function(c.forest,
 #' @keywords internal
 #' @noRd
 #' @description
+#' Free the GPU memory held by TabPFN models that R no longer references.
+#' Each fitted TabPFN model keeps its own copy of the weights on the GPU
+#' (~0.8 GiB for TabPFN-3.5), but R sees only a small external pointer, so
+#' R's garbage collector feels no pressure and dropped fits are not freed
+#' until some unrelated allocation triggers a collection. `tabcf()` makes
+#' `2 * K * R` fits back to back, so without this they pile up and exhaust
+#' GPU memory. `gc()` finalizes the dropped Python objects; emptying
+#' PyTorch's CUDA cache then returns the freed blocks to the device, so
+#' later fits of a different size are not refused for fragmentation. The
+#' cache step is skipped unless Python and CUDA are already initialized,
+#' and never errors. Only memory is affected, never predictions.
+.tabpfn_free_gpu <- function() {
+  gc(verbose = FALSE)
+  if (requireNamespace("reticulate", quietly = TRUE) &&
+      reticulate::py_available(initialize = FALSE)) {
+    try({
+      torch <- reticulate::import("torch")
+      if (isTRUE(torch$cuda$is_initialized())) torch$cuda$empty_cache()
+    }, silent = TRUE)
+  }
+  invisible(NULL)
+}
+
+#' @keywords internal
+#' @noRd
+#' @description
 #' Fit a single TabPFN model (regressor or classifier) on `(X_train,
 #' y_train)` and predict on `X_test`. Single clean code path against the
 #' `tabpfn` 0.1.0 API: one S3 generic `tabpfn::tab_pfn(x, y, ...)` plus
@@ -666,6 +692,13 @@ tabcf <- function(c.forest,
     tabpfn::tab_pfn,
     c(list(x = X_train, y = y_train), tabpfn_args)
   )
+  # Release this fit's GPU memory as soon as we return; see
+  # .tabpfn_free_gpu(). `fit` must be removed first, because on.exit() runs
+  # while this frame (and so `fit`) is still alive.
+  on.exit({
+    rm(fit)
+    .tabpfn_free_gpu()
+  }, add = TRUE)
 
   pr <- stats::predict(fit, X_test)
 

@@ -1,5 +1,22 @@
 # UtopiaPlanitia (development version)
 
+## `tabcf()` and `autocf()` release GPU memory after every TabPFN fit
+
+* **Bug fix, no change to results or API.** Each fitted TabPFN model keeps its
+  own copy of the weights on the GPU (~0.8 GiB for TabPFN-3.5), but R only
+  holds a small external pointer to it, so R's garbage collector had no reason
+  to run and the fitted models were not freed when they went out of scope.
+  One `tabcf()` call makes `2 * K * R` fits back to back, so these piled up and
+  could exhaust GPU memory (CUDA out of memory) even on small problems,
+  within a single call or over repeated calls in a simulation loop.
+  `.tabcf_fit_predict()` and `autocf()`'s TabPFN candidate now drop the fitted
+  model as soon as its predictions are extracted, run `gc()`, and (when CUDA
+  is in use) call `torch.cuda.empty_cache()` through `reticulate`, so later
+  fits of a different size are not refused for allocator fragmentation.
+  Calling `gc()` between `tabcf()` calls was not enough, because the fits
+  pile up inside a single call. `reticulate` (already required by `tabpfn`)
+  is added to Suggests.
+
 ## `loco()` gains opt-in K-fold cross-fit split-sample inference
 
 * **`loco()` has never been released, so this is an additive refinement, not

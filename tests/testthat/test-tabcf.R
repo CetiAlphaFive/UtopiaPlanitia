@@ -563,3 +563,26 @@ test_that(".tabcf_crossfit_once aborts on non-finite output", {
     "repeat 2"
   )
 })
+
+# --- GPU / memory release ----------------------------------------------------
+
+test_that(".tabpfn_free_gpu is a silent no-op without an initialized Python", {
+  expect_null(UtopiaPlanitia:::.tabpfn_free_gpu())
+  expect_silent(UtopiaPlanitia:::.tabpfn_free_gpu())
+})
+
+test_that("tabcf releases every fitted TabPFN model (gated)", {
+  skip_if_not_installed("tabpfn")
+  skip_if_not_installed("reticulate")
+  skip_if(!nzchar(Sys.getenv("TABPFN_TOKEN")),
+          "TABPFN_TOKEN not set; skipping TabPFN-dependent test")
+  # Regression test: fitted models used to stay alive until R happened to
+  # collect, pinning a copy of the TabPFN weights per fit.
+  cf <- make_small_cf(n = 60)
+  out <- tabcf(cf, K = 2)
+  n_live <- reticulate::py_eval(paste0(
+    "sum(type(o).__name__ in ('TabPFNRegressor', 'TabPFNClassifier') ",
+    "for o in __import__('gc').get_objects())"
+  ))
+  expect_equal(n_live, 0L)
+})
