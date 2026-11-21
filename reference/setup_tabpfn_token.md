@@ -59,7 +59,7 @@ Behaviour:
 
 - Otherwise the function prints short instructions, optionally opens a
   browser, prompts for the token (using
-  [`askpass::askpass()`](https://r-lib.r-universe.dev/askpass/reference/askpass.html)
+  [`askpass::askpass()`](https://rdrr.io/pkg/askpass/man/askpass.html)
   if available), validates it, sets the environment variable for the
   current session, and optionally appends it to `~/.Renviron`.
 
